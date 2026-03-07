@@ -1,216 +1,161 @@
-# OmniMentor — Scenario-Based Onboarding with Deliberate Practice
+# OmniMentor Learning Solution
 
-A local-first, academic learning application for evidence-driven, rubric-based scoring of scenario submissions using vector retrieval, graph traversal, and GraphRAG evaluation modes.
+> A proposal-aligned, scenario-based learning platform for evidence-first technical decision making.
 
-## Privacy & Data Policy
+OmniMentor helps learners practice the exact skills that matter in real engineering work: ownership routing, dependency reasoning, blast-radius planning, and evidence-backed claims.
 
-⚠️ **HARD STOP**: This is an academic-only repository.
-- **NO Walmart data, no company infra details, no personal information**
-- Synthetic scenarios and benchmarks only
-- `.env` and database files are gitignored and must never be committed
+## Why This Repo Stands Out
 
-## Prerequisites
+- **Evidence-first by design**: unsupported claims are detected and penalized.
+- **Transparent scoring**: rubric and metrics are explicit, not hidden.
+- **Reproducible evaluation**: smoke/eval outputs are generated as machine-readable artifacts.
+- **Proposal-aligned execution**: current scope tracks Phase 1 goals, with deviations logged when needed.
 
-- macOS (or Linux/Windows with similar tooling)
-- Git, Node.js 20+, pnpm, sqlite3
+## Week 1 Snapshot
 
-### Install (Homebrew — macOS)
+- Flow A spine implemented and running end-to-end.
+- Core quality/runtime gates repeatedly passing.
+- API root (`GET /`) now returns service metadata for immediate browser validation.
+- Week 1 report artifacts generated and tracked in verification logs.
+
+## First 5 Minutes
+
+### Prerequisites
+
+- Git
+- Node.js 20+
+- pnpm
+- sqlite3
+
+macOS setup:
 
 ```bash
 brew update
 brew install git node pnpm sqlite
 ```
 
-Verify:
-```bash
-git --version   # Git 2.50+
-node --version  # v24+ or v25+
-pnpm --version  # 10.30+
-sqlite3 --version  # 3.51+
-```
-
-## Setup
-
-### 1. Clone & Install
+### Install
 
 ```bash
 git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
 cd OmniMentor-Learning-Solution
 pnpm install
-```
-
-### 2. Environment (copy template, never commit)
-
-```bash
 cp .env.example .env
-# Edit .env locally with your paths/settings
 ```
 
-### 3. Database (Phase 1)
+### Run
 
-```bash
-mkdir -p data
-# Database is created on first run (schema in services/api)
-```
-
-## Run (Development)
-
-### API Server
+API:
 
 ```bash
 pnpm --filter @omnimentor/api dev
 ```
 
-Verify health:
-```bash
-curl -s http://localhost:3001/health
-```
-
-### Web UI
+Web:
 
 ```bash
 pnpm --filter @omnimentor/web dev
 ```
 
-Open the printed localhost URL and verify scenario list loads.
-
-## Verification Gates (Phase 1)
-
-These **must pass** before marking work "done":
+Quick checks:
 
 ```bash
-pnpm lint      # Lint all packages
-pnpm test      # Run unit tests (gating, scoring, metrics)
-pnpm typecheck # TypeScript strict mode
-pnpm smoke     # End-to-end smoke test (1 scenario → report)
+curl -s http://localhost:3001/
+curl -s http://localhost:3001/health
 ```
 
-### Quality Checks
+## Verification (Proof, Not Claims)
+
+Run all core gates:
 
 ```bash
-pnpm audit    # Baseline security audit
-```
-
-### E2E Smoke Test
-
-```bash
+pnpm lint
+pnpm test
+pnpm typecheck
+pnpm build
 pnpm smoke
-```
-
-Expected output (Phase 1):
-- Fetch scenarios ✓
-- Create a submission ✓
-- Score it (gating + rubric) ✓
-- sqlite rows persisted ✓
-- report written to `reports/week1/` ✓
-
-### Database Inspection (sqlite)
-
-```bash
-sqlite3 ./data/omnimentor.db ".tables"
-sqlite3 ./data/omnimentor.db "select count(*) from submissions;"
-sqlite3 ./data/omnimentor.db "select count(*) from score_reports;"
-```
-
-### Reports
-
-```bash
-ls -la reports/week1
-```
-
-## Benchmark & Evaluation (Phase 1+)
-
-### Run Benchmark (scaffold; Phase 1 => JSON + CSV)
-
-```bash
 pnpm eval
+pnpm audit
 ```
 
-Outputs:
-- `reports/week1/ablation-run-*.json` — detailed results per mode
-- `reports/week1/ablation-summary.csv` — metrics table (vector, graph, graphrag, graphrag+gating)
+Interpretation:
+- `lint`, `test`, `typecheck`, `build`: static/build integrity.
+- `smoke`: runtime end-to-end flow.
+- `eval`: ablation report generation.
+- `audit`: dependency risk baseline.
 
-### Metrics Tracked
+## Current User Flow (Flow A)
 
-- Owner routing accuracy
-- Dependency trace accuracy (directionality)
-- Blast radius completeness
-- Evidence relevance
-- Unsupported-claim rate
-- Critical error rate
+1. Open scenario.
+2. Inspect evidence artifacts.
+3. Submit owner routing, dependency trace, action plan, blast radius, and evidence notes.
+4. Run scoring with evidence gating + rubric + metrics.
+5. Persist and review report output.
 
-## Repo Structure
+## API Surface
 
+- `GET /`
+- `GET /health`
+- `GET /scenarios`
+- `GET /scenarios/:id`
+- `GET /evidence?scenarioId=:id`
+- `POST /submissions`
+- `POST /score`
+- `POST /ablation/run`
+
+## Evaluation Modes
+
+- `vector`
+- `graph`
+- `graphrag`
+- `graphrag_gating`
+
+## Output Artifacts
+
+- `reports/week1/smoke-*.json`
+- `services/api/reports/week1/ablation-run-*.json`
+- `services/api/reports/week1/ablation-summary.csv`
+
+## Safety And Data Policy
+
+Academic-only and synthetic-only usage:
+- No personal data
+- No company/internal data
+- No secrets in source control
+- No real production logs
+
+## Documentation
+
+- `docs/architecture.md`: architecture and design
+- `docs/architecture-presentation.md`: condensed architecture for demos and walkthroughs
+- `docs/quickstart.md`: setup + first successful run
+- `docs/verification.md`: test/verification playbook
+- `docs/review-guide.md`: structured review checklist
+
+## Repository Map
+
+```text
+apps/web                  # React UI
+services/api              # REST API + sqlite persistence
+packages/core             # types, gating, scoring, metrics
+packages/retrieval        # retrieval interfaces + scaffolds
+datasets/synth-corpus     # synthetic artifacts and graph data
+benchmarks                # scenarios + gold labels
+reports                   # generated outputs
+deploy/local              # local deployment assets
+deploy/enterprise         # future enterprise overlays
+docs                      # architecture + quickstart + verification guides
+scripts                   # smoke + evaluation runners
 ```
-/apps/web                  # React UI (Vite)
-/services/api              # Node.js REST API
-/packages/core             # Types, scoring, gating, rubric
-/packages/retrieval        # Retrieval interfaces (vector, graph, graphrag)
-/datasets/synth-corpus     # Synthetic scenarios + graph nodes/edges
-/benchmarks                # Gold-labeled scenarios (12 planned; Phase 1: 1)
-/reports                   # Generated outputs (gitignored; sample keeper)
-/deploy/local              # Local dev/deploy scripts
-/deploy/enterprise         # Enterprise overlay (Phase 2+)
-/docs                      # architecture.md only
-/scripts                   # smoke, eval runners
-```
 
-## Architecture
+## Roadmap
 
-See [docs/architecture.md](docs/architecture.md) for detailed Mermaid diagram and layer explanation.
+- Expand benchmarks toward full 12-scenario coverage.
+- Deepen retrieval-mode validation across all ablation modes.
+- Add stronger integration/UI checks for stable learning journeys.
+- Continue tightening explainability and reproducibility.
 
-### Flow A (Phase 1 Spine)
+## Contribution Standard
 
-```
-Scenario prompt
-  ↓
-Evidence panel (mark primary/corroborating artifacts)
-  ↓
-Structured submission (dependencies, action plan, blast radius)
-  ↓
-Gating check (claims supported by evidence?)
-  ↓
-Rubric scoring + metrics
-  ↓
-Report (feedback with gold-aligned explanations)
-```
-
-### Evaluation: 4 Retrieval Modes
-
-1. **Vector-only** — embedding-based searches
-2. **Graph-only** — neighbor traversal, bounded depth
-3. **GraphRAG** — graph + context assembly
-4. **GraphRAG + Gating** — graph + evidence requirements
-
-## CI/CD
-
-See [.github/workflows/ci.yml](.github/workflows/ci.yml).
-
-Current: `pnpm lint`, `test`, `typecheck`, `build`, `pnpm audit`, `smoke` on push.
-
-## Verification Log
-
-See [VERIFICATION_LOG.md](VERIFICATION_LOG.md) for session-by-session tracking.
-
-## Phase Plan
-
-### Phase 1 (Week 1) — In Progress ✅
-- [x] Repo scaffold + docs
-- [x] Flow A spine (1 scenario e2e)
-- [ ] sqlite persistence
-- [ ] Evidence gating v1 + scoring unit tests
-- [ ] Benchmark scaffold (1 scenario + gold labels)
-- [ ] scripts/smoke + scripts/eval_run
-- [ ] CI green
-
-### Phase 2+ (Later)
-- Vector baseline retrieval
-- Graph baseline retrieval
-- GraphRAG context builder
-- GraphRAG + gating regression tests
-- UI E2E tests (Playwright)
-- Full 12-scenario benchmark
-
----
-
-**Questions?** See `PROJECT_CONTEXT.md` for continuity notes and `docs/architecture.md` for design details.
+- Keep changes focused and traceable.
+- Prefer reproducibility and clarity over complexity.

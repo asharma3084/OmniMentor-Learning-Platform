@@ -20,6 +20,7 @@ pnpm-lock.yaml
 logs/
 reports/**
 !reports/week1/.gitkeep
+services/api/reports/**
 data/
 
 # IDE & OS
@@ -33,9 +34,21 @@ data/
 # Process manager
 .pm2/
 
-# Sensitive data (Walmart, personal, company-internal)
+# Sensitive data (personal, company-internal)
 # Do NOT commit:
 # - .env with real tokens/credentials
 # - Raw deployment configs, infra details
 # - Employee lists, personal identifiers
-# - Internal Walmart data
+# - Internal company data
+
+# Personal office artifacts
+personal/**
+personal/*.docx
+personal/~$*.docx
+personal/.DS_Store
+
+# Office document exports (never commit)
+*.doc
+*.docx
+*.odt
+*.rtf

@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "build": "pnpm --filter=./apps --filter=./services run build",
+    "build": "pnpm --filter @omnimentor/api --filter @omnimentor/web run build",
     "dev": "concurrently 'pnpm --filter @omnimentor/api dev' 'pnpm --filter @omnimentor/web dev'",
     "smoke": "tsx scripts/smoke.ts",
     "eval": "tsx scripts/eval_run.ts"
@@ -20,19 +20,14 @@
     "@typescript-eslint/parser": "^8.0.0",
     "concurrently": "^9.0.0",
     "eslint": "^8.50.0",
+    "tsx": "^4.4.0",
     "typescript": "^5.3.0",
-    "vitest": "^2.0.0",
-    "tsx": "^4.4.0"
+    "vitest": "^4.0.18"
   },
   "pnpm": {
     "overrides": {},
     "peerDependencyRules": {
       "ignoreMissing": []
     }
-  },
-  "workspaces": [
-    "apps/*",
-    "services/*",
-    "packages/*"
-  ]
+  }
 }

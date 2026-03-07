@@ -1,317 +1,258 @@
-# OmniMentor — Architecture & Design
+# OmniMentor Architecture
 
-**Version**: 1.0 (Phase 1)
-**Last Updated**: 2026-03-07
+Version: 2.0
+Last Updated: 2026-03-07
+Scope: Proposal-aligned baseline (Phase 1 complete, Phase 2+ planned)
 
-## System Overview
+## 1. Architecture Goals
 
-OmniMentor is a scenario-based onboarding deliberate-practice application that evaluates user submissions against rubric-based scoring, evidence gating, and gold-labeled benchmarks. The system supports multiple retrieval modes to investigate the impact of evidence-driven feedback on learning outcomes.
+OmniMentor is designed to support deliberate technical practice through:
+- Scenario-based problem solving.
+- Evidence-first reasoning and claim validation.
+- Rubric-driven scoring with transparent metrics.
+- Reproducible evaluation across retrieval strategies.
 
-## Data Flow Diagram
+This architecture follows the project proposal as the baseline. Any future deviations must be documented in local session notes and summarized in weekly check-ins.
+
+## 2. High-Level System Architecture
+
+```mermaid
+flowchart TB
+  %% ---------- Clients ----------
+  U["Learner / Reviewer"]
+  W["Web App\napps/web\nReact + Vite"]
+
+  %% ---------- API ----------
+  A["API Service\nservices/api\nNode + Express"]
+
+  %% ---------- Core ----------
+  C["Core Engine\npackages/core\nGating + Scoring + Metrics"]
+  R["Retrieval Layer\npackages/retrieval\nVector | Graph | GraphRAG | GraphRAG+Gating"]
+
+  %% ---------- Data ----------
+  DB[("SQLite\n./data/omnimentor.db")]
+  DS["Synthetic Corpus\ndatasets/synth-corpus"]
+  BM["Benchmark + Gold Labels\nbenchmarks"]
+
+  %% ---------- Outputs ----------
+  REP["Reports\nreports/week1\nservices/api/reports/week1\nJSON + CSV"]
+
+  U --> W
+  W -->|REST| A
+
+  A --> C
+  A --> R
+  A --> DB
+
+  R --> DS
+  C --> BM
+  C --> DB
+
+  A --> REP
+  C --> REP
+
+  %% ---------- Class styling ----------
+  classDef client fill:#FFF3E0,stroke:#E65100,color:#3E2723,stroke-width:2px;
+  classDef ui fill:#E3F2FD,stroke:#1565C0,color:#0D47A1,stroke-width:2px;
+  classDef api fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20,stroke-width:2px;
+  classDef core fill:#F3E5F5,stroke:#7B1FA2,color:#4A148C,stroke-width:2px;
+  classDef data fill:#FFFDE7,stroke:#F9A825,color:#5D4037,stroke-width:2px;
+  classDef output fill:#FCE4EC,stroke:#C2185B,color:#880E4F,stroke-width:2px;
+
+  class U client;
+  class W ui;
+  class A api;
+  class C,R core;
+  class DB,DS,BM data;
+  class REP output;
+```
+
+## 3. Flow A Runtime (Proposal Spine)
+
+Flow A is the primary implementation path for Week 1.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant L as Learner
+  participant UI as Web App
+  participant API as API Service
+  participant CORE as Core Engine
+  participant DB as SQLite
+
+  L->>UI: Open scenario
+  UI->>API: GET /scenarios/:id
+  API->>DB: Read scenario + artifacts
+  DB-->>API: Scenario payload
+  API-->>UI: Scenario + evidence list
+
+  L->>UI: Select evidence + fill submission
+  UI->>API: POST /submissions
+  API->>DB: Persist submission
+  DB-->>API: submissionId
+  API-->>UI: submissionId
+
+  UI->>API: POST /score (submissionId)
+  API->>DB: Load submission + gold labels
+  API->>CORE: gateSubmission + rubric scoring
+  CORE-->>API: gating, metrics, overall score
+  API->>DB: Persist score_report
+  API-->>UI: Feedback response
+
+  UI-->>L: Rubric, critical errors, explanations
+```
+
+## 4. Evaluation And Ablation Pipeline
+
+This aligns to proposal requirement for mode comparison:
+- `vector`
+- `graph`
+- `graphrag`
+- `graphrag_gating`
 
 ```mermaid
 flowchart LR
-  U[User] -->|Scenario ID| W["apps/web<br/>(React + Vite)"]
-  W -->|REST API| A["services/api<br/>(Node.js)"]
-  E["POST /submissions<br/>POST /score"]
-  W --> E
-  A --> E
-  
-  A -->|evidence<br/>gating<br/>scoring| C["packages/core<br/>Gating + Scoring<br/>+ Rubric"]
-  A -->|retrieve<br/>context| R["packages/retrieval<br/>Vector / Graph /<br/>GraphRAG"]
-  
-  R -->|fetch<br/>candidates| SC["datasets/synth-corpus<br/>(artifacts + graph)"]
-  SC --> D[("./data/<br/>omnimentor.db<br/>(sqlite)")]
-  A --> D
-  C --> D
-  
-  B["benchmarks/<br/>Gold labels<br/>(12 scenarios)"] -->|ablation<br/>run| C
-  B --> R
-  
-  C --> REP["reports/week1/<br/>ablation-run-*.json<br/>ablation-summary.csv"]
-  D --> REP
+  START([Start Eval Run]) --> MODES{"Select Modes"}
+  MODES --> M1["vector"]
+  MODES --> M2["graph"]
+  MODES --> M3["graphrag"]
+  MODES --> M4["graphrag_gating"]
+
+  M1 --> RUN["Run Scenario Set\n(benchmark + gold labels)"]
+  M2 --> RUN
+  M3 --> RUN
+  M4 --> RUN
+
+  RUN --> SCORE["Compute Metrics\nowner/dependency/blast/evidence/critical"]
+  SCORE --> OUTJSON["Write JSON\nablation-run-*.json"]
+  SCORE --> OUTCSV["Append CSV\nablation-summary.csv"]
+  OUTJSON --> END([Done])
+  OUTCSV --> END
+
+  classDef start fill:#E0F7FA,stroke:#00838F,color:#004D40,stroke-width:2px;
+  classDef mode fill:#EDE7F6,stroke:#5E35B1,color:#311B92,stroke-width:2px;
+  classDef run fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20,stroke-width:2px;
+  classDef score fill:#FFF3E0,stroke:#EF6C00,color:#4E342E,stroke-width:2px;
+  classDef out fill:#FCE4EC,stroke:#AD1457,color:#880E4F,stroke-width:2px;
+
+  class START,END start;
+  class M1,M2,M3,M4 mode;
+  class RUN run;
+  class SCORE score;
+  class OUTJSON,OUTCSV out;
 ```
 
-## Layers & Responsibilities
+## 5. Component Responsibilities
 
-### 1. **User Interface Layer** (`/apps/web`)
+### 5.1 Web App (`apps/web`)
+- Renders scenario prompts and evidence artifacts.
+- Captures structured submission fields.
+- Displays score, gating outcome, and rubric feedback.
 
-- React component tree (Vite bundler)
-- Scenario list view
-- Evidence panel (displays artifacts, checkboxes for primary/corroborating)
-- Submission form (owner routing, dependency trace, action plan, blast radius, evidence notes)
-- Feedback display (rubric scores, critical errors, explanations)
+### 5.2 API Service (`services/api`)
+- Exposes REST contracts for scenario/evidence/submission/score/eval.
+- Handles validation, persistence, and report generation.
+- Coordinates core scoring and retrieval abstractions.
 
-**Key components**:
-- `ScenarioView` — displays prompt, artifact list
-- `EvidencePanel` — evidence selection + citation
-- `SubmissionForm` — structured data entry
-- `FeedbackView` — score breakdown + explanations
+### 5.3 Core Engine (`packages/core`)
+- Claim-unit parsing and evidence gating.
+- Owner routing, dependency trace, blast radius scoring.
+- Rubric construction and aggregate metrics.
 
-### 2. **API Layer** (`/services/api`)
+### 5.4 Retrieval Layer (`packages/retrieval`)
+- Pluggable retrieval interface for ablation modes.
+- Baseline/stub in Phase 1, expanded behavior in later phases.
 
-REST endpoints (Node.js + Express or similar):
+### 5.5 Data And Benchmarks
+- Synthetic corpus in `datasets/synth-corpus`.
+- Gold labels and benchmark definitions in `benchmarks`.
+- Persistent runtime state in SQLite.
 
-#### Health & Metadata
-- `GET /health` — liveness probe
-- `GET /scenarios` — list all scenarios
-- `GET /scenarios/:id` — fetch single scenario + artifacts
+## 6. API Contract Summary
 
-#### Evidence & Retrieval (stub in Phase 1)
-- `GET /evidence?scenarioId=:id` — fetch candidate evidence (Phase 2+: retrieval modes)
+- `GET /`
+- `GET /health`
+- `GET /scenarios`
+- `GET /scenarios/:id`
+- `GET /evidence?scenarioId=:id`
+- `POST /submissions`
+- `POST /score`
+- `POST /ablation/run`
 
-#### Submission & Scoring
-- `POST /submissions` — persist user submission
-  - Request: `{ scenarioId, ownerRouting, dependencyTrace, actionPlan, blastRadius, evidenceNotes, selectedEvidenceIds }`
-  - Response: `{ submissionId, createdAt, sqlite_row_id }`
-- `POST /score` — gate + score submission
-  - Request: `{ submissionId }`
-  - Response: `{ reportId, ownerRoutingScore, dependencytracyScore, blastRadiusScore, evidenceRelevance, unsupportedClaimCount, criticalErrorCount, rubricBreakdown, explanations, goldCompare }`
+## 7. Data Model (Logical)
 
-#### Ablation & Benchmark
-- `POST /ablation/run` — run benchmark across all modes
-  - Request: `{ modes: ["vector", "graph", "graphrag", "graphrag_gating"] }` (Phase 1: scaffold)
-  - Response: `{ runId, mode, results_json_path, csv_row }`
+### Scenario
+- `id`, `title`, `prompt`, `artifacts[]`
 
-### 3. **Core Business Logic** (`/packages/core`)
+### Submission
+- `scenarioId`
+- `ownerRouting`
+- `dependencyTrace[]` (`from`, `to`, `type`)
+- `actionPlan`
+- `blastRadius[]`
+- `evidenceNotes`
+- `selectedEvidenceIds[]`
 
-Pure functions (unit-testable, no I/O):
+### Score Report
+- `gatingPassed`
+- `criticalErrors[]`
+- `rubricScores`
+- `metrics`
+- `goldComparison`
 
-#### Parsing & Claim Units
-- `parseClaimUnits(text)` → `{ claimId, sentence, keywords, confidence }`
-  - Splits response into sentence-level claims
-  - Extracts key terms for matching against evidence
+### Ablation Output
+- `runId`
+- `mode`
+- `scenarioId`
+- `metrics`
+- JSON + CSV artifacts
 
-#### Evidence Gating
-- `checkClaimSupport(claim, selectedEvidenceIds, goldEvidenceMap)` → `{ supported: bool, citedEvidenceIds, matchGold: bool }`
-  - Validates if claim is cited by **primary** or **corroborating** evidence
-  - Checks against gold evidence set
-  - Returns critical error if unsupported
+## 8. Quality And Reproducibility Model
 
-#### Scoring & Rubric
-- `scoreOwnerRouting(submission, goldOwner)` → `{ correct: bool, score: 0-1 }`
-- `scoreDependencyTrace(edges, goldEdges)` → `{ accuracy: 0-1, directionality_correct: bool }`
-- `scoreBlastRadius(actionIds, goldSafeActions)` → `{ completeness: 0-1, quality: 0-1 }`
-- `aggregateMetrics(claims, gatingResults, rubricScores)` → `{ overall: 0-1, breakdown: {...} }`
+Required command gates:
 
-#### Interfaces
-
-```typescript
-interface Claim {
-  id: string;
-  text: string;
-  startIdx: number;
-  endIdx: number;
-}
-
-interface Evidence {
-  id: string;
-  title: string;
-  body: string;
-  role: "primary" | "corroborating" | "reference";
-}
-
-interface GatingPolicy {
-  requirePrimary: boolean;
-  allowCorroborating: boolean;
-  goldEvidenceThreshold: number; // 0.0-1.0
-}
-
-interface RubricScore {
-  criterion: string;
-  score: number;
-  explanation: string;
-}
-
-interface SubmissionResult {
-  submissionId: string;
-  gatingPass: boolean;
-  criticalErrors: string[];
-  rubricScores: RubricScore[];
-  metrics: {
-    ownerAccuracy: number;
-    dependencyAccuracy: number;
-    blastRadiusCompleteness: number;
-    evidenceRelevance: number;
-    unsupportedClaimRate: number;
-  };
-}
+```bash
+pnpm lint
+pnpm test
+pnpm typecheck
+pnpm build
+pnpm smoke
+pnpm eval
+pnpm audit
 ```
 
-### 4. **Retrieval Layer** (`/packages/retrieval`)
+Traceability:
+- Session notes kept locally (outside GitHub check-in)
+- Reproducible command artifacts under `reports/` and `services/api/reports/`
 
-Pluggable retrieval modes:
+Runtime artifact evidence:
+- `reports/week1/smoke-*.json`
+- `services/api/reports/week1/ablation-run-*.json`
+- `services/api/reports/week1/ablation-summary.csv`
 
-#### Interface
-```typescript
-interface Retriever {
-  retrieve(scenarioId: string, query: string, topK: number): Promise<Evidence[]>;
-}
+## 9. Security And Data Constraints
 
-interface ContextBuilder {
-  buildContext(scenario: Scenario, selectedEvidenceIds: string[]): Promise<string>;
-}
-```
+- Synthetic-only educational content.
+- No secrets committed (`.env` stays local).
+- Input validation and centralized error handling.
+- Localhost-scoped CORS and baseline rate limiting.
 
-#### Phase 1 Implementations (Stub)
-- `VectorRetriever` — placeholder (Phase 2)
-- `GraphRetriever` — placeholder (Phase 2)
-- `GraphRAGRetriever` — placeholder (Phase 2)
+## 10. Phase Mapping
 
-#### Phase 2+ Implementations
-- **Vector-only**: Embed artifacts; cosine similarity top-K retrieval
-- **Graph-only**: Traverse edges (BFS/DFS, bounded depth) from scenario node
-- **GraphRAG**: Combine graph + context assembly (LLM + artifacts)
-- **GraphRAG + Gating**: GraphRAG context + evidence policy enforcement
+### Phase 1 (Current)
+- Flow A end-to-end path.
+- SQLite persistence.
+- Evidence gating v1.
+- Rubric + metrics + smoke/eval artifacts.
 
-### 5. **Benchmark & Evaluation** (`/benchmarks`)
+### Phase 2+
+- Retrieval-depth behavior and stronger context assembly.
+- Expanded benchmark scenarios and robustness tests.
+- Incremental integration/E2E hardening.
 
-#### Gold Labels (per scenario)
+## 11. Proposal Alignment Statement
 
-```typescript
-interface ScenarioBenchmark {
-  id: string;
-  prompt: string;
-  goldOwner: string;
-  goldDependencyTrace: { from: string; to: string; type: "upstream" | "downstream" }[];
-  goldSafeActions: string[];
-  goldRequiredEvidenceIds: string[]; // claims must cite these
-  rubricExplanations: string;
-}
-```
-
-#### Ablation Runner (`scripts/eval_run.ts`)
-
-For each scenario, for each mode:
-1. Fetch scenario + artifacts
-2. Run retriever (get candidate evidence)
-3. (Phase 2+) Generate submission via LLM
-4. Score submission
-5. Aggregate metrics
-
-Output:
-- **JSON**: `{ scenario, mode, metrics, timestamp }`
-- **CSV row**: `scenario_id,mode,owner_accuracy,dependency_accuracy,...`
-
-### 6. **Persistence** (`/data`)
-
-#### SQLite Schema (Phase 1)
-
-```sql
-CREATE TABLE scenarios (
-  id TEXT PRIMARY KEY,
-  title TEXT,
-  prompt TEXT,
-  artifacts JSONB,
-  created_at TIMESTAMP
-);
-
-CREATE TABLE submissions (
-  id TEXT PRIMARY KEY,
-  scenario_id TEXT REFERENCES scenarios(id),
-  owner_routing TEXT,
-  dependency_trace JSONB,
-  action_plan TEXT,
-  blast_radius JSONB,
-  evidence_notes TEXT,
-  selected_evidence_ids JSONB,
-  created_at TIMESTAMP
-);
-
-CREATE TABLE score_reports (
-  id TEXT PRIMARY KEY,
-  submission_id TEXT REFERENCES submissions(id),
-  gating_passed BOOLEAN,
-  critical_errors JSONB,
-  rubric_scores JSONB,
-  metrics JSONB, -- { ownerAccuracy, dependencyAccuracy, ... }
-  gold_comparison JSONB, -- { matches gold? }
-  created_at TIMESTAMP
-);
-
--- Phase 1+
-CREATE TABLE ablation_runs (
-  id TEXT PRIMARY KEY,
-  mode TEXT, -- "vector", "graph", "graphrag", "graphrag_gating"
-  scenario_id TEXT REFERENCES scenarios(id),
-  metrics JSONB,
-  created_at TIMESTAMP
-);
-```
-
----
-
-## Flow A (Phase 1 Implementation Path)
-
-### Step 1: User opens scenario
-```
-GET /scenarios/:id → Scenario object
-```
-
-### Step 2: User selects evidence
-```
-UI: render artifacts (primary/corroborating checkboxes)
-```
-
-### Step 3: User submits
-```
-POST /submissions → { submissionId, stored in DB }
-```
-
-### Step 4: Gating & Scoring
-```
-POST /score
-  └─ parseClaimUnits(submission.text)
-  └─ gateEvidenceClaims(claims, selectedEvidence)
-  └─ scoreAgainstRubric(submission, goldLabels)
-  └─ aggregateMetrics()
-  └─ persist score_report
-  └─ return feedback
-```
-
-### Step 5: Feedback Display
-```
-UI: show RubricScores, CriticalErrors, GoldComparison
-```
-
----
-
-## Test Strategy
-
-### Unit Tests (`packages/core/`)
-- Claim parsing edge cases
-- Evidence gating logic (supported / unsupported / gold match)
-- Rubric scoring examples
-- Metrics aggregation
-
-### Integration Tests (`__tests__/integration`)
-- API → sqlite roundtrip (health → scenarios → submission → score → report)
-- Evidence panel validation
-
-### Smoke Test (`scripts/smoke.ts`)
-- End-to-end: 1 scenario, human-like submission, gating + score, report file written
-
----
-
-## Security & Data Policy
-
-- **No secrets in code**: Use `.env` for API keys, DB paths, etc.
-- **Input validation**: Validate POST bodies against schema (zod or similar)
-- **CORS**: Restrict to localhost (development)
-- **Rate limiting**: Basic token-bucket limiter on /score endpoint (Phase 1+)
-- **Error handling**: Centralized error handler; never leak stack traces in non-dev responses
-
----
-
-## Deployment (Phase 2+)
-
-- **Local** (`deploy/local/`): docker-compose or manual dev setup
-- **Enterprise** (`deploy/enterprise/`): Kubernetes/Helm overlay (not needed Phase 1)
-
----
-
-## References
-
-- **Master Instructions**: `2.OmniMentor_Copilot_Master_Instructions_W1.md`
-- **Verification Log**: `VERIFICATION_LOG.md`
-- **Context Continuity**: `PROJECT_CONTEXT.md`
+This architecture is intentionally proposal-first. If implementation diverges from proposal assumptions, the change process is:
+1. Record rationale and impact in local session notes.
+2. Preserve verification evidence in generated report artifacts.
+3. Disclose deviation in weekly check-in.

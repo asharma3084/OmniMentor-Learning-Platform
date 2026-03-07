@@ -29,6 +29,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Basic secret scan
+        run: |
+          if git grep -nE "(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{30,}|-----BEGIN (RSA|EC|OPENSSH|DSA) PRIVATE KEY-----)" -- .; then
+            echo "Potential secret detected. Remove before merging."
+            exit 1
+          fi
+
       - name: Type check
         run: pnpm typecheck
 

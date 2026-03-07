@@ -1,24 +1,53 @@
 # OmniMentor Learning Solution
 
-> A proposal-aligned, scenario-based learning platform for evidence-first technical decision making.
+OmniMentor is an evidence-first learning platform for engineering decision quality.
+It trains practitioners to make defensible technical decisions under uncertainty, with measurable outcomes instead of subjective feedback.
 
-OmniMentor helps learners practice the exact skills that matter in real engineering work: ownership routing, dependency reasoning, blast-radius planning, and evidence-backed claims.
+## Why This Product Exists
 
-## Why This Repo Stands Out
+Engineering teams lose time and reliability when decisions are based on opinion instead of evidence.
+OmniMentor addresses this gap with scenario-based practice that evaluates:
+- ownership routing
+- dependency impact reasoning
+- blast-radius analysis
+- evidence-backed justification
 
-- **Evidence-first by design**: unsupported claims are detected and penalized.
-- **Transparent scoring**: rubric and metrics are explicit, not hidden.
-- **Reproducible evaluation**: smoke/eval outputs are generated as machine-readable artifacts.
-- **Proposal-aligned execution**: current scope tracks Phase 1 goals, with deviations logged when needed.
+The result is a repeatable way to improve incident readiness, change quality, and cross-team decision confidence.
 
-## Week 1 Snapshot
+## Value For Organizations
 
-- Flow A spine implemented and running end-to-end.
-- Core quality/runtime gates repeatedly passing.
-- API root (`GET /`) now returns service metadata for immediate browser validation.
-- Week 1 report artifacts generated and tracked in verification logs.
+- Reduced decision risk through evidence gating.
+- Faster onboarding for engineers into real operational thinking.
+- Transparent scoring that explains why a response passed or failed.
+- Reproducible evaluation across retrieval and reasoning strategies.
 
-## First 5 Minutes
+## Product Capabilities
+
+- Scenario workflow from prompt to scored feedback.
+- Rubric-based scoring with explicit metrics.
+- Retrieval mode comparisons for evaluation depth.
+- Machine-readable output artifacts for auditability.
+
+## Current Scope
+
+This repository delivers a working end-to-end baseline:
+- React web interface for scenario interaction.
+- Express API for submissions, scoring, and evaluation jobs.
+- Core scoring engine for evidence gating and rubric metrics.
+- Evaluation scripts that generate JSON and CSV reports.
+
+## Architecture
+
+- Web App: `apps/web`
+- API Service: `services/api`
+- Core Engine: `packages/core`
+- Retrieval Layer: `packages/retrieval`
+- Synthetic Dataset: `datasets/synth-corpus`
+- Benchmarks: `benchmarks`
+
+See `docs/architecture.md` for system and flow details.
+
+## Quick Start
 
 ### Prerequisites
 
@@ -45,28 +74,19 @@ cp .env.example .env
 
 ### Run
 
-API:
-
 ```bash
 pnpm --filter @omnimentor/api dev
-```
-
-Web:
-
-```bash
 pnpm --filter @omnimentor/web dev
 ```
 
-Quick checks:
+Health checks:
 
 ```bash
 curl -s http://localhost:3001/
 curl -s http://localhost:3001/health
 ```
 
-## Verification (Proof, Not Claims)
-
-Run all core gates:
+## Quality Gates
 
 ```bash
 pnpm lint
@@ -78,21 +98,7 @@ pnpm eval
 pnpm audit
 ```
 
-Interpretation:
-- `lint`, `test`, `typecheck`, `build`: static/build integrity.
-- `smoke`: runtime end-to-end flow.
-- `eval`: ablation report generation.
-- `audit`: dependency risk baseline.
-
-## Current User Flow (Flow A)
-
-1. Open scenario.
-2. Inspect evidence artifacts.
-3. Submit owner routing, dependency trace, action plan, blast radius, and evidence notes.
-4. Run scoring with evidence gating + rubric + metrics.
-5. Persist and review report output.
-
-## API Surface
+## API Endpoints
 
 - `GET /`
 - `GET /health`
@@ -116,46 +122,16 @@ Interpretation:
 - `services/api/reports/week1/ablation-run-*.json`
 - `services/api/reports/week1/ablation-summary.csv`
 
-## Safety And Data Policy
+## Data And Security Policy
 
-Academic-only and synthetic-only usage:
-- No personal data
-- No company/internal data
-- No secrets in source control
-- No real production logs
+- Synthetic-only learning artifacts.
+- No personal or company-internal data.
+- No secrets committed to source control.
 
 ## Documentation
 
-- `docs/architecture.md`: architecture and design
-- `docs/architecture-presentation.md`: condensed architecture for demos and walkthroughs
-- `docs/quickstart.md`: setup + first successful run
-- `docs/verification.md`: test/verification playbook
-- `docs/review-guide.md`: structured review checklist
-
-## Repository Map
-
-```text
-apps/web                  # React UI
-services/api              # REST API + sqlite persistence
-packages/core             # types, gating, scoring, metrics
-packages/retrieval        # retrieval interfaces + scaffolds
-datasets/synth-corpus     # synthetic artifacts and graph data
-benchmarks                # scenarios + gold labels
-reports                   # generated outputs
-deploy/local              # local deployment assets
-deploy/enterprise         # future enterprise overlays
-docs                      # architecture + quickstart + verification guides
-scripts                   # smoke + evaluation runners
-```
-
-## Roadmap
-
-- Expand benchmarks toward full 12-scenario coverage.
-- Deepen retrieval-mode validation across all ablation modes.
-- Add stronger integration/UI checks for stable learning journeys.
-- Continue tightening explainability and reproducibility.
-
-## Contribution Standard
-
-- Keep changes focused and traceable.
-- Prefer reproducibility and clarity over complexity.
+- `docs/architecture.md`
+- `docs/architecture-presentation.md`
+- `docs/quickstart.md`
+- `docs/verification.md`
+- `docs/review-guide.md`

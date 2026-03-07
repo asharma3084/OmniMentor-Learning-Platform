@@ -1,12 +1,8 @@
-# OmniMentor Learning Solution
+# OmniMentor
 
-<p align="left">
-	<img src="https://img.shields.io/badge/Learning%20Solution-OmniMentor-1f6feb?style=for-the-badge" alt="OmniMentor Learning Solution" />
-	<img src="https://img.shields.io/badge/Status-Phase%201%20Live-2ea043?style=for-the-badge" alt="Phase 1 Live" />
-	<img src="https://img.shields.io/badge/Data-Synthetic%20Only-f59e0b?style=for-the-badge" alt="Synthetic Only" />
-</p>
+Learning Solution for evidence-first engineering decision making.
 
-OmniMentor is a learning solution product that trains evidence-first engineering judgment.
+OmniMentor is a learning solution that trains evidence-first engineering judgment.
 It helps learners practice decisions that matter in real delivery work: ownership routing, dependency reasoning, blast-radius thinking, and clear evidence-backed justification.
 
 ## Why This Exists

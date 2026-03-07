@@ -4,9 +4,9 @@ This folder stores visual media for the GitHub landing page.
 
 ## Suggested Files
 
-- `hero-demo.gif`: Short 6-10 second loop showing end-to-end flow.
+- `hero-demo.gif`: Optional short 6-10 second real demo loop.
 - `flow-animated.gif`: Optional animated architecture flow.
-- `cover-static.png`: Static fallback image for low-bandwidth viewing.
+- `cover-static.png`: Optional replacement static image.
 
 ## Notes
 

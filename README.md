@@ -22,15 +22,9 @@ It is open source only, has no paid version, does not use telemetry, and does no
 
 ## Animated Preview (Optional)
 
-Add one short animation and one static fallback to keep the landing page engaging without clutter.
+If you want animation on GitHub, add real media files and then reference them here.
 
-![OmniMentor Demo](assets/hero-demo.gif)
-
-If animation is unavailable, use a static fallback:
-
-![OmniMentor Overview](assets/cover-static.png)
-
-Recommended asset names:
+Recommended files:
 - `assets/hero-demo.gif`
 - `assets/flow-animated.gif`
 - `assets/cover-static.png`

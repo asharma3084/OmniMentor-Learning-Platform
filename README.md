@@ -20,15 +20,6 @@ It helps learners practice decisions that matter in real delivery work: ownershi
 This project is currently designed for local single-user use on macOS first, and is planned to expand to additional platforms later.
 It is open source only, has no paid version, does not use telemetry, and does not send user data to external services.
 
-## Animated Preview (Optional)
-
-If you want animation on GitHub, add real media files and then reference them here.
-
-Recommended files:
-- `assets/hero-demo.gif`
-- `assets/flow-animated.gif`
-- `assets/cover-static.png`
-
 ## At A Glance
 
 | Focus Area | Why It Matters |

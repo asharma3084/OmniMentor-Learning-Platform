@@ -14,16 +14,6 @@ Learning Solution for evidence-first engineering decision making.
 	<a href="docs/09-operations-runbook.md"><img src="https://img.shields.io/badge/Operations-ef4444?style=for-the-badge&labelColor=450a0a" alt="Operations" /></a>
 </p>
 
-<p align="left">
-	<img src="https://img.shields.io/badge/Type-Learning%20Solution-2563eb?style=flat-square" alt="Type" />
-	<img src="https://img.shields.io/badge/Mode-Single%20User-0ea5e9?style=flat-square" alt="Single User" />
-	<img src="https://img.shields.io/badge/License-Open%20Source-22c55e?style=flat-square" alt="Open Source" />
-	<img src="https://img.shields.io/badge/Pricing-No%20Paid%20Tier-f97316?style=flat-square" alt="No Paid Tier" />
-	<img src="https://img.shields.io/badge/Data-Synthetic%20Only-16a34a?style=flat-square" alt="Data Policy" />
-	<img src="https://img.shields.io/badge/Runtime-React%20%7C%20Express%20%7C%20SQLite-f59e0b?style=flat-square" alt="Runtime" />
-	<img src="https://img.shields.io/badge/Verification-Gates%20Configured-7c3aed?style=flat-square" alt="Verification" />
-</p>
-
 OmniMentor is a learning solution that trains evidence-first engineering judgment.
 It helps learners practice decisions that matter in real delivery work: ownership routing, dependency reasoning, blast-radius thinking, and clear evidence-backed justification.
 

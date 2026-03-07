@@ -1,9 +1,15 @@
 # OmniMentor Learning Solution
 
-OmniMentor is an evidence-first learning platform for engineering decision quality.
-It trains practitioners to make defensible technical decisions under uncertainty, with measurable outcomes instead of subjective feedback.
+<p align="left">
+	<img src="https://img.shields.io/badge/Learning%20Solution-OmniMentor-1f6feb?style=for-the-badge" alt="OmniMentor Learning Solution" />
+	<img src="https://img.shields.io/badge/Status-Phase%201%20Live-2ea043?style=for-the-badge" alt="Phase 1 Live" />
+	<img src="https://img.shields.io/badge/Data-Synthetic%20Only-f59e0b?style=for-the-badge" alt="Synthetic Only" />
+</p>
 
-## Why This Product Exists
+OmniMentor is a learning solution product that trains evidence-first engineering judgment.
+It helps learners practice decisions that matter in real delivery work: ownership routing, dependency reasoning, blast-radius thinking, and clear evidence-backed justification.
+
+## Why This Exists
 
 Engineering teams lose time and reliability when decisions are based on opinion instead of evidence.
 OmniMentor addresses this gap with scenario-based practice that evaluates:
@@ -12,21 +18,59 @@ OmniMentor addresses this gap with scenario-based practice that evaluates:
 - blast-radius analysis
 - evidence-backed justification
 
-The result is a repeatable way to improve incident readiness, change quality, and cross-team decision confidence.
+The result is practical training that improves decision quality in real engineering work.
 
-## Value For Organizations
+## What Makes It Useful
 
-- Reduced decision risk through evidence gating.
-- Faster onboarding for engineers into real operational thinking.
-- Transparent scoring that explains why a response passed or failed.
-- Reproducible evaluation across retrieval and reasoning strategies.
+- Evidence gating catches unsupported claims early.
+- Scoring is transparent: feedback explains why a submission passed or failed.
+- Evaluation is reproducible through repeatable scripts and machine-readable outputs.
+- The same flow can be run consistently across scenarios and retrieval modes.
 
-## Product Capabilities
+## Core Capabilities
 
 - Scenario workflow from prompt to scored feedback.
 - Rubric-based scoring with explicit metrics.
 - Retrieval mode comparisons for evaluation depth.
 - Machine-readable output artifacts for auditability.
+
+## High-Level Architecture
+
+```mermaid
+flowchart LR
+	U["Learner"]
+	W["Web App\nReact + Vite"]
+	A["API\nExpress + Node"]
+	C["Core Engine\nGating + Scoring"]
+	R["Retrieval Layer\nVector | Graph | GraphRAG"]
+	D[("SQLite + Synthetic Dataset")]
+	O["Reports\nSmoke + Ablation"]
+
+	U --> W
+	W --> A
+	A --> C
+	A --> R
+	C --> D
+	R --> D
+	A --> O
+	C --> O
+
+	classDef actor fill:#fff3cd,stroke:#d97706,color:#7c2d12,stroke-width:2px;
+	classDef web fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px;
+	classDef api fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px;
+	classDef core fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:2px;
+	classDef data fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:2px;
+	classDef output fill:#ffe4e6,stroke:#e11d48,color:#881337,stroke-width:2px;
+
+	class U actor;
+	class W web;
+	class A api;
+	class C,R core;
+	class D data;
+	class O output;
+```
+
+See `docs/architecture.md` for full architecture and detailed flow.
 
 ## Current Scope
 
@@ -36,16 +80,9 @@ This repository delivers a working end-to-end baseline:
 - Core scoring engine for evidence gating and rubric metrics.
 - Evaluation scripts that generate JSON and CSV reports.
 
-## Architecture
+## Proposal Focus
 
-- Web App: `apps/web`
-- API Service: `services/api`
-- Core Engine: `packages/core`
-- Retrieval Layer: `packages/retrieval`
-- Synthetic Dataset: `datasets/synth-corpus`
-- Benchmarks: `benchmarks`
-
-See `docs/architecture.md` for system and flow details.
+This implementation stays aligned with the proposal baseline and keeps changes measurable through tests, runtime checks, and generated reports.
 
 ## Quick Start
 
@@ -87,6 +124,8 @@ curl -s http://localhost:3001/health
 ```
 
 ## Quality Gates
+
+These commands give objective proof that the system is healthy end-to-end.
 
 ```bash
 pnpm lint

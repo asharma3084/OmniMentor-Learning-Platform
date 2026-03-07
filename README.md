@@ -5,6 +5,18 @@ Learning Solution for evidence-first engineering decision making.
 OmniMentor is a learning solution that trains evidence-first engineering judgment.
 It helps learners practice decisions that matter in real delivery work: ownership routing, dependency reasoning, blast-radius thinking, and clear evidence-backed justification.
 
+## Quick Navigation
+
+| Jump To | Description |
+|---|---|
+| [Why This Exists](#why-this-exists) | Problem and learning purpose |
+| [Core Capabilities](#core-capabilities) | What OmniMentor provides |
+| [High-Level Architecture](#high-level-architecture) | System overview diagram |
+| [Quick Start](#quick-start) | Install and run steps |
+| [Quality Gates](#quality-gates) | Verification commands |
+| [API Endpoints](#api-endpoints) | Available API routes |
+| [Documentation](#documentation) | Full SDLC documentation set |
+
 ## Why This Exists
 
 Engineering teams lose time and reliability when decisions are based on opinion instead of evidence.

@@ -20,6 +20,21 @@ It helps learners practice decisions that matter in real delivery work: ownershi
 This project is currently designed for local single-user use on macOS first, and is planned to expand to additional platforms later.
 It is open source only, has no paid version, does not use telemetry, and does not send user data to external services.
 
+## Animated Preview (Optional)
+
+Add one short animation and one static fallback to keep the landing page engaging without clutter.
+
+![OmniMentor Demo](assets/hero-demo.gif)
+
+If animation is unavailable, use a static fallback:
+
+![OmniMentor Overview](assets/cover-static.png)
+
+Recommended asset names:
+- `assets/hero-demo.gif`
+- `assets/flow-animated.gif`
+- `assets/cover-static.png`
+
 ## At A Glance
 
 | Focus Area | Why It Matters |

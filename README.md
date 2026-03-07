@@ -165,8 +165,16 @@ pnpm audit
 
 ## Documentation
 
-- `docs/architecture.md`
-- `docs/architecture-presentation.md`
-- `docs/quickstart.md`
-- `docs/verification.md`
-- `docs/review-guide.md`
+- `docs/README.md` (documentation index)
+- `docs/00-overview.md`
+- `docs/01-requirements.md`
+- `docs/architecture.md` (full detailed architecture)
+- `docs/03-api-contract.md`
+- `docs/04-data-model.md`
+- `docs/05-development-setup.md`
+- `docs/06-testing-strategy.md`
+- `docs/07-verification-and-quality-gates.md`
+- `docs/08-release-and-deployment.md`
+- `docs/09-operations-runbook.md`
+- `docs/10-security-and-compliance.md`
+- `docs/11-decisions-log.md`

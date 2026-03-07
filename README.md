@@ -2,20 +2,10 @@
 
 Learning Solution for evidence-first engineering decision making.
 
+[Overview](docs/00-overview.md) | [Requirements](docs/01-requirements.md) | [Architecture](docs/architecture.md) | [API](docs/03-api-contract.md) | [Data Model](docs/04-data-model.md) | [Setup](docs/05-development-setup.md) | [Testing](docs/06-testing-strategy.md) | [Quality Gates](docs/07-verification-and-quality-gates.md) | [Operations](docs/09-operations-runbook.md)
+
 OmniMentor is a learning solution that trains evidence-first engineering judgment.
 It helps learners practice decisions that matter in real delivery work: ownership routing, dependency reasoning, blast-radius thinking, and clear evidence-backed justification.
-
-## Quick Navigation
-
-| Jump To | Description |
-|---|---|
-| [Why This Exists](#why-this-exists) | Problem and learning purpose |
-| [Core Capabilities](#core-capabilities) | What OmniMentor provides |
-| [High-Level Architecture](#high-level-architecture) | System overview diagram |
-| [Quick Start](#quick-start) | Install and run steps |
-| [Quality Gates](#quality-gates) | Verification commands |
-| [API Endpoints](#api-endpoints) | Available API routes |
-| [Documentation](#documentation) | Full SDLC documentation set |
 
 ## Why This Exists
 
@@ -177,16 +167,16 @@ pnpm audit
 
 ## Documentation
 
-- `docs/README.md` (documentation index)
-- `docs/00-overview.md`
-- `docs/01-requirements.md`
-- `docs/architecture.md` (full detailed architecture)
-- `docs/03-api-contract.md`
-- `docs/04-data-model.md`
-- `docs/05-development-setup.md`
-- `docs/06-testing-strategy.md`
-- `docs/07-verification-and-quality-gates.md`
-- `docs/08-release-and-deployment.md`
-- `docs/09-operations-runbook.md`
-- `docs/10-security-and-compliance.md`
-- `docs/11-decisions-log.md`
+- [`docs/README.md`](docs/README.md) (documentation index)
+- [`docs/00-overview.md`](docs/00-overview.md)
+- [`docs/01-requirements.md`](docs/01-requirements.md)
+- [`docs/architecture.md`](docs/architecture.md) (full detailed architecture)
+- [`docs/03-api-contract.md`](docs/03-api-contract.md)
+- [`docs/04-data-model.md`](docs/04-data-model.md)
+- [`docs/05-development-setup.md`](docs/05-development-setup.md)
+- [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md)
+- [`docs/07-verification-and-quality-gates.md`](docs/07-verification-and-quality-gates.md)
+- [`docs/08-release-and-deployment.md`](docs/08-release-and-deployment.md)
+- [`docs/09-operations-runbook.md`](docs/09-operations-runbook.md)
+- [`docs/10-security-and-compliance.md`](docs/10-security-and-compliance.md)
+- [`docs/11-decisions-log.md`](docs/11-decisions-log.md)

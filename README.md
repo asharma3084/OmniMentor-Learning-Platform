@@ -2,10 +2,42 @@
 
 Learning Solution for evidence-first engineering decision making.
 
-[Overview](docs/00-overview.md) | [Requirements](docs/01-requirements.md) | [Architecture](docs/architecture.md) | [API](docs/03-api-contract.md) | [Data Model](docs/04-data-model.md) | [Setup](docs/05-development-setup.md) | [Testing](docs/06-testing-strategy.md) | [Quality Gates](docs/07-verification-and-quality-gates.md) | [Operations](docs/09-operations-runbook.md)
+<p align="left">
+	<a href="docs/00-overview.md"><img src="https://img.shields.io/badge/Overview-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Overview" /></a>
+	<a href="docs/01-requirements.md"><img src="https://img.shields.io/badge/Requirements-14b8a6?style=for-the-badge&labelColor=042f2e" alt="Requirements" /></a>
+	<a href="docs/architecture.md"><img src="https://img.shields.io/badge/Architecture-6366f1?style=for-the-badge&labelColor=1e1b4b" alt="Architecture" /></a>
+	<a href="docs/03-api-contract.md"><img src="https://img.shields.io/badge/API-22c55e?style=for-the-badge&labelColor=052e16" alt="API" /></a>
+	<a href="docs/04-data-model.md"><img src="https://img.shields.io/badge/Data%20Model-f59e0b?style=for-the-badge&labelColor=451a03" alt="Data Model" /></a>
+	<a href="docs/05-development-setup.md"><img src="https://img.shields.io/badge/Setup-f97316?style=for-the-badge&labelColor=431407" alt="Setup" /></a>
+	<a href="docs/06-testing-strategy.md"><img src="https://img.shields.io/badge/Testing-ec4899?style=for-the-badge&labelColor=500724" alt="Testing" /></a>
+	<a href="docs/07-verification-and-quality-gates.md"><img src="https://img.shields.io/badge/Quality%20Gates-a855f7?style=for-the-badge&labelColor=3b0764" alt="Quality Gates" /></a>
+	<a href="docs/09-operations-runbook.md"><img src="https://img.shields.io/badge/Operations-ef4444?style=for-the-badge&labelColor=450a0a" alt="Operations" /></a>
+</p>
+
+<p align="left">
+	<img src="https://img.shields.io/badge/Type-Learning%20Solution-2563eb?style=flat-square" alt="Type" />
+	<img src="https://img.shields.io/badge/Mode-Single%20User-0ea5e9?style=flat-square" alt="Single User" />
+	<img src="https://img.shields.io/badge/License-Open%20Source-22c55e?style=flat-square" alt="Open Source" />
+	<img src="https://img.shields.io/badge/Pricing-No%20Paid%20Tier-f97316?style=flat-square" alt="No Paid Tier" />
+	<img src="https://img.shields.io/badge/Data-Synthetic%20Only-16a34a?style=flat-square" alt="Data Policy" />
+	<img src="https://img.shields.io/badge/Runtime-React%20%7C%20Express%20%7C%20SQLite-f59e0b?style=flat-square" alt="Runtime" />
+	<img src="https://img.shields.io/badge/Verification-Gates%20Configured-7c3aed?style=flat-square" alt="Verification" />
+</p>
 
 OmniMentor is a learning solution that trains evidence-first engineering judgment.
 It helps learners practice decisions that matter in real delivery work: ownership routing, dependency reasoning, blast-radius thinking, and clear evidence-backed justification.
+
+This project is currently designed for local single-user use on macOS first, and is planned to expand to additional platforms later.
+It is open source only, has no paid version, does not use telemetry, and does not send user data to external services.
+
+## At A Glance
+
+| Focus Area | Why It Matters |
+|---|---|
+| Evidence-first decision training | Builds defensible engineering judgment, not guesswork |
+| Transparent scoring | Learners can see exactly what improved or failed |
+| Repeatable verification | Outcomes are backed by commands and artifacts |
+| Scenario-based flow | Practice mirrors real operational decision-making |
 
 ## Why This Exists
 

@@ -26,7 +26,7 @@ sqlite3 --version # 3.51.0
 # Init local repo (GitHub URL not ready; will push later)
 cd /Users/a0s1dlo/Desktop/OmniMentor-Learning-Solution
 git init
-git config user.email "omnimentor@classwork"
+git config user.email "omnimentor-local"
 git config user.name "OmniMentor Dev"
 
 # Create Phase 1 structure

@@ -22,6 +22,8 @@ reports/**
 !reports/week1/.gitkeep
 services/api/reports/**
 data/
+PROJECT_CONTEXT.md
+VERIFICATION_LOG.md
 
 # IDE & OS
 .DS_Store

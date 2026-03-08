@@ -165,6 +165,14 @@ status_service() {
 
   if [[ -f "$pid_path" ]] && is_pid_running "$(cat "$pid_path")"; then
     echo "$service: running (pid=$(cat "$pid_path"), port=$port)"
+  elif command -v lsof >/dev/null 2>&1; then
+    local port_pids
+    port_pids="$(lsof -ti tcp:"$port" || true)"
+    if [[ -n "$port_pids" ]]; then
+      echo "$service: running (external pid=$port_pids, port=$port)"
+    else
+      echo "$service: stopped (port=$port)"
+    fi
   else
     echo "$service: stopped (port=$port)"
   fi

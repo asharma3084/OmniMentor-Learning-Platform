@@ -13,7 +13,7 @@
 ## Secret Management
 
 - Keep secrets in local `.env` only.
-- Commit `.env.example` placeholders only.
+- Commit `config/.env.example` placeholders only.
 
 ## Dependency Hygiene
 

@@ -19,13 +19,13 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
+    "baseUrl": "..",
     "paths": {
       "@omnimentor/*": ["packages/*/src"],
       "@api/*": ["services/api/src/*"],
       "@web/*": ["apps/web/src/*"]
     }
   },
-  "include": ["apps/**/*.ts", "apps/**/*.tsx", "services/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["node_modules", "dist", "build", "reports", "data"]
+  "include": ["../apps/**/*.ts", "../apps/**/*.tsx", "../services/**/*.ts", "../packages/**/*.ts", "../scripts/**/*.ts"],
+  "exclude": ["../node_modules", "../dist", "../build", "../reports", "../data"]
 }

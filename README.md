@@ -126,7 +126,7 @@ brew install git node pnpm sqlite
 git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
 cd OmniMentor-Learning-Solution
 pnpm install
-cp .env.example .env
+cp config/.env.example .env
 ```
 
 ### Run

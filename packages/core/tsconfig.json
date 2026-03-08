@@ -1,6 +1,6 @@
 // Core package TypeScript config
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../config/tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"

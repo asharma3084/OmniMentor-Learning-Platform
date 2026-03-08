@@ -24,10 +24,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm --dir workspace install --frozen-lockfile
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm --dir workspace lint
 
       - name: Basic secret scan
         run: |
@@ -37,16 +37,16 @@ jobs:
           fi
 
       - name: Type check
-        run: pnpm typecheck
+        run: pnpm --dir workspace typecheck
 
       - name: Test
-        run: pnpm test
+        run: pnpm --dir workspace test
 
       - name: Build
-        run: pnpm build
+        run: pnpm --dir workspace build
 
       - name: Audit (security baseline)
-        run: pnpm audit --prod
+        run: pnpm --dir workspace audit --prod
 
       - name: Smoke test
-        run: pnpm smoke
+        run: pnpm --dir workspace smoke

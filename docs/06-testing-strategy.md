@@ -12,18 +12,18 @@
 ## Commands
 
 ```bash
-pnpm test
-pnpm smoke
-pnpm eval
+pnpm --dir workspace test
+pnpm --dir workspace smoke
+pnpm --dir workspace eval
 ```
 
 ## Quality Gates
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm build
-pnpm audit
+pnpm --dir workspace lint
+pnpm --dir workspace typecheck
+pnpm --dir workspace build
+pnpm --dir workspace audit
 ```
 
 ## Exit Criteria For Merge

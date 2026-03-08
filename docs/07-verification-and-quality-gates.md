@@ -6,21 +6,21 @@
 ## Standard Verification Commands
 
 ```bash
-pnpm lint
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm smoke
-pnpm eval
-pnpm audit
+pnpm --dir workspace lint
+pnpm --dir workspace test
+pnpm --dir workspace typecheck
+pnpm --dir workspace build
+pnpm --dir workspace smoke
+pnpm --dir workspace eval
+pnpm --dir workspace audit
 ```
 
 ## Runtime Requirement
 
-`pnpm smoke` and `pnpm eval` require API runtime:
+`pnpm --dir workspace smoke` and `pnpm --dir workspace eval` require API runtime:
 
 ```bash
-pnpm --filter @omnimentor/api dev
+pnpm --dir workspace --filter @omnimentor/api dev
 ```
 
 ## Repeatability Rule

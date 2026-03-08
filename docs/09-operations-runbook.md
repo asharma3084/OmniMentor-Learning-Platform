@@ -13,7 +13,7 @@ Expected: JSON response with `status: ok`.
 
 ## Common Runtime Issue
 
-Problem: `pnpm smoke` fails with fetch/connect errors.
+Problem: `pnpm --dir workspace smoke` fails with fetch/connect errors.
 
 Resolution:
 1. Start API service.
@@ -23,5 +23,5 @@ Resolution:
 ## Native Module Check (SQLite)
 
 ```bash
-pnpm --filter @omnimentor/api exec node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.prepare('select 1').get(); db.close(); console.log('ok');"
+pnpm --dir workspace --filter @omnimentor/api exec node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.prepare('select 1').get(); db.close(); console.log('ok');"
 ```

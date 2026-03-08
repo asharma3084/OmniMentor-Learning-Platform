@@ -7,14 +7,13 @@
 
 - Git
 - Node.js 20+
-- pnpm
-- sqlite3
+- pnpm --dir workspace - sqlite3
 
 macOS install:
 
 ```bash
 brew update
-brew install git node pnpm sqlite
+brew install git node pnpm --dir workspace sqlite
 ```
 
 ## Install
@@ -22,15 +21,15 @@ brew install git node pnpm sqlite
 ```bash
 git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
 cd OmniMentor-Learning-Solution
-pnpm install
+pnpm --dir workspace install
 cp config/.env.example .env
 ```
 
 ## Run Services
 
 ```bash
-pnpm --filter @omnimentor/api dev
-pnpm --filter @omnimentor/web dev
+pnpm --dir workspace --filter @omnimentor/api dev
+pnpm --dir workspace --filter @omnimentor/web dev
 ```
 
 ## Health Check

@@ -110,14 +110,13 @@ This implementation stays aligned with the proposal baseline and keeps changes m
 
 - Git
 - Node.js 20+
-- pnpm
-- sqlite3
+- pnpm --dir workspace - sqlite3
 
 macOS setup:
 
 ```bash
 brew update
-brew install git node pnpm sqlite
+brew install git node pnpm --dir workspace sqlite
 ```
 
 ### Install
@@ -125,15 +124,15 @@ brew install git node pnpm sqlite
 ```bash
 git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
 cd OmniMentor-Learning-Solution
-pnpm install
+pnpm --dir workspace install
 cp config/.env.example .env
 ```
 
 ### Run
 
 ```bash
-pnpm --filter @omnimentor/api dev
-pnpm --filter @omnimentor/web dev
+pnpm --dir workspace --filter @omnimentor/api dev
+pnpm --dir workspace --filter @omnimentor/web dev
 ```
 
 Health checks:
@@ -148,13 +147,13 @@ curl -s http://localhost:3001/health
 These commands give objective proof that the system is healthy end-to-end.
 
 ```bash
-pnpm lint
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm smoke
-pnpm eval
-pnpm audit
+pnpm --dir workspace lint
+pnpm --dir workspace test
+pnpm --dir workspace typecheck
+pnpm --dir workspace build
+pnpm --dir workspace smoke
+pnpm --dir workspace eval
+pnpm --dir workspace audit
 ```
 
 ## API Endpoints

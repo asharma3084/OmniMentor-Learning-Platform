@@ -215,13 +215,13 @@ flowchart LR
 Required command gates:
 
 ```bash
-pnpm lint
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm smoke
-pnpm eval
-pnpm audit
+pnpm --dir workspace lint
+pnpm --dir workspace test
+pnpm --dir workspace typecheck
+pnpm --dir workspace build
+pnpm --dir workspace smoke
+pnpm --dir workspace eval
+pnpm --dir workspace audit
 ```
 
 Traceability:

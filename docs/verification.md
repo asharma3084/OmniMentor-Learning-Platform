@@ -10,21 +10,21 @@ This document defines reproducible checks for Week 1 and later phases.
 Run from repo root:
 
 ```bash
-pnpm lint
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm smoke
-pnpm eval
-pnpm audit
+pnpm --dir workspace lint
+pnpm --dir workspace test
+pnpm --dir workspace typecheck
+pnpm --dir workspace build
+pnpm --dir workspace smoke
+pnpm --dir workspace eval
+pnpm --dir workspace audit
 ```
 
 ## Runtime Prerequisite
 
-`pnpm smoke` and `pnpm eval` require API to be running:
+`pnpm --dir workspace smoke` and `pnpm --dir workspace eval` require API to be running:
 
 ```bash
-pnpm --filter @omnimentor/api dev
+pnpm --dir workspace --filter @omnimentor/api dev
 ```
 
 Health probe:
@@ -56,13 +56,13 @@ Example 5x loop:
 ```bash
 set -e
 for i in 1 2 3 4 5; do
-  pnpm lint
-  pnpm test
-  pnpm typecheck
-  pnpm build
-  pnpm audit
-  pnpm smoke
-  pnpm eval
+  pnpm --dir workspace lint
+  pnpm --dir workspace test
+  pnpm --dir workspace typecheck
+  pnpm --dir workspace build
+  pnpm --dir workspace audit
+  pnpm --dir workspace smoke
+  pnpm --dir workspace eval
 done
 ```
 

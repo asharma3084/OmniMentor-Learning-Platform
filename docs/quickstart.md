@@ -9,14 +9,13 @@ This guide gets OmniMentor running locally with a verified end-to-end pass.
 
 - Git
 - Node.js 20+
-- pnpm
-- sqlite3
+- pnpm --dir workspace - sqlite3
 
 macOS setup:
 
 ```bash
 brew update
-brew install git node pnpm sqlite
+brew install git node pnpm --dir workspace sqlite
 ```
 
 ## Install
@@ -24,7 +23,7 @@ brew install git node pnpm sqlite
 ```bash
 git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
 cd OmniMentor-Learning-Solution
-pnpm install
+pnpm --dir workspace install
 cp config/.env.example .env
 ```
 
@@ -33,13 +32,13 @@ cp config/.env.example .env
 Start API:
 
 ```bash
-pnpm --filter @omnimentor/api dev
+pnpm --dir workspace --filter @omnimentor/api dev
 ```
 
 Start Web (new terminal):
 
 ```bash
-pnpm --filter @omnimentor/web dev
+pnpm --dir workspace --filter @omnimentor/web dev
 ```
 
 ## Verify API
@@ -58,21 +57,21 @@ Expected:
 With API running:
 
 ```bash
-pnpm smoke
-pnpm eval
+pnpm --dir workspace smoke
+pnpm --dir workspace eval
 ```
 
 Optional full gate run:
 
 ```bash
-pnpm lint
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm audit
+pnpm --dir workspace lint
+pnpm --dir workspace test
+pnpm --dir workspace typecheck
+pnpm --dir workspace build
+pnpm --dir workspace audit
 ```
 
 ## Common Gotcha
 
-If `pnpm smoke` fails with `fetch failed`, the API is not running.
+If `pnpm --dir workspace smoke` fails with `fetch failed`, the API is not running.
 Start API first, then rerun smoke/eval.

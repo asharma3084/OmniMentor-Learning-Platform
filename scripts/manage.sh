@@ -18,7 +18,7 @@ OLLAMA_HOST="127.0.0.1"
 DATABASE_URL="./data/omnimentor.db"
 OLLAMA_DEFAULT_MODEL="llama3.2"
 AUTO_START_OLLAMA=false
-HEALTH_RETRIES=20
+HEALTH_RETRIES=60
 HEALTH_INTERVAL_SEC=1
 
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -107,7 +107,7 @@ start_service() {
       cmd="cd '$ROOT_DIR' && API_PORT='$API_PORT' DATABASE_URL='$DATABASE_URL' pnpm --dir workspace --filter @omnimentor/api dev"
       ;;
     web)
-      cmd="cd '$ROOT_DIR' && WEB_PORT='$WEB_PORT' pnpm --dir workspace --filter @omnimentor/web dev -- --host '$WEB_HOST' --port '$WEB_PORT'"
+      cmd="cd '$ROOT_DIR' && pnpm --dir workspace --filter @omnimentor/web exec vite --host '$WEB_HOST' --port '$WEB_PORT'"
       ;;
     ollama)
       require_cmd ollama

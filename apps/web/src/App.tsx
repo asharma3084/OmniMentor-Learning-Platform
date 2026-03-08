@@ -33,6 +33,9 @@ export default function App() {
   });
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [bootLoading, setBootLoading] = useState(true);
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const API_URL = 'http://localhost:3001';
 
@@ -41,25 +44,57 @@ export default function App() {
   }, []);
 
   const fetchScenarios = async () => {
+    setBootLoading(true);
+    setBootError(null);
     try {
       const res = await axios.get(`${API_URL}/scenarios`);
       setScenarios(res.data);
       if (res.data.length > 0) {
         setSelectedScenario(res.data[0]);
+      } else {
+        setSelectedScenario(null);
+        setBootError('No scenarios are available yet.');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching scenarios:', err);
+      if (axios.isAxiosError(err)) {
+        setBootError(err.response?.data?.error || err.message || 'Failed to load scenarios.');
+      } else {
+        setBootError('Failed to load scenarios.');
+      }
+    } finally {
+      setBootLoading(false);
     }
   };
 
+  const validateSubmission = (): string | null => {
+    if (!selectedScenario) return 'Select a scenario first.';
+    if (!formData.ownerRouting.trim()) return 'Owner Routing is required.';
+    if (!formData.actionPlan.trim()) return 'Action Plan is required.';
+    if (!formData.evidenceNotes.trim()) return 'Evidence Notes are required.';
+    if (selectedEvidence.length === 0) return 'Select at least one evidence artifact.';
+    return null;
+  };
+
   const handleSubmit = async () => {
-    if (!selectedScenario) return;
+    const validationError = validateSubmission();
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+
+    const scenario = selectedScenario;
+    if (!scenario) {
+      setSubmitError('Select a scenario first.');
+      return;
+    }
 
     setLoading(true);
+    setSubmitError(null);
     try {
       // Create submission
       const submissionRes = await axios.post(`${API_URL}/submissions`, {
-        scenarioId: selectedScenario.id,
+        scenarioId: scenario.id,
         ownerRouting: formData.ownerRouting,
         dependencyTrace: formData.dependencyTrace,
         actionPlan: formData.actionPlan,
@@ -74,22 +109,53 @@ export default function App() {
       });
 
       setScore(scoreRes.data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error submitting:', err);
-      alert('Error submitting form. See console for details.');
+      if (axios.isAxiosError(err)) {
+        setSubmitError(err.response?.data?.error || err.message || 'Failed to submit.');
+      } else {
+        setSubmitError('Failed to submit.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  if (bootLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading scenarios...</div>;
+  }
+
+  if (bootError && !selectedScenario) {
+    return (
+      <div className="flex items-center justify-center h-screen p-6">
+        <div className="max-w-lg w-full bg-white border border-red-200 rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-red-700 mb-2">Unable to load app data</h2>
+          <p className="text-sm text-gray-700 mb-4">{bootError}</p>
+          <button
+            onClick={fetchScenarios}
+            className="bg-blue-600 text-white font-bold px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!selectedScenario) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center h-screen">No scenario selected.</div>;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold mb-8">🎓 OmniMentor — Phase 1</h1>
+
+        {submitError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-6 text-sm">
+            {submitError}
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <label className="block text-sm font-bold mb-2">Scenario</label>
@@ -100,6 +166,7 @@ export default function App() {
               setSelectedScenario(next);
               setSelectedEvidence([]);
               setScore(null);
+              setSubmitError(null);
             }}
             className="w-full border rounded px-3 py-2"
           >
@@ -120,6 +187,7 @@ export default function App() {
 
               <div className="mt-6">
                 <h3 className="text-lg font-bold mb-3">📄 Evidence</h3>
+                <p className="text-xs text-gray-500 mb-2">Selected: {selectedEvidence.length}</p>
                 <div className="space-y-2">
                   {selectedScenario.artifacts.map((artifact) => (
                     <label key={artifact.id} className="flex items-start p-2 border rounded hover:bg-gray-100 cursor-pointer">
@@ -128,9 +196,9 @@ export default function App() {
                         checked={selectedEvidence.includes(artifact.id)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedEvidence([...selectedEvidence, artifact.id]);
+                            setSelectedEvidence((prev) => [...prev, artifact.id]);
                           } else {
-                            setSelectedEvidence(selectedEvidence.filter((id) => id !== artifact.id));
+                            setSelectedEvidence((prev) => prev.filter((id) => id !== artifact.id));
                           }
                         }}
                         className="mt-1 mr-3 w-4 h-4"
@@ -158,7 +226,10 @@ export default function App() {
                     type="text"
                     placeholder="e.g., Platform Team"
                     value={formData.ownerRouting}
-                    onChange={(e) => setFormData({ ...formData, ownerRouting: e.target.value })}
+                    onChange={(e) => {
+                      setSubmitError(null);
+                      setFormData({ ...formData, ownerRouting: e.target.value });
+                    }}
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
@@ -168,7 +239,10 @@ export default function App() {
                   <textarea
                     placeholder="What actions should be taken?"
                     value={formData.actionPlan}
-                    onChange={(e) => setFormData({ ...formData, actionPlan: e.target.value })}
+                    onChange={(e) => {
+                      setSubmitError(null);
+                      setFormData({ ...formData, actionPlan: e.target.value });
+                    }}
                     className="w-full border rounded px-3 py-2 h-20"
                   />
                 </div>
@@ -178,14 +252,17 @@ export default function App() {
                   <textarea
                     placeholder="Explain how your evidence supports your submission"
                     value={formData.evidenceNotes}
-                    onChange={(e) => setFormData({ ...formData, evidenceNotes: e.target.value })}
+                    onChange={(e) => {
+                      setSubmitError(null);
+                      setFormData({ ...formData, evidenceNotes: e.target.value });
+                    }}
                     className="w-full border rounded px-3 py-2 h-20"
                   />
                 </div>
 
                 <button
                   onClick={handleSubmit}
-                  disabled={loading}
+                  disabled={loading || !!validateSubmission()}
                   className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 disabled:opacity-50"
                 >
                   {loading ? 'Submitting...' : 'Submit & Score'}

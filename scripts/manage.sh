@@ -403,9 +403,18 @@ command="${1:-help}"
 shift || true
 
 case "$command" in
-  start) start_group "${1:-all}" ;;
+  start)
+    target="${1:-all}"
+    start_group "$target"
+    status_group "$target"
+    ;;
   stop) stop_group "${1:-all}" ;;
-  restart) stop_group "${1:-all}"; start_group "${1:-all}" ;;
+  restart)
+    target="${1:-all}"
+    stop_group "$target"
+    start_group "$target"
+    status_group "$target"
+    ;;
   status) status_group "${1:-all}" ;;
   health) health_group "${1:-all}" ;;
   logs) logs_service "${1:-api}" "${2:-80}" ;;

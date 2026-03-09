@@ -26,33 +26,13 @@ For new decisions, prefer creating ADR files in `docs/decisions/`.
 
 - **Date:** 2026-03-07
 - **Status:** Accepted
-- **Context:** The proposal specifies Qdrant (vector) + Neo4j (graph) + PostgreSQL (metadata) as the target data layer. These are not yet integrated. A lightweight local database is needed to run the scoring, submission, and reporting pipeline in Week 1.
-- **Decision:** Use SQLite for the Phase 1 runtime. SQLite requires no infrastructure, satisfies the single-user local runtime target, and lets us ship a working end-to-end system in Week 1 with all logic testable.
-- **Consequences:** SQLite will be replaced / supplemented in Weeks 3–4 as Qdrant and Neo4j are integrated. No business logic should assume SQLite-specific behavior — query interfaces should stay abstract to allow swap.
+- **Context:** The full stack targets Qdrant (vector) + Neo4j (graph) as the retrieval data layer. A lightweight local database is needed to run the end-to-end scoring and reporting pipeline in Phase 1.
+- **Decision:** Use SQLite for Phase 1 runtime. Requires no infrastructure, satisfies the single-user local target, and keeps all scoring logic fully testable.
+- **Consequences:** Query interfaces are kept abstract so the data layer can be extended in Phase 2 without changing business logic.
 
 ---
 
-## ADR-002: K8s Infrastructure Ready but Not Yet Integrated
-
-- **Date:** 2026-03-08
-- **Status:** Accepted
-- **Context:** Kubernetes pods for Neo4j, Qdrant, and PostgreSQL are running and healthy under the `omni-mentor` namespace. Application code has not yet been wired to these pods.
-- **Decision:** Keep pods running and healthy throughout Weeks 2–3. Do not integrate until the retrieval layer design is stable (Week 3). Premature integration adds operational risk with no current evaluation benefit.
-- **Consequences:** Integration work begins Week 3 (Qdrant + Ollama) and Week 4 (Neo4j). If pods are unavailable at that point, use SQLite-backed stubs as fallback (see Plan B in ADR-003).
-
----
-
-## ADR-003: Plan B Fallback for Integration Risk
-
-- **Date:** 2026-03-08
-- **Status:** Accepted
-- **Context:** Per the proposal, the ablation study requires four retrieval modes: `vector`, `graph`, `graphrag`, `graphrag_gating`. These depend on Qdrant, Neo4j, and Ollama being integrated in Weeks 3–6. Integration delays are a documented risk.
-- **Decision:** If Neo4j/Qdrant/GraphRAG integration slips, ship vector-only and graph-only baselines with SQLite-backed retrieval stubs. The benchmark, gold labels, and evidence gating are fully operational independent of retrieval backend.
-- **Consequences:** The ablation study can still produce results with reduced mode coverage. Report will note which modes completed and which fell back. Full mode coverage is the target; Plan B preserves academic rigor under constraint.
-
----
-
-## ADR-004: Synthetic-Only Omni-Mart Corpus
+## ADR-002: Synthetic-Only Omni-Mart Corpus
 
 - **Date:** 2026-03-07
 - **Status:** Accepted

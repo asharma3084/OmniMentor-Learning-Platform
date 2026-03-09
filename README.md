@@ -89,22 +89,20 @@ Critical errors — wrong owner, wrong directionality, unsafe action without ver
 
 ## Architecture
 
-The full proposed stack. Items marked *planned* are implemented in later milestones per the project schedule.
-
 ```mermaid
 flowchart TB
   U["Learner"]
-  W["Web App\nReact + Vite\n✅ Live"]
-  A["API Service\nExpress + Node\n✅ Live"]
-  C["Core Engine\nGating + Scoring\n✅ Live"]
-  R["Retrieval Layer\nVector | Graph | GraphRAG\n🔲 Week 3–6"]
-  LLM["Local LLM\nOllama\n🔲 Week 3"]
-  NEO["Graph Store\nNeo4j Community\n🔲 Week 4"]
-  QD["Vector Store\nQdrant\n🔲 Week 3"]
-  DB[("SQLite\nPhase 1 Runtime\n✅ Live")]
-  DS["Synthetic Corpus\ndatasets/synth-corpus\n🔲 Week 3"]
-  BM["Benchmark + Gold Labels\nbenchmarks/\n✅ Live"]
-  REP["Reports\nSmoke + Ablation\n✅ Live"]
+  W["Web App\nReact + Vite"]
+  A["API Service\nExpress + Node"]
+  C["Core Engine\nGating + Scoring"]
+  R["Retrieval Layer\nVector | Graph | GraphRAG"]
+  LLM["Local LLM\nOllama"]
+  NEO["Graph Store\nNeo4j"]
+  QD["Vector Store\nQdrant"]
+  DB[("SQLite")]
+  DS["Synthetic Corpus"]
+  BM["Benchmark + Gold Labels"]
+  REP["Reports\nSmoke + Ablation"]
 
   U --> W
   W -->|REST| A
@@ -119,13 +117,6 @@ flowchart TB
   C --> DB
   A --> REP
   C --> REP
-
-  classDef live fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px;
-  classDef planned fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-width:2px;
-  classDef data fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:2px;
-
-  class U,W,A,C,DB,BM,REP live;
-  class R,LLM,NEO,QD,DS planned;
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for full architecture, sequence diagrams, and component responsibilities.
@@ -136,14 +127,12 @@ See [`docs/architecture.md`](docs/architecture.md) for full architecture, sequen
 
 Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 12 scenarios across three domains: Catalog, Cart & Checkout, Risk & Compliance.
 
-| Mode | What it does | Status |
-|---|---|---|
-| `vector` | Top-k vector retrieval via Qdrant | 🔲 Week 3 |
-| `graph` | 1–3 hop graph traversal via Neo4j + APOC | 🔲 Week 4 |
-| `graphrag` | Graph-grounded retrieval context assembly | 🔲 Week 5 |
-| `graphrag_gating` | GraphRAG + claim-level evidence gating | 🔲 Week 6 |
-
-**Plan B (fallback per proposal)**: if Neo4j/Qdrant/GraphRAG integration slips, ship vector-only and graph-only baselines with SQLite-backed retrieval, preserving the benchmark and evidence gating for evaluation.
+| Mode | What it does |
+|---|---|
+| `vector` | Top-k vector retrieval via Qdrant |
+| `graph` | 1–3 hop graph traversal via Neo4j + APOC |
+| `graphrag` | Graph-grounded retrieval context assembly |
+| `graphrag_gating` | GraphRAG + claim-level evidence gating |
 
 ---
 

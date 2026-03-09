@@ -54,18 +54,18 @@ The goal is not to answer questions. It is to build the capacity to ask them —
 - Synthetic Omni-Mart corpus and gold-labeled benchmark (12 scenarios × 3 domains).
 - Ablation evaluation across four retrieval modes: `vector`, `graph`, `graphrag`, `graphrag_gating`.
 
-## Full Proposed Stack
+## Technology Stack
 
-| Component | Technology | Phase |
-|---|---|---|
-| Web UI | React + Vite + Tailwind | ✅ Week 1 |
-| API | Express + Node.js | ✅ Week 1 |
-| Database (Phase 1) | SQLite | ✅ Week 1 |
-| Core scoring + gating | TypeScript | ✅ Week 1 |
-| Vector store | Qdrant | Week 3 |
-| Local LLM | Ollama | Week 3 |
-| Graph store | Neo4j Community | Week 4 |
-| Graph retrieval | GraphRAG | Week 5–6 |
+| Layer | Technology |
+|---|---|
+| Web UI | React + Vite + Tailwind |
+| API | Express + Node.js |
+| Database | SQLite (Phase 1) → Qdrant + Neo4j (Phase 2) |
+| Core scoring + gating | TypeScript |
+| Vector retrieval | Qdrant |
+| Local LLM | Ollama |
+| Graph store | Neo4j Community |
+| Graph retrieval | GraphRAG |
 
 ## Out Of Scope (Current)
 

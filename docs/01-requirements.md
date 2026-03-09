@@ -40,22 +40,22 @@ These research questions define the functional and evaluative scope of OmniMento
 | Open-source only | No paid feature tiers or commercial dependencies |
 | No telemetry | No external user-data collection of any kind |
 
-## Full Stack Requirements By Phase
+## Technology Stack
 
-| Phase | Technology | Requirement |
-|---|---|---|
-| Week 1 | React + Vite + Tailwind | Web UI for scenario workflow |
-| Week 1 | Express + Node.js | REST API for scenarios, submissions, scoring, eval |
-| Week 1 | SQLite | Phase 1 runtime persistence |
-| Week 1 | TypeScript + Vitest | Core engine + 20-test suite |
-| Week 3 | Qdrant | Vector store for semantic retrieval |
-| Week 3 | Ollama | Local LLM for context assembly |
-| Week 4 | Neo4j Community | Graph store for ownership + dependency graph |
-| Week 5–6 | GraphRAG | Graph-grounded retrieval context assembly |
+| Layer | Technology |
+|---|---|
+| Web UI | React + Vite + Tailwind |
+| API | Express + Node.js |
+| Database | SQLite (Phase 1) → Qdrant + Neo4j (Phase 2) |
+| Core engine | TypeScript + Vitest |
+| Vector retrieval | Qdrant |
+| Local LLM | Ollama |
+| Graph store | Neo4j Community |
+| Graph retrieval | GraphRAG |
 
 ## Acceptance Criteria
 
-### Phase 1 (Weeks 1–2)
+**Phase 1 — baseline system:**
 - `pnpm lint` passes with zero warnings.
 - `pnpm test` passes all 20 tests across 4 suites.
 - `pnpm typecheck` passes with strict TypeScript.
@@ -63,7 +63,7 @@ These research questions define the functional and evaluative scope of OmniMento
 - `pnpm smoke` passes end-to-end with API running.
 - `pnpm eval` generates JSON + CSV ablation outputs.
 
-### Phase 2 (Weeks 3–6 — planned)
+**Phase 2 — retrieval and evaluation:**
 - Vector retrieval (`pnpm eval --mode vector`) produces retrieval metrics.
 - Graph retrieval (`pnpm eval --mode graph`) traversal depth ≥ 2 hops.
 - GraphRAG mode produces graph-grounded context with provenance.

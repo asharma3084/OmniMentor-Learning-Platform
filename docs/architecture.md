@@ -4,8 +4,7 @@
 
 
 Version: 2.0
-Last Updated: 2026-03-07
-Scope: Proposal-aligned baseline (Phase 1 complete, Phase 2+ planned)
+Last Updated: 2026-03-08
 
 ## 1. Architecture Goals
 
@@ -18,24 +17,7 @@ The platform supports deliberate technical practice through:
 - Rubric-driven scoring with transparent metrics and gold-standard comparison.
 - Reproducible evaluation across four retrieval modes (ablation study design).
 
-This architecture follows the project proposal as the baseline. Deviations from the proposal schedule are logged in [`docs/11-decisions-log.md`](11-decisions-log.md).
-
-## 1a. Phase Roadmap
-
-| Week | Deliverable | Status |
-|---|---|---|
-| Week 1 | React UI + Express API + SQLite + 20-test suite + smoke gate | ✅ Complete |
-| Week 2 | API contracts, retrieval reliability hardening, documentation | ✅ Complete |
-| Week 3 | Qdrant vector store + synthetic corpus + Ollama LLM integration | 🔲 Planned |
-| Week 4 | Neo4j graph store + ownership/dependency graph loading | 🔲 Planned |
-| Week 5 | GraphRAG context assembly + provenance display | 🔲 Planned |
-| Week 6 | `graphrag_gating` mode + full 12-scenario ablation run | 🔲 Planned |
-| Week 7 | Evaluation analysis + draft research report | 🔲 Planned |
-| Week 8 | Final polish, documentation, release-ready state | 🔲 Planned |
-
-**Infrastructure note**: Neo4j, Qdrant, and PostgreSQL pods are running under the `omni-mentor` Kubernetes namespace and are healthy. They are not yet integrated with the application — integration begins in Weeks 3–4.
-
-**Plan B**: If Neo4j/Qdrant/GraphRAG integration slips, ship vector-only and graph-only baselines with SQLite-backed retrieval stubs. The benchmark and evidence gating are preserved for evaluation regardless of retrieval backend.
+This architecture follows the project proposal as the baseline.
 
 ## 2. High-Level System Architecture
 

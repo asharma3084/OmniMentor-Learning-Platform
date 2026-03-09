@@ -1,203 +1,204 @@
-# OmniMentor — The Intelligence Platform for Better Decisions
+<div align="center">
 
-Learning solution for evidence-first engineering decision making.
+# 🎓 OmniMentor
 
-<p align="left">
-	<a href="docs/00-overview.md"><img src="https://img.shields.io/badge/Overview-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Overview" /></a>
-	<a href="docs/01-requirements.md"><img src="https://img.shields.io/badge/Requirements-14b8a6?style=for-the-badge&labelColor=042f2e" alt="Requirements" /></a>
-	<a href="docs/architecture.md"><img src="https://img.shields.io/badge/Architecture-6366f1?style=for-the-badge&labelColor=1e1b4b" alt="Architecture" /></a>
-	<a href="docs/03-api-contract.md"><img src="https://img.shields.io/badge/API-22c55e?style=for-the-badge&labelColor=052e16" alt="API" /></a>
-	<a href="docs/04-data-model.md"><img src="https://img.shields.io/badge/Data%20Model-f59e0b?style=for-the-badge&labelColor=451a03" alt="Data Model" /></a>
-	<a href="docs/05-development-setup.md"><img src="https://img.shields.io/badge/Setup-f97316?style=for-the-badge&labelColor=431407" alt="Setup" /></a>
-	<a href="docs/06-testing-strategy.md"><img src="https://img.shields.io/badge/Testing-ec4899?style=for-the-badge&labelColor=500724" alt="Testing" /></a>
-	<a href="docs/07-verification-and-quality-gates.md"><img src="https://img.shields.io/badge/Quality%20Gates-a855f7?style=for-the-badge&labelColor=3b0764" alt="Quality Gates" /></a>
-	<a href="docs/09-operations-runbook.md"><img src="https://img.shields.io/badge/Operations-ef4444?style=for-the-badge&labelColor=450a0a" alt="Operations" /></a>
+### From Architecture Blindness to Architectural Fluency.
+#### The Intelligence Platform for Better Decisions.
+
+[![Tests](https://img.shields.io/badge/Tests-20%20passing-22c55e?style=flat-square)](config/vitest.config.ts)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript)](apps/web/tsconfig.json)
+[![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Node%20%2B%20SQLite-0ea5e9?style=flat-square)](docs/architecture.md)
+[![Platform](https://img.shields.io/badge/Platform-macOS-000000?style=flat-square&logo=apple)](docs/05-development-setup.md)
+[![License](https://img.shields.io/badge/License-MIT-a855f7?style=flat-square)](LICENSE)
+
+<p>
+  <a href="docs/00-overview.md"><img src="https://img.shields.io/badge/Overview-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Overview" /></a>
+  <a href="docs/architecture.md"><img src="https://img.shields.io/badge/Architecture-6366f1?style=for-the-badge&labelColor=1e1b4b" alt="Architecture" /></a>
+  <a href="docs/03-api-contract.md"><img src="https://img.shields.io/badge/API-22c55e?style=for-the-badge&labelColor=052e16" alt="API" /></a>
+  <a href="docs/05-development-setup.md"><img src="https://img.shields.io/badge/Setup-f97316?style=for-the-badge&labelColor=431407" alt="Setup" /></a>
+  <a href="docs/07-verification-and-quality-gates.md"><img src="https://img.shields.io/badge/Quality%20Gates-a855f7?style=for-the-badge&labelColor=3b0764" alt="Quality Gates" /></a>
+  <a href="docs/10-security-and-compliance.md"><img src="https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a" alt="Security" /></a>
 </p>
 
-OmniMentor is a learning solution that trains evidence-first engineering judgment.
-It helps learners practice decisions that matter in real delivery work: ownership routing, dependency reasoning, blast-radius thinking, and clear evidence-backed justification.
+</div>
 
-This project is currently designed for local single-user use on macOS first, and is planned to expand to additional platforms later.
-It is open source only, has no paid version, does not use telemetry, and does not send user data to external services.
+---
 
-## At A Glance
+At Omni-Mart, engineers and TPMs entering a new domain find that the system's real logic — who owns what, what depends on what, and what breaks if you touch it — lives in tribal memory, not documentation. A new joiner puts work into a service change, only to discover a hidden upstream dependency requiring a completely different configuration. By then, you are looking at expensive rework, delayed delivery, and a confidence hit that takes weeks to recover from.
 
-| Focus Area | Why It Matters |
-|---|---|
-| Evidence-first decision training | Builds defensible engineering judgment, not guesswork |
-| Transparent scoring | Learners can see exactly what improved or failed |
-| Repeatable verification | Outcomes are backed by commands and artifacts |
-| Scenario-based flow | Practice mirrors real operational decision-making |
+**OmniMentor treats this as a learning problem, not a documentation problem.**
 
-## Why This Exists
+It provides a practice environment to build evidence-first reasoning before those decisions cost anything in production. Pick a realistic scenario. Inspect the evidence. Submit your analysis. Receive rubric-based feedback tied to what was missing and why it matters. Repeat until evidence-first thinking is the default — not something triggered only by a post-mortem.
 
-Engineering teams lose time and reliability when decisions are based on opinion instead of evidence.
-OmniMentor addresses this gap with scenario-based practice that evaluates:
-- ownership routing
-- dependency impact reasoning
-- blast-radius analysis
-- evidence-backed justification
+> *"A newcomer should be able to sit in a meeting, explain the key dependencies, and predict how a change might ripple through the system — with confidence, before things go wrong."*
 
-The result is practical training that improves decision quality in real engineering work.
+---
 
-## What Makes It Useful
+## What It Addresses
 
-- Evidence gating catches unsupported claims early.
-- Scoring is transparent: feedback explains why a submission passed or failed.
-- Evaluation is reproducible through repeatable scripts and machine-readable outputs.
-- The same flow can be run consistently across scenarios and retrieval modes.
+| Dimension | The Problem | How OmniMentor Helps |
+|---|---|---|
+| **Cognitive Load** | Mental energy consumed by basic fact retrieval — who owns this? what does this touch? — instead of high-level reasoning | Architecture externalised so engineers reason visually, not from memory |
+| **Emotional Anxiety** | Fear of bothering a senior engineer. Hesitation to lead a system review. Uncertainty that slows decisions. | Non-judgmental, always-available practice with traceable, verifiable answers |
+| **Social Isolation** | Ownership knowledge lives with people who were there. Newcomers navigate blind across team boundaries. | Ownership, dependencies, and coordination boundaries made explicit and queryable |
 
-## Core Capabilities
-
-- Scenario workflow from prompt to scored feedback.
-- Rubric-based scoring with explicit metrics.
-- Retrieval mode comparisons for evaluation depth.
-- Machine-readable output artifacts for auditability.
-
-## High-Level Architecture
-
-```mermaid
-flowchart LR
-	U["Learner"]
-	W["Web App\nReact + Vite"]
-	A["API\nExpress + Node"]
-	C["Core Engine\nGating + Scoring"]
-	R["Retrieval Layer\nVector | Graph | GraphRAG"]
-	D[("SQLite + Synthetic Dataset")]
-	O["Reports\nSmoke + Ablation"]
-
-	U --> W
-	W --> A
-	A --> C
-	A --> R
-	C --> D
-	R --> D
-	A --> O
-	C --> O
-
-	classDef actor fill:#fff3cd,stroke:#d97706,color:#7c2d12,stroke-width:2px;
-	classDef web fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px;
-	classDef api fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px;
-	classDef core fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:2px;
-	classDef data fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:2px;
-	classDef output fill:#ffe4e6,stroke:#e11d48,color:#881337,stroke-width:2px;
-
-	class U actor;
-	class W web;
-	class A api;
-	class C,R core;
-	class D data;
-	class O output;
-```
-
-See `docs/architecture.md` for full architecture and detailed flow.
-
-## Current Scope
-
-This repository delivers a working end-to-end baseline:
-- React web interface for scenario interaction.
-- Express API for submissions, scoring, and evaluation jobs.
-- Core scoring engine for evidence gating and rubric metrics.
-- Evaluation scripts that generate JSON and CSV reports.
-
-## Proposal Focus
-
-This implementation stays aligned with the proposal baseline and keeps changes measurable through tests, runtime checks, and generated reports.
+---
 
 ## Quick Start
 
-### Prerequisites
-
-- Git
-- Node.js 20+
-- pnpm --dir workspace - sqlite3
-
-macOS setup:
-
-```bash
-brew update
-brew install git node pnpm --dir workspace sqlite
-```
-
-### Install
+**Prerequisites**: Node.js 20+, pnpm, macOS
 
 ```bash
 git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
 cd OmniMentor-Learning-Solution
 pnpm --dir workspace install
-cp config/.env.example .env
+bash scripts/manage.sh start all
 ```
 
-### Run
-
+**Health check:**
 ```bash
-pnpm --dir workspace --filter @omnimentor/api dev
-pnpm --dir workspace --filter @omnimentor/web dev
-```
-
-Health checks:
-
-```bash
-curl -s http://localhost:3001/
 curl -s http://localhost:3001/health
 ```
 
-## Quality Gates
+Web UI → [http://localhost:5173](http://localhost:5173) · API → [http://localhost:3001](http://localhost:3001)
 
-These commands give objective proof that the system is healthy end-to-end.
+---
 
-```bash
-pnpm --dir workspace lint
-pnpm --dir workspace test
-pnpm --dir workspace typecheck
-pnpm --dir workspace build
-pnpm --dir workspace smoke
-pnpm --dir workspace eval
-pnpm --dir workspace audit
+## How It Works
+
+OmniMentor runs a **scenario-based practice loop** grounded in cognitive apprenticeship (Collins et al., 1989), scaffolding theory (Wood et al., 1976), and self-explanation (Chi et al., 1989):
+
+1. **Select a scenario** — a realistic operational prompt from the synthetic Omni-Mart corpus
+2. **Inspect the evidence** — ownership records, dependency traces, runbooks, incident notes, policy artefacts
+3. **Submit your analysis** — owner routing, dependency trace (upstream → downstream), blast-radius plan, evidence notes
+4. **Receive rubric feedback** — score, critical-error flags, gold-aligned explanation of what was missing and why it matters
+
+The feedback engine evaluates five dimensions:
+
+| Metric | What It Measures |
+|---|---|
+| Owner-routing accuracy | Did you identify the correct primary owner and escalation path? |
+| Dependency-trace accuracy | Is the upstream → downstream critical path correct? |
+| Blast-radius completeness | Did the plan explicitly state downstream impacts and constraints? |
+| Evidence relevance score | Coverage against the gold evidence set (primary + corroborating required) |
+| Unsupported-claim rate | Proportion of submitted claims not backed by opened evidence |
+
+Critical errors — wrong owner, wrong directionality, unsafe action without verification — are flagged explicitly.
+
+---
+
+## Architecture
+
+The full proposed stack. Items marked *planned* are implemented in later milestones per the project schedule.
+
+```mermaid
+flowchart TB
+  U["Learner"]
+  W["Web App\nReact + Vite\n✅ Live"]
+  A["API Service\nExpress + Node\n✅ Live"]
+  C["Core Engine\nGating + Scoring\n✅ Live"]
+  R["Retrieval Layer\nVector | Graph | GraphRAG\n🔲 Week 3–6"]
+  LLM["Local LLM\nOllama\n🔲 Week 3"]
+  NEO["Graph Store\nNeo4j Community\n🔲 Week 4"]
+  QD["Vector Store\nQdrant\n🔲 Week 3"]
+  DB[("SQLite\nPhase 1 Runtime\n✅ Live")]
+  DS["Synthetic Corpus\ndatasets/synth-corpus\n🔲 Week 3"]
+  BM["Benchmark + Gold Labels\nbenchmarks/\n✅ Live"]
+  REP["Reports\nSmoke + Ablation\n✅ Live"]
+
+  U --> W
+  W -->|REST| A
+  A --> C
+  A --> R
+  A --> DB
+  R --> QD
+  R --> NEO
+  R --> LLM
+  R --> DS
+  C --> BM
+  C --> DB
+  A --> REP
+  C --> REP
+
+  classDef live fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px;
+  classDef planned fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-width:2px;
+  classDef data fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:2px;
+
+  class U,W,A,C,DB,BM,REP live;
+  class R,LLM,NEO,QD,DS planned;
 ```
 
-## API Endpoints
+See [`docs/architecture.md`](docs/architecture.md) for full architecture, sequence diagrams, and component responsibilities.
 
-- `GET /`
-- `GET /health`
-- `GET /scenarios`
-- `GET /scenarios/:id`
-- `GET /evidence?scenarioId=:id`
-- `POST /submissions`
-- `POST /score`
-- `POST /ablation/run`
+---
 
-## Evaluation Modes
+## Evaluation Design
 
-- `vector`
-- `graph`
-- `graphrag`
-- `graphrag_gating`
+Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 12 scenarios across three domains: Catalog, Cart & Checkout, Risk & Compliance.
 
-## Output Artifacts
+| Mode | What it does | Status |
+|---|---|---|
+| `vector` | Top-k vector retrieval via Qdrant | 🔲 Week 3 |
+| `graph` | 1–3 hop graph traversal via Neo4j + APOC | 🔲 Week 4 |
+| `graphrag` | Graph-grounded retrieval context assembly | 🔲 Week 5 |
+| `graphrag_gating` | GraphRAG + claim-level evidence gating | 🔲 Week 6 |
 
-- `reports/week1/smoke-*.json`
-- `services/api/reports/week1/ablation-run-*.json`
-- `services/api/reports/week1/ablation-summary.csv`
+**Plan B (fallback per proposal)**: if Neo4j/Qdrant/GraphRAG integration slips, ship vector-only and graph-only baselines with SQLite-backed retrieval, preserving the benchmark and evidence gating for evaluation.
 
-## Data And Security Policy
+---
 
-- Synthetic-only learning artifacts.
-- No personal or company-internal data.
+## Quality Gates
+
+```bash
+pnpm --dir workspace lint        # zero warnings
+pnpm --dir workspace typecheck   # strict TypeScript
+pnpm --dir workspace test        # 20 tests across 4 suites
+pnpm --dir workspace build       # clean production build
+pnpm --dir workspace smoke       # end-to-end health check
+pnpm --dir workspace eval        # benchmark + ablation report
+```
+
+All gates must pass before any change is considered done.
+
+---
+
+## API
+
+```
+GET  /health
+GET  /scenarios
+GET  /scenarios/:id
+GET  /evidence?scenarioId=:id
+POST /submissions
+POST /score
+POST /ablation/run
+```
+
+Full contract: [`docs/03-api-contract.md`](docs/03-api-contract.md)
+
+---
+
+## Data and Security
+
+- Synthetic-only corpus. No personal, proprietary, or company-internal data.
 - No secrets committed to source control.
+- No telemetry. No external data transmission.
+
+---
 
 ## Documentation
 
-- [`docs/README.md`](docs/README.md) (documentation index)
-- [`docs/00-overview.md`](docs/00-overview.md)
-- [`docs/01-requirements.md`](docs/01-requirements.md)
-- [`docs/architecture.md`](docs/architecture.md) (full detailed architecture)
-- [`docs/03-api-contract.md`](docs/03-api-contract.md)
-- [`docs/04-data-model.md`](docs/04-data-model.md)
-- [`docs/05-development-setup.md`](docs/05-development-setup.md)
-- [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md)
-- [`docs/07-verification-and-quality-gates.md`](docs/07-verification-and-quality-gates.md)
-- [`docs/08-release-and-deployment.md`](docs/08-release-and-deployment.md)
-- [`docs/09-operations-runbook.md`](docs/09-operations-runbook.md)
-- [`docs/10-security-and-compliance.md`](docs/10-security-and-compliance.md)
-- [`docs/11-decisions-log.md`](docs/11-decisions-log.md)
+| Doc | Contents |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | Full system design, diagrams, component responsibilities |
+| [`docs/00-overview.md`](docs/00-overview.md) | Project overview and scope |
+| [`docs/01-requirements.md`](docs/01-requirements.md) | Functional and non-functional requirements |
+| [`docs/03-api-contract.md`](docs/03-api-contract.md) | API endpoint contract and response shapes |
+| [`docs/04-data-model.md`](docs/04-data-model.md) | Logical data model |
+| [`docs/05-development-setup.md`](docs/05-development-setup.md) | Local development setup |
+| [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md) | Test pyramid and strategy |
+| [`docs/07-verification-and-quality-gates.md`](docs/07-verification-and-quality-gates.md) | Quality gate commands and criteria |
+| [`docs/10-security-and-compliance.md`](docs/10-security-and-compliance.md) | Security and data policy |
+| [`docs/11-decisions-log.md`](docs/11-decisions-log.md) | Architecture and process decisions |
+| [`docs/12-risks-and-technical-debt.md`](docs/12-risks-and-technical-debt.md) | Risks, fallbacks, and technical debt |
+

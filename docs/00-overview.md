@@ -5,28 +5,67 @@
 
 ## Purpose
 
-OmniMentor is a learning solution for evidence-first engineering decision making.
+OmniMentor is an intelligence platform that turns **institutional memory into a learnable skill**. Built around the Omni-Mart enterprise context, it transforms the way new engineers and program managers orient to complex systems — not through documentation lookup, but through scenario-based practice grounded in real evidence.
 
 Operating model in current scope:
-- Local single-user web solution.
+- Local single-user web application.
 - macOS-first runtime target.
-- Open source only (no paid version).
-- No telemetry or external data collection.
+- Open source only — no paid version, no telemetry, no external data collection.
 
-## Problem
+## Problem: Architecture Blindness
 
-Teams often make change decisions using incomplete evidence, which increases incident risk and rework.
+Enterprise software systems accumulate vast operational knowledge — ownership boundaries, dependency chains, runbook decisions, incident patterns — but this knowledge lives mostly in the heads of a few senior engineers. When those engineers are perpetually interrupted by newcomers who lack the tools to self-orient, an organization's institutional memory becomes a bottleneck rather than an asset.
+
+We call this **Architecture Blindness**: the inability to see the full functional picture of a complex system — overwhelmed by the technical trees, unable to see the forest.
+
+Architecture Blindness operates across three reinforcing dimensions:
+
+| Dimension | What It Looks Like |
+|---|---|
+| **Cognitive Load** | Too many systems, too many names — no mental model for what owns what |
+| **Emotional Anxiety** | Fear of asking "obvious" questions; reluctance to make ownership decisions under uncertainty |
+| **Social Isolation** | Peripheral participation — attending meetings without knowing enough to contribute |
+
+The canonical persona is **Nancy**: a new Technical Program Manager at Omni-Mart, technically capable, genuinely motivated, but unable to navigate the ownership graph — a newcomer who needs to sit in a meeting, explain key dependencies, and predict how a change might ripple through the system.
 
 ## Solution Direction
 
-OmniMentor provides scenario-based practice with explicit evidence gating, transparent rubric scoring, and reproducible evaluation outputs.
+OmniMentor is a **non-judgmental relational tutor** that:
+1. Presents realistic operational scenarios drawn from the synthetic Omni-Mart corpus.
+2. Surfaces evidence — ownership records, dependency traces, runbooks, incident notes — without pre-selecting the right answer.
+3. Scores learner responses on five rubric dimensions (owner routing, dependency trace, blast radius, evidence relevance, unsupported claims).
+4. Returns feedback that names what was missing, explains why it matters, and points to the gap in the learner's mental model.
+
+The goal is not to answer questions. It is to build the capacity to ask them — to transform Nancy from an **information seeker** into a **strategic coordinator**.
+
+## Research Questions
+
+| | Research Question |
+|---|---|
+| **RQ1** | Does scenario-based practice with a knowledge graph reduce orientation time compared to static documentation access? |
+| **RQ2** | Does interacting with a non-judgmental automated assistant measurably reduce self-reported anxiety during system onboarding? |
+| **RQ3** | Does ownership-visualization scaffolding accelerate transition from peripheral to legitimate participant, as measured by contribution patterns? |
 
 ## Scope Baseline
 
 - Web interface for learner workflow.
 - API for scenario retrieval, submissions, scoring, and evaluation.
-- Core gating and scoring engine.
-- Synthetic datasets and benchmark-driven evaluation.
+- Core gating and scoring engine with evidence gating.
+- Synthetic Omni-Mart corpus and gold-labeled benchmark (12 scenarios × 3 domains).
+- Ablation evaluation across four retrieval modes: `vector`, `graph`, `graphrag`, `graphrag_gating`.
+
+## Full Proposed Stack
+
+| Component | Technology | Phase |
+|---|---|---|
+| Web UI | React + Vite + Tailwind | ✅ Week 1 |
+| API | Express + Node.js | ✅ Week 1 |
+| Database (Phase 1) | SQLite | ✅ Week 1 |
+| Core scoring + gating | TypeScript | ✅ Week 1 |
+| Vector store | Qdrant | Week 3 |
+| Local LLM | Ollama | Week 3 |
+| Graph store | Neo4j Community | Week 4 |
+| Graph retrieval | GraphRAG | Week 5–6 |
 
 ## Out Of Scope (Current)
 

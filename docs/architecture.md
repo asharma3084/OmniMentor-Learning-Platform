@@ -9,13 +9,33 @@ Scope: Proposal-aligned baseline (Phase 1 complete, Phase 2+ planned)
 
 ## 1. Architecture Goals
 
-OmniMentor is designed to support deliberate technical practice through:
-- Scenario-based problem solving.
-- Evidence-first reasoning and claim validation.
-- Rubric-driven scoring with transparent metrics.
-- Reproducible evaluation across retrieval strategies.
+OmniMentor is designed to address **Architecture Blindness** — the inability of new engineers and program managers to navigate complex enterprise systems — by building institutional memory into a learnable, evidence-backed practice.
 
-This architecture follows the project proposal as the baseline. Any future deviations must be documented in local session notes and summarized in weekly check-ins.
+The platform supports deliberate technical practice through:
+- Scenario-based problem solving grounded in the synthetic Omni-Mart corpus.
+- Evidence-first reasoning: learners must open, cite, and evaluate evidence before submitting claims.
+- Claim-level gating: unsupported claims are flagged explicitly, not silently dropped.
+- Rubric-driven scoring with transparent metrics and gold-standard comparison.
+- Reproducible evaluation across four retrieval modes (ablation study design).
+
+This architecture follows the project proposal as the baseline. Deviations from the proposal schedule are logged in [`docs/11-decisions-log.md`](11-decisions-log.md).
+
+## 1a. Phase Roadmap
+
+| Week | Deliverable | Status |
+|---|---|---|
+| Week 1 | React UI + Express API + SQLite + 20-test suite + smoke gate | ✅ Complete |
+| Week 2 | API contracts, retrieval reliability hardening, documentation | ✅ Complete |
+| Week 3 | Qdrant vector store + synthetic corpus + Ollama LLM integration | 🔲 Planned |
+| Week 4 | Neo4j graph store + ownership/dependency graph loading | 🔲 Planned |
+| Week 5 | GraphRAG context assembly + provenance display | 🔲 Planned |
+| Week 6 | `graphrag_gating` mode + full 12-scenario ablation run | 🔲 Planned |
+| Week 7 | Evaluation analysis + draft research report | 🔲 Planned |
+| Week 8 | Final polish, documentation, release-ready state | 🔲 Planned |
+
+**Infrastructure note**: Neo4j, Qdrant, and PostgreSQL pods are running under the `omni-mentor` Kubernetes namespace and are healthy. They are not yet integrated with the application — integration begins in Weeks 3–4.
+
+**Plan B**: If Neo4j/Qdrant/GraphRAG integration slips, ship vector-only and graph-only baselines with SQLite-backed retrieval stubs. The benchmark and evidence gating are preserved for evaluation regardless of retrieval backend.
 
 ## 2. High-Level System Architecture
 

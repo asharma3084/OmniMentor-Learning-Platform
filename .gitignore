@@ -1,2 +1,9 @@
 personal/
 node_modules
+**/dist/
+**/data/
+reports/
+services/api/reports/
+.DS_Store
+.vscode/
+apps/web/dist/

@@ -1,6 +1,6 @@
-# OmniMentor
+# OmniMentor — Your Guide to Evidence-Based Decisions
 
-Learning Solution for evidence-first engineering decision making.
+Learning solution for evidence-first engineering decision making.
 
 <p align="left">
 	<a href="docs/00-overview.md"><img src="https://img.shields.io/badge/Overview-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Overview" /></a>

@@ -5,6 +5,13 @@ export interface Evidence {
   title: string;
   body: string;
   role: 'primary' | 'corroborating' | 'reference';
+  metadata?: {
+    source?: string;
+    type?: string;
+    retrievalScore?: number;
+    timestamp?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface Artifact {

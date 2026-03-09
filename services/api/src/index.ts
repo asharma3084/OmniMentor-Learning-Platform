@@ -56,12 +56,24 @@ type SqlGoldRow = {
   gold_required_evidence_ids: string;
 };
 
+type ErrorResponse = {
+  error: string;
+  code?: string;
+  details?: unknown;
+  requestId?: string;
+  timestamp: string;
+};
+
 class AppError extends Error {
   statusCode: number;
+  code?: string;
+  details?: unknown;
 
-  constructor(message: string, statusCode = 400) {
+  constructor(message: string, statusCode = 400, code?: string, details?: unknown) {
     super(message);
     this.statusCode = statusCode;
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -132,11 +144,21 @@ app.use(
 app.use(
   rateLimit({
     windowMs: 60 * 1000,
-    limit: 60,
+    limit: 500,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req: Request) => {
+      const ip = req.ip ?? '';
+      return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    },
   })
 );
+
+// Request ID middleware
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  (req as Request & { requestId: string }).requestId = uuidv4();
+  next();
+});
 
 // Health check
 app.get('/', (_req: Request, res: Response) => {
@@ -157,7 +179,7 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 // Get all scenarios
-app.get('/scenarios', (_req: Request, res: Response) => {
+app.get('/scenarios', (_req: Request, res: Response, next: NextFunction) => {
   try {
     const scenarios = db.prepare('SELECT * FROM scenarios').all() as SqlScenarioRow[];
     const parsed = scenarios.map((s) => ({
@@ -166,19 +188,18 @@ app.get('/scenarios', (_req: Request, res: Response) => {
     }));
     res.json(parsed);
   } catch (err) {
-    console.error('Error fetching scenarios:', err);
-    res.status(500).json({ error: 'Failed to fetch scenarios' });
+    next(err);
   }
 });
 
 // Get single scenario
-app.get('/scenarios/:id', (req: Request, res: Response) => {
+app.get('/scenarios/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
     const scenario = db
       .prepare('SELECT * FROM scenarios WHERE id = ?')
       .get(req.params.id) as SqlScenarioRow | undefined;
     if (!scenario) {
-      res.status(404).json({ error: 'Scenario not found' });
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
       return;
     }
 
@@ -189,17 +210,16 @@ app.get('/scenarios/:id', (req: Request, res: Response) => {
 
     res.json(parsed);
   } catch (err) {
-    console.error('Error fetching scenario:', err);
-    res.status(500).json({ error: 'Failed to fetch scenario' });
+    next(err);
   }
 });
 
 // Get evidence (stub for Phase 1; retrieval modes in Phase 2+)
-app.get('/evidence', (req: Request, res: Response) => {
+app.get('/evidence', (req: Request, res: Response, next: NextFunction) => {
   try {
     const scenarioId = req.query.scenarioId as string;
     if (!scenarioId) {
-      res.status(400).json({ error: 'scenarioId query param required' });
+      next(new AppError('scenarioId query param required', 400, 'MISSING_SCENARIO_ID'));
       return;
     }
 
@@ -207,7 +227,7 @@ app.get('/evidence', (req: Request, res: Response) => {
       .prepare('SELECT artifacts FROM scenarios WHERE id = ?')
       .get(scenarioId) as Pick<SqlScenarioRow, 'artifacts'> | undefined;
     if (!scenario) {
-      res.status(404).json({ error: 'Scenario not found' });
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
       return;
     }
 
@@ -215,18 +235,33 @@ app.get('/evidence', (req: Request, res: Response) => {
       scenario.artifacts
     );
     
-    // Convert artifacts to evidence format
-    const evidence = artifacts.map((a) => ({
-      id: a.id,
-      title: a.title,
-      body: a.content,
-      role: a.type === 'document' ? 'primary' : 'corroborating',
-    }));
+    // Convert artifacts to evidence format with deterministic ranking
+    // Sort by type (primary first) then alphabetically by ID for determinism
+    const evidence = artifacts
+      .map((a) => ({
+        id: a.id,
+        title: a.title,
+        body: a.content,
+        role: a.type === 'document' ? 'primary' : 'corroborating',
+        metadata: {
+          source: 'artifact',
+          type: a.type,
+          retrievalScore: a.type === 'document' ? 1.0 : 0.8,
+          timestamp: new Date().toISOString(),
+        },
+      }))
+      .sort((a, b) => {
+        // Primary sources first, then corroborating
+        if (a.role !== b.role) {
+          return a.role === 'primary' ? -1 : 1;
+        }
+        // Within same role, sort alphabetically by ID for determinism
+        return a.id.localeCompare(b.id);
+      });
 
     res.json(evidence);
   } catch (err) {
-    console.error('Error fetching evidence:', err);
-    res.status(500).json({ error: 'Failed to fetch evidence' });
+    next(err);
   }
 });
 
@@ -235,7 +270,18 @@ app.post('/submissions', (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = submissionSchema.safeParse(req.body);
     if (!parsed.success) {
-      next(new AppError(parsed.error.issues.map((i) => i.message).join('; '), 400));
+      next(
+        new AppError(
+          'Validation failed',
+          400,
+          'VALIDATION_ERROR',
+          parsed.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+            code: i.code,
+          }))
+        )
+      );
       return;
     }
 
@@ -284,7 +330,18 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = scoreSchema.safeParse(req.body);
     if (!parsed.success) {
-      next(new AppError(parsed.error.issues.map((i) => i.message).join('; '), 400));
+      next(
+        new AppError(
+          'Validation failed',
+          400,
+          'VALIDATION_ERROR',
+          parsed.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+            code: i.code,
+          }))
+        )
+      );
       return;
     }
 
@@ -296,7 +353,7 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       .get(submissionId) as SqlSubmissionRow | undefined;
 
     if (!submission) {
-      res.status(404).json({ error: 'Submission not found' });
+      next(new AppError('Submission not found', 404, 'SUBMISSION_NOT_FOUND'));
       return;
     }
 
@@ -313,7 +370,7 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       .get(submission.scenario_id) as SqlGoldRow | undefined;
 
     if (!goldLabels) {
-      res.status(400).json({ error: 'Gold labels not found for scenario' });
+      next(new AppError('Gold labels not found for scenario', 400, 'GOLD_LABELS_NOT_FOUND'));
       return;
     }
 
@@ -330,7 +387,7 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       .get(submission.scenario_id) as Pick<SqlScenarioRow, 'artifacts'> | undefined;
 
     if (!scenario) {
-      res.status(404).json({ error: 'Scenario not found' });
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
       return;
     }
 
@@ -457,7 +514,18 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = ablationSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      next(new AppError(parsed.error.issues.map((i) => i.message).join('; '), 400));
+      next(
+        new AppError(
+          'Validation failed',
+          400,
+          'VALIDATION_ERROR',
+          parsed.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+            code: i.code,
+          }))
+        )
+      );
       return;
     }
 
@@ -567,19 +635,33 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Error handler
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not found' });
+app.use((req: Request, res: Response) => {
+  const requestId = (req as Request & { requestId?: string }).requestId;
+  const response: ErrorResponse = {
+    error: 'Not found',
+    code: 'NOT_FOUND',
+    requestId,
+    timestamp: new Date().toISOString(),
+  };
+  res.status(404).json(response);
 });
 
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const appError = err instanceof AppError ? err : new AppError('Internal server error', 500);
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  const appError = err instanceof AppError ? err : new AppError('Internal server error', 500, 'INTERNAL_ERROR');
   if (!(err instanceof AppError)) {
     console.error('Unhandled API error:', err);
   }
 
-  res.status(appError.statusCode).json({
+  const requestId = (req as Request & { requestId?: string }).requestId;
+  const response: ErrorResponse = {
     error: appError.message,
-  });
+    code: appError.code,
+    details: appError.details,
+    requestId,
+    timestamp: new Date().toISOString(),
+  };
+
+  res.status(appError.statusCode).json(response);
 });
 
 app.listen(PORT, () => {

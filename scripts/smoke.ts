@@ -41,7 +41,7 @@ if (!fs.existsSync(REPORT_DIR)) {
 }
 
 async function runSmoke() {
-  console.log('🔥 OmniMentor Smoke Test — Phase 1\n');
+  console.log('🔥 OmniMentor Smoke Test\n');
 
   try {
     // 1. Health check

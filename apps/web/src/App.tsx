@@ -149,7 +149,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8">🎓 OmniMentor — Phase 1</h1>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold">🎓 OmniMentor</h1>
+          <p className="text-lg font-medium text-gray-500 mt-1">Your Guide to Evidence-Based Decisions</p>
+        </div>
 
         {submitError && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-6 text-sm">

@@ -32,10 +32,10 @@ Tab model used in this guide:
 7. Submit and inspect `Score & Reflection` outputs.
 8. Capture progress and observations in `Check-in Export`.
 
-A+ freeze behavior expectations during this workflow:
+Freeze-scope behavior expectations during this workflow:
 - `System Graph` interactions include filter, path-trace, and impact-highlight usage before final submission.
 - `Evaluation` review includes mode-delta interpretation, not only top-line score reading.
-- `Check-in Export` output must be mentor-thread ready (concise narrative + evidence links + score/gating snapshot).
+- `Check-in Export` output must be review-thread ready (concise narrative + evidence links + score/gating snapshot).
 
 ## 12-Scenario Demo Set
 
@@ -163,7 +163,7 @@ Recommended demo sequence:
 1. Run one scenario per domain (1, 5, 9) to show breadth.
 2. Run one complex graph-heavy scenario (10 or 12) for depth.
 3. Open `Evaluation` and show four-mode comparison outputs.
-4. Export summary from `Check-in Export` for mentor-thread readiness.
+4. Export summary from `Check-in Export` for review-thread readiness.
 5. Demonstrate copy/download export actions and show included artifact links.
 
 ## What Reviewers Should See
@@ -192,4 +192,4 @@ By the end of the 12-scenario run, reviewers should observe:
 "This interface trains a new TPM to make defensible architecture decisions.
 Each scenario forces evidence-backed owner routing, directional dependency reasoning, and blast-radius planning.
 GraphRAG and Neo4j provide relationship context, Ollama provides bounded coaching, and evidence gating enforces trust.
-We evaluate across four retrieval modes and export reproducible outputs for mentor review."
+We evaluate across four retrieval modes and export reproducible outputs for review."

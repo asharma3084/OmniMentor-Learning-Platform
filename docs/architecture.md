@@ -6,7 +6,7 @@
 Version: 2.7
 Last Updated: 2026-03-09
 
-## 1. Architecture Goals
+## 1. Architecture Objectives
 
 Per the approved project proposal and requirements docs, OmniMentor targets **Architecture Blindness**: the onboarding challenge where new engineers and TPMs struggle to navigate ownership, dependency direction, and governance constraints in complex systems.
 
@@ -238,12 +238,12 @@ flowchart LR
 - System Graph is a first-class UI surface for Neo4j/GraphRAG node-edge navigation.
 - AI assistant surface uses local Ollama guidance and remains bounded by evidence-gating policy.
 
-### 5.1c A+ Freeze-Scope Enhancements
+### 5.1c Freeze-Scope Enhancements
 - `System Graph` must provide interactive graph operations: zoom, pan, node/edge filtering, path tracing, and impact highlighting.
 - `System Graph` node panel must show provenance-linked evidence and ownership/dependency metadata for selected graph entities.
 - `Evaluation` must provide deeper mode analytics: per-mode metric table, deltas across modes, unsupported-claim trend, and critical-error category breakdown.
 - `Evaluation` must expose mode diagnostics that explain retrieval behavior differences (`vector`, `graph`, `graphrag`, `graphrag_gating`).
-- `Check-in Export` must generate mentor-ready summary output with scenario context, score/gating snapshot, evidence links, and copy/download actions.
+- `Check-in Export` must generate review-ready summary output with scenario context, score/gating snapshot, evidence links, and copy/download actions.
 
 ### 5.2 API Service (`services/api`)
 - Exposes REST contracts for scenario/evidence/submission/score/eval.
@@ -356,7 +356,7 @@ This architecture is aligned with `docs/detailed-ui-design.md`:
 - same structured submission contract
 - same graph/evidence/evaluation surfaces
 - same Ollama assistant and evidence-gating boundaries
-- same A+ freeze-scope enhancements for graph interaction and evaluation/export depth
+- same freeze-scope enhancements for graph interaction and evaluation/export depth
 
 ## 12. Proposal Alignment Statement
 

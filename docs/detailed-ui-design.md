@@ -131,7 +131,7 @@ Navigation behavior:
 │ Q3 Scope/Expectations: [auto draft + edit]                                                   │
 │ Q4 Team Responsibilities: [single-user template]                                             │
 │ Evidence Links: smoke report, eval report, metrics table                                     │
-│ [Copy for Mentor Thread]                                                                      │
+│ [Copy for Review Thread]                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -208,7 +208,7 @@ Graph requirements:
 - Direction arrows always visible
 - Path trace from selected source to downstream impact
 
-A+ freeze requirements:
+Freeze-scope requirements:
 - Interactive canvas controls: zoom, pan, fit-to-graph, and reset view.
 - Visual filtering by team/domain/risk/edge type with immediate graph updates.
 - Node and edge highlighting for selected dependency path and blast-radius impact path.
@@ -242,12 +242,12 @@ Required outputs:
 - Critical-error rate by mode
 - Export controls (JSON/CSV)
 
-A+ freeze requirements:
+Freeze-scope requirements:
 - Comparative delta view across modes (best mode highlighted with rationale).
 - Critical error breakdown by category (`wrong owner`, `wrong directionality`, `unsafe action`).
 - Trend row for unsupported-claim reduction and gating-pass consistency.
 - Mode diagnostics panel explaining retrieval behavior and trade-offs.
-- Download and copy actions for evaluation summary (mentor-thread ready text + machine-readable artifact links).
+- Download and copy actions for evaluation summary (review-thread ready text + machine-readable artifact links).
 
 ## 8.6 Check-in Export
 
@@ -257,18 +257,18 @@ Required sections:
 - Scope/deviation statement
 - Evidence links (reports/metrics)
 
-A+ freeze requirements:
-- Auto-generated mentor-ready narrative block with concise, evidence-backed language.
+Freeze-scope requirements:
+- Auto-generated review-ready narrative block with concise, evidence-backed language.
 - Explicit references to latest score, gating status, and critical-error snapshot.
 - One-click copy action and downloadable markdown/text export.
 - Included links to latest smoke report and ablation summary artifacts.
 
-## 8.7 A+ Freeze Scope
+## 8.7 Freeze Scope
 
 Before coding is considered complete, the following design-scope items are frozen as required:
 - Interactive `System Graph` behavior and metadata/provenance panel.
 - Deep `Evaluation` analytics and diagnostics across all four retrieval modes.
-- Mentor-ready `Check-in Export` generation workflow with copy/download actions.
+- Review-ready `Check-in Export` generation workflow with copy/download actions.
 
 ## 9. AI Assistant UI Contract (Ollama)
 

@@ -11,7 +11,7 @@ This document explains why the selected GUI (`Design 1.1: TPM Onboarding Command
 - Qualifier Question (QQ) expectations
 - Proposal research questions (`RQ1`, `RQ2`, `RQ3`)
 
-It is written as a defensible rationale for mentor review and demo narration.
+It is written as a defensible rationale for design review and demo narration.
 
 ## Assignment-To-GUI Traceability
 
@@ -57,7 +57,7 @@ Why this is correct:
 - A3 requires learnable relationships and traceable cues.
 - Graph + provenance + reflection forms a relational learning loop.
 
-## A4 (QQ): Balance Automation With Human Mentoring Principles
+## A4 (QQ): Balance Automation With Human Guidance Principles
 
 What QQ emphasized:
 - Automated assistance should support expertise development, not shortcut learning.
@@ -119,9 +119,9 @@ Compared to alternatives, Design 1.1 gives the strongest combined score on:
 - proposal fidelity
 - assignment traceability
 - measurable evaluation readiness
-- mentor-review defensibility
+- review defensibility
 
-It is not only visually strong; it is epistemically aligned with the course goals.
+It is not only visually strong; it is epistemically aligned with the course outcomes.
 
 ## Coverage Statement
 
@@ -143,18 +143,18 @@ Design 1.1 is a **full-coverage baseline** because it explicitly includes:
 
 This baseline is used as the implementation and review reference for check-in.
 
-## A+ Freeze Requirements
+## Freeze-Scope Requirements
 
-To meet the A+ quality target, the following are required (not optional):
+To meet the quality target, the following are required (not optional):
 - Interactive `System Graph` visualization (zoom/pan/filter/path highlight + provenance-linked node detail).
 - Deeper `Evaluation` analytics (mode deltas, error-category breakdown, diagnostics panel).
-- Mentor-ready `Check-in Export` generation (structured narrative + score/gating snapshot + copy/download actions).
+- Review-ready `Check-in Export` generation (structured narrative + score/gating snapshot + copy/download actions).
 
 These requirements are now part of frozen design/architecture scope and must be reflected in implementation.
 
 ## Demo-Ready Summary
 
-When presenting to mentor or reviewers:
+When presenting to reviewers:
 - Start with the problem (Architecture Blindness)
 - Show how each tab maps to a research question
 - Show that AI is bounded and evidence is mandatory

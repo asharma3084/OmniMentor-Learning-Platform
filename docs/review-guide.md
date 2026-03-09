@@ -7,7 +7,7 @@ This guide helps reviewers and instructors quickly evaluate progress quality and
 
 ## What To Look For
 
-- Is the project aligned with proposal goals?
+- Is the project aligned with proposal scope?
 - Are claims backed by reproducible command evidence?
 - Are outputs generated from synthetic-only data?
 - Is verification discipline consistent across sessions?

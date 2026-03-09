@@ -36,7 +36,7 @@ OmniMentor is a **non-judgmental relational tutor** that:
 3. Scores learner responses on five rubric dimensions (owner routing, dependency trace, blast radius, evidence relevance, unsupported claims).
 4. Returns feedback that names what was missing, explains why it matters, and points to the gap in the learner's mental model.
 
-The goal is not to answer questions. It is to build the capacity to ask them — to transform Nancy from an **information seeker** into a **strategic coordinator**.
+The focus is not to answer questions. It is to build the capacity to ask them — to transform Nancy from an **information seeker** into a **strategic coordinator**.
 
 ## Research Questions
 

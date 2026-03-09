@@ -27,7 +27,7 @@ These research questions define the functional and evaluative scope of OmniMento
 - The system must signal uncertainty explicitly — never assert with false confidence (active validation design requirement).
 - The system must provide an interactive `System Graph` surface with zoom, pan, filtering, and path highlighting.
 - The system must provide deeper `Evaluation` analytics (mode deltas, diagnostics, and critical-error category breakdown).
-- The system must provide mentor-ready `Check-in Export` output with copy/download actions and linked evidence artifacts.
+- The system must provide review-ready `Check-in Export` output with copy/download actions and linked evidence artifacts.
 
 ## Non-Functional Requirements
 
@@ -74,4 +74,4 @@ These research questions define the functional and evaluative scope of OmniMento
 - All 12 benchmark scenarios score across all 4 modes with reproducible results.
 - UI `System Graph` supports interactive path exploration for ownership and downstream impact reasoning.
 - UI `Evaluation` supports comparative interpretation across all four retrieval modes.
-- UI `Check-in Export` produces mentor-thread-ready summary content with evidence links.
+- UI `Check-in Export` produces review-thread-ready summary content with evidence links.

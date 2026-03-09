@@ -161,10 +161,10 @@ TPM Command Center tabs:
 - `Evaluation`
 - `Check-in Export`
 
-A+ freeze-scope enhancements (design/architecture baseline before coding completion):
+Freeze-scope enhancements (design/architecture baseline before coding completion):
 - `System Graph`: interactive node-edge canvas with zoom, pan, filters, path highlighting, and provenance-linked node detail.
 - `Evaluation`: richer per-mode analytics (table + trend deltas + error-category breakdown) with clear mode diagnostics.
-- `Check-in Export`: structured mentor-ready export with evidence links, score/gating snapshot, and copy/download actions.
+- `Check-in Export`: structured review-ready export with evidence links, score/gating snapshot, and copy/download actions.
 
 ---
 

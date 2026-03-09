@@ -52,7 +52,7 @@ Expected:
 - `GET /` returns JSON with service metadata.
 - `GET /health` returns `status: ok`.
 
-## Run Week 1 Validation
+## Run Validation
 
 With API running:
 

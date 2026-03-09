@@ -1,16 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+:root {
+  --bg-0: #070b14;
+  --bg-1: #0e1726;
+  --surface-0: rgba(15, 25, 39, 0.82);
+  --surface-1: rgba(20, 32, 51, 0.88);
+  --line: rgba(124, 152, 182, 0.28);
+  --line-strong: rgba(141, 173, 206, 0.5);
+  --text-0: #edf3fc;
+  --text-1: #c2cfdd;
+  --text-2: #90a0b4;
+  --accent: #27d3b6;
+  --accent-2: #7ae2cf;
+  --warn: #f0b45a;
+  --danger: #ff7c7c;
+  --ok: #4bd79e;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    background:
+      radial-gradient(1000px 600px at -10% -20%, rgba(39, 211, 182, 0.18), transparent 60%),
+      radial-gradient(900px 500px at 110% -10%, rgba(240, 180, 90, 0.14), transparent 55%),
+      linear-gradient(140deg, var(--bg-0) 0%, var(--bg-1) 100%);
+    color: var(--text-0);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(4, 8, 14, 0.8);
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(124, 152, 182, 0.6);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(141, 173, 206, 0.78);
+  }
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatPulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@layer components {
+  .form-input {
+    @apply w-full border rounded-xl px-3 py-2.5 text-sm
+      transition-all duration-150 outline-none
+      focus:ring-2;
+    background: rgba(15, 26, 40, 0.85);
+    border-color: var(--line);
+    color: var(--text-0);
+  }
+
+  .form-input::placeholder {
+    color: var(--text-2);
+  }
+
+  .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(39, 211, 182, 0.18);
+  }
+
+  .card {
+    @apply rounded-2xl border;
+    background: linear-gradient(155deg, var(--surface-0) 0%, var(--surface-1) 100%);
+    border-color: var(--line);
+    backdrop-filter: blur(8px);
+  }
+
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wider mb-1.5;
+    color: var(--text-2);
+  }
+
+  .reveal-up {
+    animation: revealUp 420ms ease both;
+  }
+
+  .floating-mark {
+    animation: floatPulse 2.6s ease-in-out infinite;
+  }
+
+  .mono-kicker {
+    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.08em;
+  }
 }

@@ -91,21 +91,40 @@ Critical errors — wrong owner, wrong directionality, unsafe action without ver
 
 ```mermaid
 flowchart TB
-  U["Learner"]
-  W["Web App\nReact + Vite"]
+  U["Learner / Reviewer"]
+  subgraph UI["TPM Command Center"]
+    DASH["Overview"]
+    WS["Scenario Workspace"]
+    SG["System Graph"]
+    EV["Evidence"]
+    EVAL["Evaluation"]
+    EXP["Check-in Export"]
+  end
+
   A["API Service\nExpress + Node"]
-  C["Core Engine\nGating + Scoring"]
-  R["Retrieval Layer\nVector | Graph | GraphRAG"]
-  LLM["Local LLM\nOllama"]
-  NEO["Graph Store\nNeo4j"]
-  QD["Vector Store\nQdrant"]
+  C["Core Engine\nEvidence Gating + Rubric Scoring"]
+  R["Retrieval Layer\nvector | graph | graphrag | graphrag_gating"]
+  LLM["Ollama\nLocal LLM"]
+  NEO["Neo4j\nGraph Store"]
+  QD["Qdrant\nVector Store"]
   DB[("SQLite")]
   DS["Synthetic Corpus"]
   BM["Benchmark + Gold Labels"]
-  REP["Reports\nSmoke + Ablation"]
+  REP["Reports\nJSON + CSV"]
 
-  U --> W
-  W -->|REST| A
+  U --> DASH
+  DASH --> WS
+  DASH --> SG
+  DASH --> EV
+  DASH --> EVAL
+  DASH --> EXP
+
+  WS -->|REST| A
+  SG -->|Graph queries| A
+  EV -->|Evidence retrieval| A
+  EVAL -->|Score + gate request| A
+  EXP -->|Export request| A
+
   A --> C
   A --> R
   A --> DB
@@ -133,6 +152,19 @@ Reproducible ablation study across four retrieval modes against a gold-labeled b
 | `graph` | 1–3 hop graph traversal via Neo4j + APOC |
 | `graphrag` | Graph-grounded retrieval context assembly |
 | `graphrag_gating` | GraphRAG + claim-level evidence gating |
+
+TPM Command Center tabs:
+- `Overview`
+- `Scenario Workspace`
+- `System Graph`
+- `Evidence`
+- `Evaluation`
+- `Check-in Export`
+
+A+ freeze-scope enhancements (design/architecture baseline before coding completion):
+- `System Graph`: interactive node-edge canvas with zoom, pan, filters, path highlighting, and provenance-linked node detail.
+- `Evaluation`: richer per-mode analytics (table + trend deltas + error-category breakdown) with clear mode diagnostics.
+- `Check-in Export`: structured mentor-ready export with evidence links, score/gating snapshot, and copy/download actions.
 
 ---
 
@@ -180,6 +212,7 @@ Full contract: [`docs/03-api-contract.md`](docs/03-api-contract.md)
 | Doc | Contents |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | Full system design, diagrams, component responsibilities |
+| [`docs/detailed-ui-design.md`](docs/detailed-ui-design.md) | Detailed UI architecture, page contracts, and mockups |
 | [`docs/00-overview.md`](docs/00-overview.md) | Project overview and scope |
 | [`docs/01-requirements.md`](docs/01-requirements.md) | Functional and non-functional requirements |
 | [`docs/03-api-contract.md`](docs/03-api-contract.md) | API endpoint contract and response shapes |

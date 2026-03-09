@@ -21,8 +21,8 @@ brew install git node pnpm --dir workspace sqlite
 ## Install
 
 ```bash
-git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
-cd OmniMentor-Learning-Solution
+git clone https://github.com/asharma3084/OmniMentor-Learning-Platform.git
+cd OmniMentor-Learning-Platform
 pnpm --dir workspace install
 cp config/.env.example .env
 ```

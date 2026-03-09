@@ -49,8 +49,8 @@ It provides a practice environment to build evidence-first reasoning before thos
 **Prerequisites**: Node.js 20+, pnpm, macOS
 
 ```bash
-git clone https://github.com/asharma3084/OmniMentor-Learning-Solution.git
-cd OmniMentor-Learning-Solution
+git clone https://github.com/asharma3084/OmniMentor-Learning-Platform.git
+cd OmniMentor-Learning-Platform
 pnpm --dir workspace install
 bash scripts/manage.sh start all
 ```

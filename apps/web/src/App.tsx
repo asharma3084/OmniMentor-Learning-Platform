@@ -151,7 +151,7 @@ export default function App() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold">🎓 OmniMentor</h1>
-          <p className="text-lg font-medium text-gray-500 mt-1">Your Guide to Evidence-Based Decisions</p>
+          <p className="text-lg font-medium text-gray-500 mt-1">The Intelligence Platform for Better Decisions.</p>
         </div>
 
         {submitError && (

@@ -1,4 +1,4 @@
-# OmniMentor — Your Guide to Evidence-Based Decisions
+# OmniMentor — The Intelligence Platform for Better Decisions
 
 Learning solution for evidence-first engineering decision making.
 

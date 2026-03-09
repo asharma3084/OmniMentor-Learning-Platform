@@ -25,7 +25,7 @@ import fs from 'fs';
 dotenv.config();
 
 const app = express();
-const PORT = parseInt(process.env.API_PORT || '3001');
+const PORT = parseInt(process.env.API_PORT || '9992');
 const DB_PATH = process.env.DATABASE_URL || './data/omnimentor.db';
 const REPORT_DIR = path.join(process.cwd(), 'reports', 'week1');
 

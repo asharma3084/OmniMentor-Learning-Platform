@@ -9,8 +9,8 @@ PID_DIR="$RUNTIME_DIR/pids"
 LOG_DIR="$RUNTIME_DIR/logs"
 
 # Defaults (can be overridden in config/manage.env)
-API_PORT=3001
-WEB_PORT=5173
+API_PORT=9992
+WEB_PORT=9991
 OLLAMA_PORT=11434
 API_HOST="127.0.0.1"
 WEB_HOST="127.0.0.1"
@@ -107,7 +107,7 @@ start_service() {
       cmd="cd '$ROOT_DIR' && API_PORT='$API_PORT' DATABASE_URL='$DATABASE_URL' pnpm --dir workspace --filter @omnimentor/api dev"
       ;;
     web)
-      cmd="cd '$ROOT_DIR' && pnpm --dir workspace --filter @omnimentor/web exec vite --host '$WEB_HOST' --port '$WEB_PORT'"
+      cmd="cd '$ROOT_DIR' && pnpm --dir workspace --filter @omnimentor/web exec vite --host '$WEB_HOST' --port '$WEB_PORT' --strictPort"
       ;;
     ollama)
       require_cmd ollama

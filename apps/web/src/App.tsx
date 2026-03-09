@@ -75,7 +75,7 @@ export default function App() {
   const [dependencyTraceInput, setDependencyTraceInput] = useState('');
   const [blastRadiusInput, setBlastRadiusInput] = useState('');
 
-  const API_URL = 'http://localhost:3001';
+  const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:9992';
 
   useEffect(() => {
     fetchScenarios();

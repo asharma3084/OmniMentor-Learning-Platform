@@ -7,7 +7,7 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const API_URL = 'http://localhost:3001';
+const API_URL = process.env.API_URL || 'http://localhost:9992';
 const REPORT_DIR = path.join(path.dirname(__dirname), 'reports', 'week1');
 
 type ApiError = Error & {

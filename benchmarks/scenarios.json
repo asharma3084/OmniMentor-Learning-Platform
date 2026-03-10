@@ -1,0 +1,179 @@
+{
+  "version": "2.0",
+  "description": "OmniMentor benchmark scenarios with gold labels for TPM architectural decision evaluation.",
+  "scenarios": [
+    {
+      "id": "scenario-1",
+      "domain": "Catalog",
+      "title": "Deploy Catalog API Schema Migration",
+      "prompt": "The Catalog Team needs to deploy a schema migration to the Catalog API that adds a new 'variants' field to product records. This change affects the CDC event schema consumed by Search Indexer. Identify the owner, map dependencies, assess blast radius, and determine safe deployment actions.",
+      "artifacts": ["art-cat-001", "art-cat-002", "art-cat-003", "art-cat-004", "art-cat-005"],
+      "goldOwner": "Catalog Team",
+      "goldDependencyTrace": [
+        { "from": "Catalog API", "to": "Search Indexer", "type": "downstream" },
+        { "from": "Catalog API", "to": "Storefront BFF", "type": "downstream" },
+        { "from": "Catalog API", "to": "Mobile BFF", "type": "downstream" },
+        { "from": "Pricing Engine", "to": "Catalog API", "type": "upstream" },
+        { "from": "Inventory Sync", "to": "Catalog API", "type": "upstream" }
+      ],
+      "goldSafeActions": [
+        "Update Search Indexer mapping before deploying Catalog API schema change",
+        "Coordinate with Search Platform Team on CDC event schema update",
+        "Verify Storefront BFF product-detail page renders correctly post-deploy",
+        "Monitor Search Indexer CDC lag — rollback if > 2 min",
+        "Schedule deployment outside bulk-import window"
+      ],
+      "goldBlastRadius": [
+        "Search Indexer ingestion failures if mapping not updated first",
+        "Stale search results on Storefront and Mobile BFF",
+        "Storefront product pages may break if BFF not updated for new field"
+      ],
+      "goldRequiredEvidenceIds": ["art-cat-001", "art-cat-002", "art-cat-003"],
+      "rubricExplanations": "Correct owner is Catalog Team. Key risk is Search Indexer CDC schema mismatch — evidence art-cat-003 explicitly states mapping must be updated first. PIR-2026-018 (art-cat-005) provides historical precedent for indexer lag issues."
+    },
+    {
+      "id": "scenario-2",
+      "domain": "Catalog",
+      "title": "Pricing Engine Degradation During Flash Sale",
+      "prompt": "During a flash sale event, the Pricing Engine is experiencing elevated latency (p99 > 3s, normal is 200ms). Active promotions are returning stale cached prices. Determine the responsible owner, map the dependency impact, assess blast radius, and recommend safe actions.",
+      "artifacts": ["art-cat-001", "art-cat-002", "art-cat-003", "art-cat-004", "art-cat-005"],
+      "goldOwner": "Pricing Team",
+      "goldDependencyTrace": [
+        { "from": "Promo Service", "to": "Pricing Engine", "type": "upstream" },
+        { "from": "Pricing Engine", "to": "Catalog API", "type": "downstream" },
+        { "from": "Pricing Engine", "to": "Cart Service", "type": "downstream" },
+        { "from": "Catalog API", "to": "Storefront BFF", "type": "downstream" }
+      ],
+      "goldSafeActions": [
+        "Engage Pricing Team on-call for latency investigation",
+        "Verify Promo Service is returning promotions within SLA",
+        "Confirm Catalog API fallback to cached base price is active",
+        "Alert Commerce Team that Cart prices may be stale",
+        "Consider temporarily disabling non-critical promo rules to reduce load"
+      ],
+      "goldBlastRadius": [
+        "Incorrect prices shown on Storefront via Catalog API fallback",
+        "Cart Service displaying stale prices to customers",
+        "Revenue impact if flash sale prices not applied correctly"
+      ],
+      "goldRequiredEvidenceIds": ["art-cat-004"],
+      "rubricExplanations": "Owner is Pricing Team. Evidence art-cat-004 documents the synchronous dependency, fallback behavior (stale cached price for 15 min), and blast radius to Storefront and Cart."
+    },
+    {
+      "id": "scenario-3",
+      "domain": "Cart & Checkout",
+      "title": "Deploy Checkout Orchestrator Saga Timeout Change",
+      "prompt": "Following PIR-2026-031, the Commerce Team wants to deploy a change to Checkout Orchestrator increasing the saga timeout from 5s to 8s and adding a circuit breaker on Inventory Sync calls. Identify the owner, map all dependencies, assess blast radius, and list safe deployment steps.",
+      "artifacts": ["art-cart-001", "art-cart-002", "art-cart-003", "art-cart-004", "art-cart-005"],
+      "goldOwner": "Commerce Team",
+      "goldDependencyTrace": [
+        { "from": "Cart Service", "to": "Checkout Orchestrator", "type": "downstream" },
+        { "from": "Checkout Orchestrator", "to": "Payment Gateway", "type": "downstream" },
+        { "from": "Checkout Orchestrator", "to": "Inventory Sync", "type": "downstream" },
+        { "from": "Checkout Orchestrator", "to": "Fulfillment Router", "type": "downstream" },
+        { "from": "Checkout Orchestrator", "to": "Notification Hub", "type": "downstream" }
+      ],
+      "goldSafeActions": [
+        "Coordinate with Payments Team before deploying changes touching checkout saga",
+        "Verify circuit breaker thresholds with Supply Chain Team (Inventory Sync owner)",
+        "Test saga compensating actions (void authorization, cancel reservation) in staging",
+        "Monitor checkout success rate post-deploy — rollback if conversion drops > 1%",
+        "Validate idempotent reservation keys prevent double-booking under timeout"
+      ],
+      "goldBlastRadius": [
+        "Longer saga timeout increases latency for checkout flow",
+        "Circuit breaker on Inventory Sync may temporarily block checkouts when tripped",
+        "Payment authorizations held longer before capture or void",
+        "Revenue impact if saga changes introduce new failure modes"
+      ],
+      "goldRequiredEvidenceIds": ["art-cart-001", "art-cart-002", "art-cart-004", "art-cart-005"],
+      "rubricExplanations": "Owner is Commerce Team (owns both Cart Service and Checkout Orchestrator per art-cart-001). PIR-2026-031 (art-cart-005) is the motivating incident. Dependency map must show all saga participants. Payments Team coordination required per art-cart-002."
+    },
+    {
+      "id": "scenario-4",
+      "domain": "Cart & Checkout",
+      "title": "Payment Gateway Security Patch Deployment",
+      "prompt": "InfoSec has flagged a critical vulnerability in the Payment Gateway's TLS configuration. A patch must be deployed within 24 hours. The Payment Gateway is PCI-DSS scoped. Determine the owner, dependencies, blast radius, and safe deployment procedure.",
+      "artifacts": ["art-cart-001", "art-cart-002", "art-cart-003", "art-cart-004", "art-cart-005"],
+      "goldOwner": "Payments Team",
+      "goldDependencyTrace": [
+        { "from": "Checkout Orchestrator", "to": "Payment Gateway", "type": "upstream" },
+        { "from": "Payment Gateway", "to": "ext-payment-processor", "type": "downstream" }
+      ],
+      "goldSafeActions": [
+        "Obtain security review approval from InfoSec before deployment",
+        "Coordinate with Commerce Team (Checkout Orchestrator owner) for downstream impact",
+        "Verify TLS patch does not break ext-payment-processor connectivity",
+        "Deploy with zero-downtime rolling strategy (PCI requires no card data exposure during transition)",
+        "Monitor authorization success rate — rollback if auth failures > 0.1%"
+      ],
+      "goldBlastRadius": [
+        "All checkout transactions blocked if Payment Gateway goes down during patch",
+        "External payment processor connection may fail if TLS version mismatch",
+        "Revenue loss for duration of any outage"
+      ],
+      "goldRequiredEvidenceIds": ["art-cart-002", "art-cart-003"],
+      "rubricExplanations": "Owner is Payments Team per art-cart-003. PCI compliance requires security review. Blast radius is all checkouts per art-cart-003. Must coordinate with Commerce Team per art-cart-002 (Payments Team sign-off requirement works bidirectionally)."
+    },
+    {
+      "id": "scenario-5",
+      "domain": "Risk & Compliance",
+      "title": "Deploy Updated Fraud Detection Model",
+      "prompt": "The Risk Engineering Team has a new fraud detection model ready after the PIR-2026-042 remediation. The model includes feature-freshness validation and requires canary scoring. Map the dependencies, assess blast radius, identify the owner, and plan safe deployment.",
+      "artifacts": ["art-risk-001", "art-risk-002", "art-risk-003", "art-risk-004", "art-risk-005"],
+      "goldOwner": "Risk Engineering Team",
+      "goldDependencyTrace": [
+        { "from": "Checkout Orchestrator", "to": "Fraud Detection", "type": "upstream" },
+        { "from": "Payment Gateway", "to": "Fraud Detection", "type": "upstream" },
+        { "from": "Fraud Detection", "to": "Notification Hub", "type": "downstream" },
+        { "from": "Fraud Detection", "to": "Audit Logger", "type": "downstream" }
+      ],
+      "goldSafeActions": [
+        "Run canary scoring on last 24h transactions — verify drift < 0.5% before promotion",
+        "Obtain Risk Engineering + Data Science sign-off for model deployment",
+        "Verify feature-freshness validation catches stale promotional pricing data",
+        "Monitor false-negative rate post-deploy — rollback if > baseline + 0.2%",
+        "Confirm Audit Logger is recording model version for compliance traceability"
+      ],
+      "goldBlastRadius": [
+        "False negatives lead to financial loss from approved fraudulent orders",
+        "False positives increase order rejection rate and customer friction",
+        "Checkout Orchestrator falls back to rule-based scoring if Fraud Detection unavailable (higher false-positive rate)"
+      ],
+      "goldRequiredEvidenceIds": ["art-risk-001", "art-risk-005"],
+      "rubricExplanations": "Owner is Risk Engineering Team per art-risk-001. PIR-2026-042 (art-risk-005) provides the remediation requirements including canary scoring and feature-freshness validation. Blast radius extends to financial loss."
+    },
+    {
+      "id": "scenario-6",
+      "domain": "Risk & Compliance",
+      "title": "Identity Provider Emergency Rotation",
+      "prompt": "Platform Security Team has detected a potential JWT signing key compromise. The Identity Provider signing keys must be rotated immediately. This affects all authenticated services. Determine the owner, map the full blast radius, and plan safe rotation steps.",
+      "artifacts": ["art-risk-001", "art-risk-002", "art-risk-003", "art-risk-004", "art-risk-005"],
+      "goldOwner": "Platform Security Team",
+      "goldDependencyTrace": [
+        { "from": "Identity Provider", "to": "Access Control", "type": "downstream" },
+        { "from": "Identity Provider", "to": "Storefront BFF", "type": "downstream" },
+        { "from": "Identity Provider", "to": "Mobile BFF", "type": "downstream" },
+        { "from": "Identity Provider", "to": "Admin Portal", "type": "downstream" },
+        { "from": "Access Control", "to": "Catalog API", "type": "downstream" },
+        { "from": "Access Control", "to": "Cart Service", "type": "downstream" },
+        { "from": "Access Control", "to": "Checkout Orchestrator", "type": "downstream" }
+      ],
+      "goldSafeActions": [
+        "Coordinate with SRE for off-peak deployment window (< 2 AM ET preferred)",
+        "Use dual-key rotation: add new key first, then retire old key after propagation",
+        "Verify all downstream services can validate tokens signed with new key",
+        "Monitor authentication failure rate across all services during rotation",
+        "Confirm Access Control policy engine accepts new token format"
+      ],
+      "goldBlastRadius": [
+        "All authenticated operations blocked if rotation is not seamless",
+        "Access Control loses fine-grained permissions — all services fall back to coarse allow/deny",
+        "Storefront, Mobile BFF, and Admin Portal users cannot log in during disruption",
+        "Platform-wide outage if IdP unavailability exceeds token refresh window"
+      ],
+      "goldRequiredEvidenceIds": ["art-risk-002", "art-risk-004"],
+      "rubricExplanations": "Owner is Platform Security Team per art-risk-004. IdP is root of all authentication; blast radius is platform-wide per art-risk-004. Access Control dependency per art-risk-002 shows cascading impact to every authenticated service."
+    }
+  ]
+}

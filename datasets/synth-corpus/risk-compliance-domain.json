@@ -1,0 +1,88 @@
+{
+  "domain": "Risk & Compliance",
+  "description": "Risk, compliance, and security service ecosystem — manages fraud detection, access control, audit logging, and regulatory compliance for Omni-Mart.",
+  "services": [
+    {
+      "id": "svc-fraud-detection",
+      "name": "Fraud Detection",
+      "owner": "Risk Engineering Team",
+      "tier": "T0",
+      "description": "Real-time fraud scoring on checkout transactions. Runs ML model inference on transaction features; blocks or flags orders exceeding risk threshold.",
+      "upstream": ["svc-checkout-orchestrator", "svc-payment-gateway"],
+      "downstream": ["svc-notification-hub", "svc-audit-logger"]
+    },
+    {
+      "id": "svc-access-control",
+      "name": "Access Control (AuthZ)",
+      "owner": "Platform Security Team",
+      "tier": "T0",
+      "description": "Centralized authorization service implementing RBAC and ABAC policies for all internal services. Every API call validates permissions through this service.",
+      "upstream": ["svc-identity-provider"],
+      "downstream": ["svc-catalog-api", "svc-cart-service", "svc-checkout-orchestrator", "svc-admin-portal"]
+    },
+    {
+      "id": "svc-audit-logger",
+      "name": "Audit Logger",
+      "owner": "Compliance Team",
+      "tier": "T1",
+      "description": "Immutable append-only audit log for all state-changing operations. Required for SOX, PCI, and internal compliance. Ingests events from all T0/T1 services.",
+      "upstream": ["svc-fraud-detection", "svc-access-control", "svc-checkout-orchestrator", "svc-payment-gateway"],
+      "downstream": ["svc-compliance-dashboard"]
+    },
+    {
+      "id": "svc-identity-provider",
+      "name": "Identity Provider (IdP)",
+      "owner": "Platform Security Team",
+      "tier": "T0",
+      "description": "SSO and token issuance (JWT/OAuth2). All user and service authentication flows originate here. Outage blocks all authenticated operations.",
+      "upstream": [],
+      "downstream": ["svc-access-control", "svc-storefront-bff", "svc-mobile-bff", "svc-admin-portal"]
+    },
+    {
+      "id": "svc-notification-hub",
+      "name": "Notification Hub",
+      "owner": "Platform Team",
+      "tier": "T2",
+      "description": "Multi-channel notification dispatch (email, SMS, push, Slack). Consumes events from various services; delivery is async and eventually consistent.",
+      "upstream": ["svc-checkout-orchestrator", "svc-fraud-detection", "svc-fulfillment-router"],
+      "downstream": ["ext-email-provider", "ext-sms-provider"]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-risk-001",
+      "title": "Fraud Detection – Service Ownership & SLA",
+      "content": "Fraud Detection is owned by Risk Engineering Team (T0 revenue-critical). On-call: risk-oncall@omnimart.dev. Latency SLA: scoring response < 500ms p99. The model is retrained weekly; model deployment requires Risk Engineering + Data Science sign-off. If Fraud Detection is unavailable, Checkout Orchestrator falls back to rule-based scoring (higher false-positive rate).",
+      "type": "document",
+      "domain": "Risk & Compliance"
+    },
+    {
+      "id": "art-risk-002",
+      "title": "Access Control – Authorization Architecture",
+      "content": "Access Control (AuthZ) implements centralized RBAC with attribute-based extensions. Every service-to-service call passes JWT with scopes; AuthZ validates against policy engine. Deploying AuthZ policy changes requires Platform Security Team review. Blast radius on AuthZ downgrade: all services lose fine-grained permissions — fall back to coarse allow/deny. Blast radius on AuthZ outage: all authenticated API calls fail (platform-wide).",
+      "type": "document",
+      "domain": "Risk & Compliance"
+    },
+    {
+      "id": "art-risk-003",
+      "title": "Audit Logger – Compliance Dependency Map",
+      "content": "Audit Logger receives events from Fraud Detection, Access Control, Checkout Orchestrator, and Payment Gateway via Kafka topic 'audit.events'. Events are written to immutable append-only store (S3 + SQLite index). Compliance Dashboard reads from Audit Logger for SOX and PCI reporting. If Audit Logger is unavailable: no data loss (Kafka retains events), but compliance reporting is delayed. Deploying Audit Logger requires Compliance Team sign-off.",
+      "type": "reference",
+      "domain": "Risk & Compliance"
+    },
+    {
+      "id": "art-risk-004",
+      "title": "Identity Provider – Blast Radius Assessment",
+      "content": "Identity Provider (IdP) is the root of all authentication. Downstream: Access Control, Storefront BFF, Mobile BFF, Admin Portal. If IdP is unavailable: no user can log in, no service-to-service token refresh, all authenticated operations blocked. IdP deployment requires Platform Security Team + SRE coordination. Deployment window: off-peak only (< 2 AM ET). Zero-downtime rolling deployment required.",
+      "type": "document",
+      "domain": "Risk & Compliance"
+    },
+    {
+      "id": "art-risk-005",
+      "title": "Fraud Detection – Post-Incident Review (PIR-2026-042)",
+      "content": "Incident: Fraud model produced false negatives for 3 hours after weekly model update. Root cause: training pipeline ingested stale feature set — promotional pricing was not reflected in training data. 47 fraudulent orders were approved. Resolution: added feature-freshness validation in training pipeline; model deployment now requires canary scoring on last 24h transactions with < 0.5% drift threshold before promotion. Lesson: Fraud Detection blast radius extends to financial loss; model deployment is a critical change.",
+      "type": "document",
+      "domain": "Risk & Compliance"
+    }
+  ]
+}

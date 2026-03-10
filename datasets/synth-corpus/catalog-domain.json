@@ -1,0 +1,79 @@
+{
+  "domain": "Catalog",
+  "description": "Product Catalog service ecosystem — manages item listings, taxonomy, search indexing, and pricing for the Omni-Mart platform.",
+  "services": [
+    {
+      "id": "svc-catalog-api",
+      "name": "Catalog API",
+      "owner": "Catalog Team",
+      "tier": "T1",
+      "description": "REST gateway for product CRUD, bulk imports, and search-delegated queries.",
+      "upstream": ["svc-pricing-engine", "svc-inventory-sync"],
+      "downstream": ["svc-search-indexer", "svc-storefront-bff", "svc-mobile-bff"]
+    },
+    {
+      "id": "svc-search-indexer",
+      "name": "Search Indexer",
+      "owner": "Search Platform Team",
+      "tier": "T1",
+      "description": "Consumes catalog change-data-capture events and maintains the Elasticsearch cluster for full-text product search.",
+      "upstream": ["svc-catalog-api"],
+      "downstream": ["svc-storefront-bff", "svc-mobile-bff", "svc-recommendation-engine"]
+    },
+    {
+      "id": "svc-pricing-engine",
+      "name": "Pricing Engine",
+      "owner": "Pricing Team",
+      "tier": "T2",
+      "description": "Computes real-time price including promotions, clearance rules, and regional tax adjustments.",
+      "upstream": ["svc-promo-service"],
+      "downstream": ["svc-catalog-api", "svc-cart-service"]
+    },
+    {
+      "id": "svc-storefront-bff",
+      "name": "Storefront BFF",
+      "owner": "Web Experience Team",
+      "tier": "T1",
+      "description": "Backend-for-frontend aggregating catalog, pricing, and inventory for the web storefront.",
+      "upstream": ["svc-catalog-api", "svc-search-indexer", "svc-pricing-engine"],
+      "downstream": ["web-storefront"]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-cat-001",
+      "title": "Catalog API – Service Ownership Registry",
+      "content": "Catalog API is owned by the Catalog Team (T1 critical). On-call rotation: catalog-oncall@omnimart.dev. Escalation path: Catalog Team Lead → VP Engineering. The service handles ~12k RPM at peak and processes bulk-import jobs nightly.",
+      "type": "document",
+      "domain": "Catalog"
+    },
+    {
+      "id": "art-cat-002",
+      "title": "Catalog API – Deployment Runbook",
+      "content": "Pre-deploy: verify Search Indexer CDC lag < 500ms. Coordinate with Search Platform Team if schema migration is included. Post-deploy: confirm product-detail page renders correctly on Storefront BFF. Rollback trigger: error rate > 1% on /products endpoint within 10 min.",
+      "type": "document",
+      "domain": "Catalog"
+    },
+    {
+      "id": "art-cat-003",
+      "title": "Catalog → Search Indexer Dependency Spec",
+      "content": "Catalog API publishes CatalogItemChanged events to Kafka topic 'catalog.changes'. Search Indexer consumes this topic with consumer-group 'search-idx-cg'. If Catalog API schema changes, Search Indexer mapping must be updated first to avoid ingestion failures. Downstream impact: stale search results on Storefront and Mobile BFF if indexer lags > 2 min.",
+      "type": "reference",
+      "domain": "Catalog"
+    },
+    {
+      "id": "art-cat-004",
+      "title": "Pricing Engine Integration Guide",
+      "content": "Catalog API calls Pricing Engine synchronously on /products/:id for real-time price. Pricing Engine depends on Promo Service for active promotions. Failure mode: if Pricing Engine is unavailable, Catalog API falls back to cached base price (stale up to 15 min). Blast radius on Pricing Engine outage: incorrect prices shown on Storefront and Cart.",
+      "type": "reference",
+      "domain": "Catalog"
+    },
+    {
+      "id": "art-cat-005",
+      "title": "Search Indexer – Post-Incident Review (PIR-2026-018)",
+      "content": "Incident: Search Indexer fell 45 min behind on catalog CDC events after a Catalog API bulk-import job unexpectedly doubled event throughput. Root cause: Indexer consumer had fixed partition count (4) while event volume spiked to 8x normal. Resolution: auto-scaling consumer group, partition count increased to 12. Lesson: coordinate bulk-import scheduling with Search Platform Team.",
+      "type": "document",
+      "domain": "Catalog"
+    }
+  ]
+}

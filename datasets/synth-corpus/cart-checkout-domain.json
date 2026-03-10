@@ -1,0 +1,88 @@
+{
+  "domain": "Cart & Checkout",
+  "description": "Shopping cart and checkout service ecosystem — manages cart state, order placement, payment orchestration, and fulfillment handoff for Omni-Mart.",
+  "services": [
+    {
+      "id": "svc-cart-service",
+      "name": "Cart Service",
+      "owner": "Commerce Team",
+      "tier": "T1",
+      "description": "Manages shopping cart state: add/remove items, apply coupons, calculate subtotals. Persists cart in Redis with SQLite fallback.",
+      "upstream": ["svc-pricing-engine", "svc-inventory-sync"],
+      "downstream": ["svc-checkout-orchestrator", "svc-storefront-bff", "svc-mobile-bff"]
+    },
+    {
+      "id": "svc-checkout-orchestrator",
+      "name": "Checkout Orchestrator",
+      "owner": "Commerce Team",
+      "tier": "T0",
+      "description": "Saga coordinator for order placement: reserves inventory, authorizes payment, confirms order, and triggers fulfillment. Failure at any step triggers compensating transactions.",
+      "upstream": ["svc-cart-service"],
+      "downstream": ["svc-payment-gateway", "svc-inventory-sync", "svc-fulfillment-router", "svc-notification-hub"]
+    },
+    {
+      "id": "svc-payment-gateway",
+      "name": "Payment Gateway",
+      "owner": "Payments Team",
+      "tier": "T0",
+      "description": "PCI-DSS compliant gateway proxying card authorizations and captures to external payment processors. Tokenizes card data; no raw PAN stored.",
+      "upstream": ["svc-checkout-orchestrator"],
+      "downstream": ["ext-payment-processor"]
+    },
+    {
+      "id": "svc-inventory-sync",
+      "name": "Inventory Sync",
+      "owner": "Supply Chain Team",
+      "tier": "T1",
+      "description": "Real-time inventory position service. Consumes warehouse events and maintains available-to-promise (ATP) counts per SKU per location.",
+      "upstream": ["ext-warehouse-feed"],
+      "downstream": ["svc-cart-service", "svc-checkout-orchestrator", "svc-catalog-api"]
+    },
+    {
+      "id": "svc-fulfillment-router",
+      "name": "Fulfillment Router",
+      "owner": "Supply Chain Team",
+      "tier": "T1",
+      "description": "Determines optimal fulfillment path (ship-from-store, ship-from-DC, or pickup) based on inventory position, cost, and SLA.",
+      "upstream": ["svc-checkout-orchestrator"],
+      "downstream": ["ext-warehouse-feed", "svc-notification-hub"]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-cart-001",
+      "title": "Cart Service – Ownership & On-Call",
+      "content": "Cart Service is owned by Commerce Team (T1). On-call: commerce-oncall@omnimart.dev. The service handles ~8k RPM at peak. Cart state lives in Redis cluster with 15-min TTL SQLite write-behind for persistence. Commerce Team also owns Checkout Orchestrator (T0 — revenue-critical).",
+      "type": "document",
+      "domain": "Cart & Checkout"
+    },
+    {
+      "id": "art-cart-002",
+      "title": "Checkout Orchestrator – Saga Runbook",
+      "content": "Checkout saga steps: (1) Reserve inventory via Inventory Sync, (2) Authorize payment via Payment Gateway, (3) Confirm order, (4) Trigger fulfillment via Fulfillment Router, (5) Send confirmation via Notification Hub. Compensating actions: cancel reservation, void authorization, mark order failed. Deploy requires Payments Team sign-off if touching payment step. Blast radius: any saga failure blocks revenue.",
+      "type": "document",
+      "domain": "Cart & Checkout"
+    },
+    {
+      "id": "art-cart-003",
+      "title": "Payment Gateway – PCI Compliance Note",
+      "content": "Payment Gateway is the only service in PCI scope. Card data is tokenized at ingestion; raw PAN never crosses service boundary. Deploying Payment Gateway requires security review from InfoSec. Downstream dependency: external payment processor (Stripe/Adyen). Latency SLA: authorization response < 2s p99. Blast radius on outage: all checkouts blocked.",
+      "type": "document",
+      "domain": "Cart & Checkout"
+    },
+    {
+      "id": "art-cart-004",
+      "title": "Inventory Sync – Dependency Map",
+      "content": "Inventory Sync consumes real-time warehouse events from ext-warehouse-feed (Kafka). Serves ATP queries to Cart Service (stock check on add-to-cart), Checkout Orchestrator (reservation), and Catalog API (in-stock badge). If Inventory Sync is unavailable: Cart shows stale stock, Checkout may over-sell, Catalog badges are incorrect. Recovery: replay from Kafka offset.",
+      "type": "reference",
+      "domain": "Cart & Checkout"
+    },
+    {
+      "id": "art-cart-005",
+      "title": "Checkout – Post-Incident Review (PIR-2026-031)",
+      "content": "Incident: Checkout saga timed out for 12% of orders during flash sale. Root cause: Inventory Sync ATP queries exceeded 3s p99 due to warehouse event backpressure. Checkout Orchestrator saga timeout was 5s; double-booking occurred when timeout hit between reserve and authorize steps. Resolution: increased saga timeout to 8s, added circuit breaker on Inventory Sync, implemented idempotent reservation keys. Lesson: blast radius of Inventory Sync latency extends to revenue loss.",
+      "type": "document",
+      "domain": "Cart & Checkout"
+    }
+  ]
+}

@@ -35,6 +35,9 @@ pnpm --dir workspace --filter @omnimentor/web dev
 ## Health Check
 
 ```bash
-curl -s http://localhost:3001/
-curl -s http://localhost:3001/health
+curl -s http://localhost:9992/
+curl -s http://localhost:9992/health
+curl -s http://localhost:9992/surveys/status
 ```
+
+The `/surveys/status` endpoint should return `{"preCompleted": false, "postCompleted": false}` on a fresh database.

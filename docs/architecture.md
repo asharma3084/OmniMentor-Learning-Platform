@@ -3,7 +3,7 @@
 [![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](README.md) [![Overview](https://img.shields.io/badge/Overview-14b8a6?style=for-the-badge&labelColor=042f2e)](00-overview.md) [![Requirements](https://img.shields.io/badge/Requirements-6366f1?style=for-the-badge&labelColor=1e1b4b)](01-requirements.md) [![Architecture](https://img.shields.io/badge/Architecture-a855f7?style=for-the-badge&labelColor=3b0764)](architecture.md) [![Quality Gates](https://img.shields.io/badge/Quality%20Gates-22c55e?style=for-the-badge&labelColor=052e16)](07-verification-and-quality-gates.md) [![Security](https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a)](10-security-and-compliance.md)
 
 
-Version: 2.7
+Version: 2.8
 Last Updated: 2026-03-09
 
 ## 1. Architecture Objectives
@@ -76,6 +76,7 @@ flowchart TB
   EV -->|Evidence retrieval| A
   EVAL -->|Score + gate request| A
   EXP -->|Export request| A
+  DASH -->|Session start / survey| A
 
   A --> C
   A --> R
@@ -126,7 +127,20 @@ sequenceDiagram
   participant CORE as Core Engine
   participant DB as SQLite
 
-  L->>UI: Open dashboard and select Scenario Workspace
+  L->>UI: Open dashboard (pre-survey if first visit)
+  UI->>API: GET /surveys/status
+  API-->>UI: Survey completion state
+  alt Pre-survey not completed
+    UI->>L: Show pre-survey modal
+    L->>UI: Complete 5-item Likert survey
+    UI->>API: POST /surveys (type=pre)
+    API->>DB: Persist survey_responses
+    API-->>UI: Survey saved
+  end
+  L->>UI: Select Scenario Workspace
+  UI->>API: POST /sessions/start (scenarioId)
+  API->>DB: Create learning_session
+  API-->>UI: sessionId + startedAt
   UI->>API: GET /scenarios/:id
   API->>DB: Read scenario + artifacts
   DB-->>API: Scenario payload
@@ -141,8 +155,14 @@ sequenceDiagram
   RET-->>API: ranked evidence + provenance
   API-->>UI: Evidence bundle + graph context
 
-  L->>UI: Select evidence + fill submission
-  UI->>API: POST /submissions
+  L->>UI: Select evidence (first_evidence event logged)
+  UI->>API: POST /sessions/event (first_evidence)
+  API->>DB: Update learning_session.first_evidence_at
+  API-->>UI: ack
+  L->>UI: Fill submission fields
+  UI->>API: POST /sessions/event (first_submit)
+  API->>DB: Update learning_session.first_submit_at
+  UI->>API: POST /submissions (includes sessionId)
   API->>DB: Persist submission
   DB-->>API: submissionId
   API-->>UI: submissionId
@@ -158,6 +178,16 @@ sequenceDiagram
   API-->>UI: Feedback response
 
   UI-->>L: Rubric, critical errors, provenance, uncertainty
+  UI->>API: POST /sessions/event (completed)
+  API->>DB: Update learning_session completed_at + duration_sec
+  API-->>UI: ack
+  alt All scenarios completed
+    UI->>L: Show post-survey modal
+    L->>UI: Complete 5-item Likert survey
+    UI->>API: POST /surveys (type=post)
+    API->>DB: Persist survey_responses
+    API-->>UI: Survey saved
+  end
 ```
 
 ## 4. Evaluation And Ablation Pipeline
@@ -211,9 +241,12 @@ flowchart LR
 - Renders scenario prompts and evidence artifacts.
 - Captures structured submission fields.
 - Displays score, gating outcome, and rubric feedback.
+- Tracks learning session time with a live elapsed timer (mm:ss) in the header.
+- Presents pre-survey modal on first load and post-survey after all scenarios are completed.
+- Logs behavioral proxy events (first evidence selection, first submission) per session.
 
 ### 5.1a Frontend Design Architecture
-- Design intent: reduce Architecture Blindness by improving visual hierarchy, evidence discoverability, and feedback clarity.
+- Design intent: reduce Architecture Blindness by improving visual hierarchy, evidence discoverability, and feedback clarity. This follows scaffolding theory (Wood et al., 1976): external visual structure (ownership graph, dependency arrows, evidence linkage) reduces cognitive load, enabling learners to focus on reasoning rather than information retrieval. Evidence-first interaction design supports self-explanation (Chi et al., 1989), prompting learners to articulate reasoning before receiving feedback.
 - Visual system:
   - Typography: `Space Grotesk` (primary) + `IBM Plex Mono` (kicker/status labels).
   - Tokenized palette in CSS variables (`--bg-*`, `--surface-*`, `--text-*`, `--accent`, `--warn`, `--ok`, `--danger`).
@@ -249,6 +282,9 @@ flowchart LR
 - Exposes REST contracts for scenario/evidence/submission/score/eval.
 - Handles validation, persistence, and report generation.
 - Coordinates core scoring and retrieval abstractions.
+- Manages learning session lifecycle (start, events, completion) and duration tracking.
+- Serves pre/post survey endpoints with Zod-validated request schemas.
+- Provides analytics query endpoint for session-level timing and attempt data.
 
 ### 5.3 Core Engine (`packages/core`)
 - Claim-unit parsing and evidence gating.
@@ -282,6 +318,12 @@ flowchart LR
 - `POST /submissions`
 - `POST /score`
 - `POST /ablation/run`
+- `POST /sessions/start` — create a learning session for a scenario
+- `POST /sessions/event` — log behavioral event (first_evidence, first_submit, completed)
+- `GET /analytics/sessions` — retrieve session timing and attempt data
+- `POST /surveys` — submit pre or post survey responses (5-item Likert)
+- `GET /surveys` — retrieve submitted survey responses
+- `GET /surveys/status` — check pre/post survey completion state
 
 ## 7. Data Model (Logical)
 
@@ -290,6 +332,7 @@ flowchart LR
 
 ### Submission
 - `scenarioId`
+- `sessionId` (FK → learning session)
 - `ownerRouting`
 - `dependencyTrace[]` (`from`, `to`, `type`)
 - `actionPlan`
@@ -303,6 +346,19 @@ flowchart LR
 - `rubricScores`
 - `metrics`
 - `goldComparison`
+
+### Learning Session
+- `id`
+- `scenarioId`
+- `startedAt`, `firstEvidenceAt`, `firstSubmitAt`, `completedAt`
+- `durationSec`
+- `attemptNumber`
+
+### Survey Response
+- `id`
+- `type` (pre | post)
+- `q1Confidence`, `q2Comfort`, `q3Clarity`, `q4Readiness`, `q5Anxiety` (1–5 Likert)
+- `submittedAt`
 
 ### Ablation Output
 - `runId`
@@ -330,9 +386,10 @@ Traceability:
 - Reproducible command artifacts under `reports/` and `services/api/reports/`
 
 Runtime artifact evidence:
-- `reports/week1/smoke-*.json`
-- `services/api/reports/week1/ablation-run-*.json`
-- `services/api/reports/week1/ablation-summary.csv`
+- `reports/week1/smoke-*.json` (baseline)
+- `reports/week2/smoke-*.json` (corpus-backed retrieval)
+- `reports/week2/ablation-run-*.json`
+- `reports/week2/ablation-summary.csv`
 
 ## 9. Security And Data Constraints
 

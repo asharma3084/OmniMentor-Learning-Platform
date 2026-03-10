@@ -9,9 +9,9 @@ These research questions define the functional and evaluative scope of OmniMento
 
 | | Research Question | Drives |
 |---|---|---|
-| **RQ1** | Does scenario-based practice with a knowledge graph reduce orientation time vs. static documentation? | Scenarios, knowledge graph retrieval, benchmark timing |
-| **RQ2** | Does a non-judgmental automated assistant reduce self-reported anxiety during onboarding? | Non-judgmental feedback design, uncertainty signaling, provenance display |
-| **RQ3** | Does ownership-visualization scaffolding accelerate transition from peripheral to legitimate participant? | Ownership graph, dependency trace, contribution visualization |
+| **RQ1** | Does scenario-based practice with a knowledge graph reduce orientation time vs. static documentation? | Scenarios, knowledge graph retrieval, benchmark timing, **session time tracking, time-to-competent-submission KPI** |
+| **RQ2** | Does a non-judgmental automated assistant reduce self-reported anxiety during onboarding? | Non-judgmental feedback design, uncertainty signaling, provenance display, **pre/post Likert surveys** |
+| **RQ3** | Does ownership-visualization scaffolding accelerate transition from peripheral to legitimate participant? | Ownership graph, dependency trace, contribution visualization, **behavioral proxy tracking (hesitation time, attempt counts)** |
 
 ## Functional Requirements
 
@@ -19,10 +19,13 @@ These research questions define the functional and evaluative scope of OmniMento
 - The system must expose evidence artifacts (ownership records, dependency traces, runbooks, incident notes) per scenario.
 - The system must accept learner submissions with structured fields: owner routing, dependency trace, blast-radius plan, and evidence notes.
 - The system must score submissions using evidence gating and rubric metrics across five dimensions.
-- The system must flag critical errors explicitly: wrong owner, wrong directionality, unsafe action without verification.
+- The system must flag critical errors explicitly: wrong owner, wrong directionality, unsafe action without verification. This claim-level discrepancy detection serves a pedagogical purpose: it makes reasoning gaps visible to learners, supporting self-explanation and metacognitive awareness (Chi et al., 1989; Azevedo & Cromley, 2004).
 - The system must return feedback payloads with score, flags, and gold-aligned explanation.
 - The system must support ablation evaluation across four retrieval modes: `vector`, `graph`, `graphrag`, `graphrag_gating`.
 - The system must produce machine-readable benchmark reports (JSON + CSV) for reproducibility.
+- The system must track learning session time per scenario (start, first evidence selection, first submission, completion) for RQ1 evaluation.
+- The system must administer pre/post 5-item Likert surveys to measure self-reported anxiety and confidence (RQ2 evaluation).
+- The system must log behavioral proxy events (first evidence selection, hesitation time) per session for RQ3 evaluation.
 - The system must display evidence provenance alongside retrieved context (RQ2 trust design requirement).
 - The system must signal uncertainty explicitly — never assert with false confidence (active validation design requirement).
 - The system must provide an interactive `System Graph` surface with zoom, pan, filtering, and path highlighting.
@@ -60,7 +63,7 @@ These research questions define the functional and evaluative scope of OmniMento
 
 **Phase 1 — baseline system:**
 - `pnpm lint` passes with zero warnings.
-- `pnpm test` passes all 20 tests across 4 suites.
+- `pnpm test` passes all 24 tests across 4 suites.
 - `pnpm typecheck` passes with strict TypeScript.
 - `pnpm build` produces a clean production build.
 - `pnpm smoke` passes end-to-end with API running.
@@ -71,7 +74,11 @@ These research questions define the functional and evaluative scope of OmniMento
 - Graph retrieval (`pnpm eval --mode graph`) traversal depth ≥ 2 hops.
 - GraphRAG mode produces graph-grounded context with provenance.
 - Evidence gating mode (`graphrag_gating`) flags unsupported claims.
-- All 12 benchmark scenarios score across all 4 modes with reproducible results.
+- All benchmark scenarios score across all 4 modes with reproducible results.
 - UI `System Graph` supports interactive path exploration for ownership and downstream impact reasoning.
 - UI `Evaluation` supports comparative interpretation across all four retrieval modes.
 - UI `Check-in Export` produces review-thread-ready summary content with evidence links.
+- Session tracking endpoints (`POST /sessions/start`, `POST /sessions/event`, `GET /analytics/sessions`) return valid responses.
+- Survey endpoints (`POST /surveys`, `GET /surveys`, `GET /surveys/status`) correctly store and retrieve pre/post responses.
+- Pre-survey modal displays on first visit; post-survey displays after all scenarios are completed.
+- Live elapsed timer is visible during active learning sessions.

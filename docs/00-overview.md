@@ -18,7 +18,7 @@ Enterprise software systems accumulate vast operational knowledge — ownership 
 
 We call this **Architecture Blindness**: the inability to see the full functional picture of a complex system — overwhelmed by the technical trees, unable to see the forest.
 
-Architecture Blindness operates across three reinforcing dimensions:
+Architecture Blindness operates across three reinforcing dimensions. Research on cognitive load (Sweller, 1988) demonstrates that concurrent processing of system topology and uncertainty about social authority creates sustained performance anxiety, beyond what documentation alone can address. Situated cognition research (Brown et al., 1989) further suggests that this knowledge cannot be transferred through static artifacts — it must be constructed through authentic practice in context.
 
 | Dimension | What It Looks Like |
 |---|---|
@@ -35,6 +35,8 @@ OmniMentor is a **non-judgmental relational tutor** that:
 2. Surfaces evidence — ownership records, dependency traces, runbooks, incident notes — without pre-selecting the right answer.
 3. Scores learner responses on five rubric dimensions (owner routing, dependency trace, blast radius, evidence relevance, unsupported claims).
 4. Returns feedback that names what was missing, explains why it matters, and points to the gap in the learner's mental model.
+5. Tracks learning session timing and behavioral proxies to measure orientation-time reduction (RQ1).
+6. Administers matched pre/post surveys to capture self-reported confidence and anxiety change (RQ2).
 
 The focus is not to answer questions. It is to build the capacity to ask them — to transform Nancy from an **information seeker** into a **strategic coordinator**.
 
@@ -51,8 +53,12 @@ The focus is not to answer questions. It is to build the capacity to ask them �
 - Web interface for learner workflow.
 - API for scenario retrieval, submissions, scoring, and evaluation.
 - Core gating and scoring engine with evidence gating.
-- Synthetic Omni-Mart corpus and gold-labeled benchmark (12 scenarios × 3 domains).
+- Synthetic Omni-Mart corpus and gold-labeled benchmark (6 scenarios × 3 domains, expandable).
 - Ablation evaluation across four retrieval modes: `vector`, `graph`, `graphrag`, `graphrag_gating`.
+- Learning session time tracking for RQ1 orientation-time measurement.
+- Pre/post 5-item Likert surveys for RQ2 self-reported anxiety evaluation.
+- Behavioral proxy instrumentation (hesitation time, attempt tracking) for RQ3 participation measurement.
+- KPI framework with 9 indicators mapped to 3 research questions (see `docs/16-evaluation-and-kpis.md`).
 
 ## Technology Stack
 

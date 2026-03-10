@@ -5,7 +5,7 @@
 ### From Architecture Blindness to Architectural Fluency.
 #### The Intelligence Platform for Better Decisions.
 
-[![Tests](https://img.shields.io/badge/Tests-20%20passing-22c55e?style=flat-square)](config/vitest.config.ts)
+[![Tests](https://img.shields.io/badge/Tests-24%20passing-22c55e?style=flat-square)](config/vitest.config.ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript)](apps/web/tsconfig.json)
 [![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Node%20%2B%20SQLite-0ea5e9?style=flat-square)](docs/architecture.md)
 [![Platform](https://img.shields.io/badge/Platform-macOS-000000?style=flat-square&logo=apple)](docs/05-development-setup.md)
@@ -57,10 +57,10 @@ bash scripts/manage.sh start all
 
 **Health check:**
 ```bash
-curl -s http://localhost:3001/health
+curl -s http://localhost:9992/health
 ```
 
-Web UI → [http://localhost:5173](http://localhost:5173) · API → [http://localhost:3001](http://localhost:3001)
+Web UI → [http://localhost:9991](http://localhost:9991) · API → [http://localhost:9992](http://localhost:9992)
 
 ---
 
@@ -144,7 +144,7 @@ See [`docs/architecture.md`](docs/architecture.md) for full architecture, sequen
 
 ## Evaluation Design
 
-Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 12 scenarios across three domains: Catalog, Cart & Checkout, Risk & Compliance.
+Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 6 scenarios across three domains: Catalog, Cart & Checkout, Risk & Compliance.
 
 | Mode | What it does |
 |---|---|
@@ -173,7 +173,7 @@ Freeze-scope enhancements (design/architecture baseline before coding completion
 ```bash
 pnpm --dir workspace lint        # zero warnings
 pnpm --dir workspace typecheck   # strict TypeScript
-pnpm --dir workspace test        # 20 tests across 4 suites
+pnpm --dir workspace test        # 24 tests across 4 suites
 pnpm --dir workspace build       # clean production build
 pnpm --dir workspace smoke       # end-to-end health check
 pnpm --dir workspace eval        # benchmark + ablation report

@@ -43,7 +43,7 @@ Mapped relationship path between systems or components that are affected upstrea
 Primary end-to-end learning workflow: select scenario → inspect evidence → submit analysis → receive rubric feedback. This is the core learning loop implemented in Phase 1.
 
 **Ablation run**
-Comparative evaluation across retrieval modes. An ablation run processes all 12 benchmark scenarios under each mode (`vector`, `graph`, `graphrag`, `graphrag_gating`) and reports metrics per mode side-by-side.
+Comparative evaluation across retrieval modes. An ablation run processes all benchmark scenarios under each mode (`vector`, `graph`, `graphrag`, `graphrag_gating`) and reports metrics per mode side-by-side.
 
 **GraphRAG**
 Graph-Retrieval-Augmented Generation. A retrieval pattern that traverses a knowledge graph (ownership → dependency → policy edges) to assemble a structured context before sending it to an LLM. Produces more grounded, traceable responses than pure embedding-based retrieval.
@@ -62,6 +62,30 @@ A structured representation of entities (systems, services, teams, owners) and t
 
 **Smoke test**
 End-to-end runtime validation of the critical path. Confirms that the API is healthy, scenarios are reachable, and the scoring pipeline returns a non-error response.
+
+**Learning Session**
+A tracked time-bounded interaction where a learner works on a single scenario. Captures start time, first evidence selection, first submission, and completion — providing duration and hesitation-time data for RQ1 evaluation.
+
+**Survey Response**
+A structured 5-item Likert-scale self-report submitted before (pre) and after (post) the scenario run. Measures self-reported confidence, comfort, clarity, readiness, and anxiety to support RQ2 evaluation.
+
+**Behavioral Proxy**
+An automatically logged user action used as an indirect measure of learning engagement or hesitation. In OmniMentor, the primary behavioral proxy is the time between session start and first evidence selection (hesitation time).
+
+**Hesitation Time**
+The duration (in seconds) between session start and first evidence selection. Used as a behavioral proxy for learner uncertainty — shorter hesitation time after practice suggests increased confidence and reduced Architecture Blindness.
+
+**Likert Scale**
+A psychometric scale commonly used in survey research, where respondents rate agreement on a symmetric agree/disagree scale (e.g., 1 = Strongly Disagree to 5 = Strongly Agree). Used in OmniMentor pre/post surveys.
+
+**KPI (Key Performance Indicator)**
+A quantifiable measure used to evaluate success against research objectives. OmniMentor defines 9 KPIs across 3 research questions; see `docs/16-evaluation-and-kpis.md`.
+
+**Time-to-Competent-Submission**
+The duration from session start to the first submission that passes evidence gating. Used as a primary metric for RQ1 (orientation time reduction).
+
+**Pre/Post Survey**
+A matched pair of identical 5-item Likert surveys administered before the first scenario (pre) and after all scenarios are completed (post). The delta between pre and post scores measures self-reported change in architecture confidence and anxiety (RQ2).
 
 **Synthetic-only**
 Data policy: all repository datasets are generated for research purposes. No personal, internal, proprietary, or company-confidential data is used in any artifact.

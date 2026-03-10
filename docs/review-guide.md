@@ -16,7 +16,8 @@ This guide helps reviewers and instructors quickly evaluate progress quality and
 
 1. Open `README.md` for mission, run path, and verification commands.
 2. Open `docs/architecture.md` for module boundaries and data flow.
-3. Confirm latest artifacts exist in `reports/week1/` and `services/api/reports/week1/`.
+3. Confirm latest artifacts exist in `reports/week2/` (smoke + ablation reports).
+4. Open `docs/16-evaluation-and-kpis.md` for KPI framework and research instrumentation.
 
 ## Minimum Week 1 Signals
 
@@ -40,6 +41,40 @@ This guide helps reviewers and instructors quickly evaluate progress quality and
 - What evidence shows reproducibility beyond a single run?
 - How does current implementation map to proposal outcomes?
 - What is the highest-priority risk for the next phase?
+
+## Academic Review Checklist (CS6460)
+
+This section helps CS6460 faculty and EdTech reviewers evaluate research quality alongside engineering quality.
+
+### Research Design Signals
+
+- [ ] Research questions (RQ1, RQ2, RQ3) are explicitly stated and traceable to functional requirements
+- [ ] Design-Based Research methodology is named and cycle boundaries are clear (analyze → design → implement → evaluate → reflect)
+- [ ] Evaluation metrics align with RQs: RQ1 (timing + mode comparison), RQ2 (uncertainty/provenance design + pre/post survey), RQ3 (ownership visualization + behavioral proxies)
+- [ ] Learning analytics instrumentation is in place: session tracking, pre/post surveys, behavioral proxy logging
+- [ ] KPI framework (9 KPIs × 3 RQs) is documented in `docs/16-evaluation-and-kpis.md`
+- [ ] Rubric/gating design reflects learning scaffolding rationale, not just engineering correctness
+- [ ] Sampling and reproducibility risks are documented (single-user limitation, synthetic corpus scope)
+- [ ] Quality gates document research validity alongside engineering quality
+- [ ] Weekly check-in notes reference DBR cycle position and key evidence artifacts
+
+### Academic Review Questions
+
+- Which DBR cycle (analyze/design/implement/evaluate/reflect) is this checkpoint addressing?
+- What evidence shows that evaluation metrics distinguish between retrieval modes meaningfully?
+- Does unsupported-claim detection serve both engineering AND pedagogical purposes (self-explanation + metacognitive awareness)?
+- What are the Phase 2 research threats (generalizability, reproducibility) and how are they mitigated?
+- Are gold labels transparent about what they measure (evidence alignment, not reasoning correctness)?
+- How does the non-judgmental feedback design connect to RQ2 (anxiety reduction)?
+
+### Learning Theory Alignment
+
+| Theory | Where Applied | Evidence |
+|---|---|---|
+| Cognitive Apprenticeship (Collins et al., 1989) | Scenario-based practice loop | Learners observe expert reasoning via gold labels, then practice and receive coaching |
+| Scaffolding (Wood et al., 1976) | System Graph, Evidence tab, structured submission | External visual structure reduces cognitive load during reasoning |
+| Self-Explanation (Chi et al., 1989) | Evidence gating, claim-level feedback | Learners must articulate reasoning before receiving feedback |
+| Cognitive Load Theory (Sweller, 1988) | Architecture Blindness framing, UI design | Externalizing system topology reduces working memory burden |
 
 ## Suggested Grading Confidence Indicators
 

@@ -9,6 +9,8 @@
 - Smoke and eval outputs generated.
 - README and docs updated for user-facing changes.
 - No secrets or sensitive data in staged files.
+- Session tracking and survey endpoints return valid responses.
+- `docs/16-evaluation-and-kpis.md` reflects current KPI definitions.
 
 ## Release Notes Minimum
 

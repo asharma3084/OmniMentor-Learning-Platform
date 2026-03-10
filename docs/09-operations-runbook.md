@@ -6,10 +6,21 @@
 ## Service Health
 
 ```bash
-curl -s http://localhost:3001/health
+curl -s http://localhost:9992/health
 ```
 
 Expected: JSON response with `status: ok`.
+
+## Session And Survey Health
+
+```bash
+curl -s http://localhost:9992/surveys/status
+curl -s http://localhost:9992/analytics/sessions
+```
+
+Expected:
+- `/surveys/status` returns `{"preCompleted": <bool>, "postCompleted": <bool>}`.
+- `/analytics/sessions` returns an array of session objects (empty if none started).
 
 ## Common Runtime Issue
 

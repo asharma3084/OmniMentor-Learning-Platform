@@ -30,17 +30,19 @@ pnpm --dir workspace --filter @omnimentor/api dev
 Health probe:
 
 ```bash
-curl -s http://localhost:3001/health
+curl -s http://localhost:9992/health
+curl -s http://localhost:9992/surveys/status
 ```
 
 ## Expected Artifacts
 
-- Smoke report:
-  - `reports/week1/smoke-<timestamp>.json`
-- Ablation report:
-  - `services/api/reports/week1/ablation-run-<timestamp>.json`
+- Smoke reports:
+  - `reports/week1/smoke-<timestamp>.json` (baseline)
+  - `reports/week2/smoke-<timestamp>.json` (corpus-backed retrieval)
+- Ablation reports:
+  - `reports/week2/ablation-run-<timestamp>.json`
 - Ablation summary:
-  - `services/api/reports/week1/ablation-summary.csv`
+  - `reports/week2/ablation-summary.csv`
 
 ## How To Interpret Smoke Output
 

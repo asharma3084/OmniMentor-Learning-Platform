@@ -82,6 +82,8 @@ RQ1 target:
 GUI support:
 - `Scenario Workspace` + `System Graph` workflow accelerates owner/dependency resolution.
 - `Evaluation` tab compares retrieval modes (`vector`, `graph`, `graphrag`, `graphrag_gating`).
+- **Live session timer** in header tracks time-on-task per scenario (start → first evidence → first submit → completion).
+- **Learning session API** records `durationSec`, `firstEvidenceAt`, `firstSubmitAt` for time-to-competent-submission analysis.
 
 ## RQ2: Anxiety Reduction With Non-Judgmental Assistant
 
@@ -92,6 +94,7 @@ GUI support:
 - Non-judgmental coaching tone in assistant responses.
 - Clear uncertainty/provenance markers to avoid misleading authority.
 - Reflection outputs frame improvement actions without punitive language.
+- **Pre/post 5-item Likert survey modals** measure self-reported confidence and anxiety change across the scenario run.
 
 ## RQ3: Ownership Visualization And Legitimate Participation
 
@@ -102,6 +105,7 @@ GUI support:
 - `System Graph` gives ownership/dependency visibility.
 - Contribution-oriented progress indicators on dashboard and check-in outputs.
 - Scenario completion evidence supports practical participation readiness.
+- **Behavioral proxy tracking**: hesitation time (session start → first evidence selection) and attempt count per scenario.
 
 ## Technical Stack Justification In GUI
 
@@ -140,6 +144,10 @@ Design 1.1 is a **full-coverage baseline** because it explicitly includes:
 - Four-mode evaluation surfaces
 - Neo4j/GraphRAG graph visibility
 - Ollama assistant with evidence-gated safety boundary
+- **Learning session time tracking (timer + session API)**
+- **Pre/post survey instrumentation (5-item Likert, matched pre/post)**
+- **Behavioral proxy logging (hesitation time, attempt count)**
+- **KPI evaluation framework (9 KPIs × 3 RQs, see `docs/16-evaluation-and-kpis.md`)**
 
 This baseline is used as the implementation and review reference for check-in.
 

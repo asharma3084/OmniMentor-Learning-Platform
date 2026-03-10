@@ -22,9 +22,13 @@ This directory follows a practical SDLC documentation flow.
 13. [`12-risks-and-technical-debt.md`](12-risks-and-technical-debt.md)
 14. [`13-glossary.md`](13-glossary.md)
 15. [`decisions/README.md`](decisions/README.md)
+16. [`16-evaluation-and-kpis.md`](16-evaluation-and-kpis.md)
 
 ## Existing Supporting Guides
 
 - [`quickstart.md`](quickstart.md)
 - [`verification.md`](verification.md)
 - [`review-guide.md`](review-guide.md)
+- [`detailed-ui-design.md`](detailed-ui-design.md)
+- [`14-gui-justification-qq-and-proposal.md`](14-gui-justification-qq-and-proposal.md)
+- [`15-tpm-learning-scenarios-user-guide.md`](15-tpm-learning-scenarios-user-guide.md)

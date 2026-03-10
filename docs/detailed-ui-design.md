@@ -41,13 +41,15 @@ Navigation behavior:
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ OmniMentor | TPM Onboarding Command Center                             User | Notifications │
+│ 🎓 OmniMentor | From Architecture Blindness to Fluency              ⏱ 03:42 | User | Help │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ Overview | Scenario Workspace | System Graph | Evidence | Evaluation | Check-in Export     │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Page Content Area                                                                       Help │
+│ Page Content Area                                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+The live elapsed timer (`⏱ mm:ss`) is displayed in the shell header during an active learning session, providing continuous time-on-task awareness for the learner (RQ1 instrumentation).
 
 ## 5. Primary Mockup (Design A: TPM Onboarding Command Center)
 
@@ -58,11 +60,14 @@ Navigation behavior:
 │ Progress Snapshot           │ Decision Quality             │ Retrieval Health              │
 │ 7 / 12 scenarios complete   │ Unsupported claims: 14%      │ vector | graph | graphrag    │
 │ Domain focus: Checkout      │ Critical errors: 2           │ Last run: complete            │
+│ Pre-survey: ✅ Complete      │ Avg session time: 8m 24s     │                               │
 ├─────────────────────────────┴──────────────────────────────┴──────────────────────────────┤
 │ Recommended Next Scenario: "Payment Retry Storm"                                        │
 │ [Resume Scenario] [Open System Graph] [Run Evaluation]                                   │
 └────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+The Overview dashboard reflects survey completion status and average session duration to give learners and reviewers a high-level view of engagement and progress.
 
 ## 5.2 Scenario Workspace Mockup
 
@@ -70,13 +75,16 @@ Navigation behavior:
 ┌───────────────────────────────┬─────────────────────────────────┬──────────────────────────────┐
 │ Scenario + Selected Evidence  │ Structured Submission           │ Decision Quality Rail        │
 │ Scenario: Checkout auth fail  │ Owner Routing [..............]  │ Readiness: 72%               │
-│ [x] Ownership Registry        │ Dependency Trace [...........]  │ Missing: policy artifact      │
-│ [x] Runbook                   │ Action Plan [.................] │ Warning: C2 unsupported       │
-│ [ ] Policy Control            │ Blast-Radius Plan [..........]  │ Suggested next step shown     │
-│ [ ] Incident Timeline         │ Evidence Notes [..............] │                               │
-│ Coverage 2/4 ██████░░░░       │ [Submit & Score]               │                               │
+│ ⏱ Session: 04:17               │ Dependency Trace [...........]  │ Missing: policy artifact      │
+│ [x] Ownership Registry        │ Action Plan [.................] │ Warning: C2 unsupported       │
+│ [x] Runbook                   │ Blast-Radius Plan [..........]  │ Suggested next step shown     │
+│ [ ] Policy Control            │ Evidence Notes [..............] │                               │
+│ [ ] Incident Timeline         │ [Submit & Score]               │                               │
+│ Coverage 2/4 ██████░░░░       │                                 │                               │
 └───────────────────────────────┴─────────────────────────────────┴──────────────────────────────┘
 ```
+
+The session timer (`⏱ Session: mm:ss`) shows elapsed time since session start, providing time-on-task awareness and feeding the RQ1 time-tracking instrumentation.
 
 ## 5.3 System Graph Mockup
 
@@ -273,7 +281,7 @@ Before coding is considered complete, the following design-scope items are froze
 ## 9. AI Assistant UI Contract (Ollama)
 
 Assistant behavior in UI:
-- Tone: supportive, neutral, non-judgmental
+- Tone: supportive, neutral, non-judgmental. Non-judgmental framing directly serves RQ2 (anxiety reduction): learners reporting fear of asking "obvious" questions need feedback that acknowledges effort and redirects to evidence, not feedback that penalizes incomplete reasoning (Dweck, 2006).
 - Function: explain reasoning gaps, suggest next evidence checks
 - Constraint: assistant output never bypasses evidence gating
 
@@ -327,11 +335,35 @@ Accessibility:
 RQ1:
 - scenario workflow + graph-assisted dependency reasoning
 - retrieval-mode comparison in evaluation
+- **live session timer tracking time-to-competent-submission**
+- **learning session API recording start, first evidence, first submit, and completion timestamps**
 
 RQ2:
 - non-judgmental assistant language
 - explicit uncertainty and provenance
+- **pre/post 5-item Likert survey modals measuring self-reported confidence and anxiety**
 
 RQ3:
 - ownership visualization
 - dependency contribution visibility
+- **behavioral proxy tracking (hesitation time = start → first evidence selection)**
+- **attempt count tracking per scenario**
+
+## 14. Pre/Post Survey UI Specification
+
+Pre-survey modal:
+- Displayed on first application load when no pre-survey response exists.
+- Blocks scenario workspace access until completed.
+- Title: "Before You Begin — Quick Self-Assessment"
+- 5 Likert items (1 = Strongly Disagree to 5 = Strongly Agree):
+  1. I feel confident navigating architecture decisions.
+  2. I am comfortable identifying system ownership.
+  3. Dependency relationships are clear to me.
+  4. I feel ready to scope blast-radius impact.
+  5. I feel anxious about architecture decisions. (reverse-scored)
+
+Post-survey modal:
+- Displayed after all scenarios have been completed and scored.
+- Same 5 items as pre-survey to enable paired comparison.
+- Title: "After Completing All Scenarios — Final Self-Assessment"
+- Includes a brief thank-you message and confirmation of successful submission.

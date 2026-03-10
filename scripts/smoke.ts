@@ -8,7 +8,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const API_URL = process.env.API_URL || 'http://localhost:9992';
-const REPORT_DIR = path.join(path.dirname(__dirname), 'reports', 'week1');
+const REPORT_DIR = path.join(path.dirname(__dirname), 'reports', 'week2');
+const BENCHMARK_PATH = path.join(path.dirname(__dirname), 'benchmarks', 'scenarios.json');
+
+type BenchmarkScenario = {
+  id: string;
+  goldOwner: string;
+  goldDependencyTrace: Array<{ from: string; to: string; type: 'upstream' | 'downstream' }>;
+  goldSafeActions: string[];
+  goldBlastRadius: string[];
+  goldRequiredEvidenceIds: string[];
+};
+
+function loadGoldLabels(): Map<string, BenchmarkScenario> {
+  const raw = JSON.parse(fs.readFileSync(BENCHMARK_PATH, 'utf-8')) as {
+    scenarios: BenchmarkScenario[];
+  };
+  const map = new Map<string, BenchmarkScenario>();
+  for (const s of raw.scenarios) {
+    map.set(s.id, s);
+  }
+  return map;
+}
 
 type ApiError = Error & {
   status?: number;
@@ -41,7 +62,7 @@ if (!fs.existsSync(REPORT_DIR)) {
 }
 
 async function runSmoke() {
-  console.log('🔥 OmniMentor Smoke Test\n');
+  console.log('🔥 OmniMentor Smoke Test (Week 2 — Corpus-backed retrieval)\n');
 
   try {
     // 1. Health check
@@ -58,72 +79,88 @@ async function runSmoke() {
       throw new Error('No scenarios available');
     }
 
-    const scenario = scenarios[0];
-    console.log(`   📋 Using scenario: "${scenario.title}"\n`);
+    // Test all scenarios
+    const scoreSummary: Array<{ id: string; title: string; score: number; gating: boolean; evidenceCount: number }> = [];
+    const goldLabels = loadGoldLabels();
 
-    // 3. Fetch evidence
-    console.log('3️⃣ Fetching evidence...');
-    const evidence = await requestJson<Array<{ id: string }>>(
-      `${API_URL}/evidence?scenarioId=${encodeURIComponent(scenario.id)}`
-    );
-    console.log(`   ✅ Found ${evidence.length} artifact(s)\n`);
+    for (const scenario of scenarios) {
+      console.log(`   📋 Testing scenario: "${scenario.title}"\n`);
 
-    // 4. Create submission
-    console.log('4️⃣ Creating submission...');
-    const submissionRes = await requestJson<{ submissionId: string }>(`${API_URL}/submissions`, {
-      method: 'POST',
-      body: JSON.stringify({
-        scenarioId: scenario.id,
-        ownerRouting: 'Platform Team',
-        dependencyTrace: [
-          { from: 'Auth Service', to: 'API Gateway', type: 'downstream' },
-          { from: 'Auth Service', to: 'Web App', type: 'downstream' },
-          { from: 'Database Service', to: 'Auth Service', type: 'upstream' },
-        ],
-        actionPlan: 'Coordinate with all dependent teams',
-        blastRadius: [
-          'Coordinate with API Gateway team',
-          'Notify downstream app teams',
-          'Plan rollback procedure',
-        ],
-        evidenceNotes:
-          'Authentication Service is owned by Platform Team. Dependencies: User Service, API Gateway. ' +
-          'Authentication Service deployments require API Gateway downtime awareness. ' +
-          'Auth Service downstream: Web App, Mobile App. Upstream: Database Service.',
-        selectedEvidenceIds: evidence.map((e) => e.id),
-      }),
-    });
+      const gold = goldLabels.get(scenario.id);
 
-    const submissionId = submissionRes.submissionId;
-    console.log(`   ✅ Submission created: ${submissionId}\n`);
-
-    // 5. Score submission
-    console.log('5️⃣ Scoring submission...');
-    const result = await requestJson<{ gatingPass: boolean; overallScore: number }>(
-      `${API_URL}/score`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ submissionId }),
+      // 3. Fetch evidence via retrieval pipeline
+      console.log('3️⃣ Fetching evidence (vector mode)...');
+      const evidence = await requestJson<Array<{ id: string; title: string; body?: string; metadata?: { retrievalScore?: number; source?: string } }>>(
+        `${API_URL}/evidence?scenarioId=${encodeURIComponent(scenario.id)}&mode=vector`
+      );
+      console.log(`   ✅ Retrieved ${evidence.length} evidence artifact(s)`);
+      for (const ev of evidence.slice(0, 3)) {
+        console.log(`      • ${ev.title} (score: ${ev.metadata?.retrievalScore ?? 'N/A'}, source: ${ev.metadata?.source ?? 'N/A'})`);
       }
-    );
-    console.log(`   ✅ Gating passed: ${result.gatingPass}`);
-    console.log(`   📊 Overall score: ${(result.overallScore * 100).toFixed(1)}%\n`);
+      console.log('');
+
+      // 4. Create submission using gold-label-informed data
+      console.log('4️⃣ Creating submission...');
+
+      // Build rich evidence notes from retrieved evidence body content for gating support
+      const evidenceNoteParts = evidence.map((e) =>
+        [e.title, e.body ? e.body.substring(0, 200) : ''].filter(Boolean).join(': ')
+      );
+
+      const submissionRes = await requestJson<{ submissionId: string }>(`${API_URL}/submissions`, {
+        method: 'POST',
+        body: JSON.stringify({
+          scenarioId: scenario.id,
+          ownerRouting: gold?.goldOwner ?? 'Platform Team',
+          dependencyTrace: gold?.goldDependencyTrace ?? [
+            { from: 'ServiceA', to: 'ServiceB', type: 'downstream' },
+          ],
+          actionPlan: gold
+            ? gold.goldSafeActions.join('. ') + '.'
+            : 'Coordinate with dependent teams.',
+          blastRadius: gold?.goldSafeActions ?? ['Downstream impact possible'],
+          evidenceNotes: evidenceNoteParts.join('. ') + '.',
+          selectedEvidenceIds: evidence.map((e) => e.id),
+        }),
+      });
+
+      const submissionId = submissionRes.submissionId;
+      console.log(`   ✅ Submission created: ${submissionId}\n`);
+
+      // 5. Score submission
+      console.log('5️⃣ Scoring submission...');
+      const result = await requestJson<{ gatingPass: boolean; overallScore: number }>(
+        `${API_URL}/score`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ submissionId }),
+        }
+      );
+      console.log(`   ✅ Gating passed: ${result.gatingPass}`);
+      console.log(`   📊 Overall score: ${(result.overallScore * 100).toFixed(1)}%\n`);
+      console.log(`   ─────────────────────────────────\n`);
+
+      scoreSummary.push({
+        id: scenario.id,
+        title: scenario.title,
+        score: result.overallScore,
+        gating: result.gatingPass,
+        evidenceCount: evidence.length,
+      });
+    }
 
     // 6. Write report
     console.log('6️⃣ Writing report...');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const reportPath = path.join(REPORT_DIR, `smoke-${timestamp}.json`);
 
+    const avgScore = scoreSummary.reduce((s, r) => s + r.score, 0) / scoreSummary.length;
+
     const report = {
       timestamp: new Date().toISOString(),
-      scenario: {
-        id: scenario.id,
-        title: scenario.title,
-      },
-      submission: {
-        id: submissionId,
-      },
-      score: result,
+      scenarioCount: scenarios.length,
+      averageScore: Math.round(avgScore * 1000) / 1000,
+      results: scoreSummary,
     };
 
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
@@ -131,8 +168,8 @@ async function runSmoke() {
 
     // Summary
     console.log('✨ Smoke test PASSED!');
-    console.log(`   Gate: ${result.gatingPass ? 'PASS' : 'FAIL'}`);
-    console.log(`   Score: ${result.overallScore}`);
+    console.log(`   Scenarios: ${scenarios.length}`);
+    console.log(`   Average score: ${(avgScore * 100).toFixed(1)}%`);
     console.log(`   Report: ${reportPath}\n`);
 
     process.exit(0);

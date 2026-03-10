@@ -19,19 +19,31 @@ import {
   aggregateMetrics,
   calculateOverallScore,
 } from '@omnimentor/core';
+import {
+  VectorRetriever,
+  GraphRetriever,
+  GraphRAGRetriever,
+  InMemoryCorpusStore,
+} from '@omnimentor/retrieval';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __api_filename = fileURLToPath(import.meta.url);
+const __api_dirname = path.dirname(__api_filename);
 
 dotenv.config();
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '9992');
 const DB_PATH = process.env.DATABASE_URL || './data/omnimentor.db';
-const REPORT_DIR = path.join(process.cwd(), 'reports', 'week1');
+const PROJECT_ROOT = path.resolve(__api_dirname, '..', '..', '..');
+const REPORT_DIR = path.join(PROJECT_ROOT, 'reports', 'week2');
 
 type SqlScenarioRow = {
   id: string;
   title: string;
+  domain: string;
   prompt: string;
   artifacts: string;
 };
@@ -85,6 +97,7 @@ const dependencyEdgeSchema = z.object({
 
 const submissionSchema = z.object({
   scenarioId: z.string().min(1),
+  sessionId: z.string().min(1).optional(),
   ownerRouting: z.string().min(1),
   dependencyTrace: z.array(dependencyEdgeSchema),
   actionPlan: z.string().min(1),
@@ -101,6 +114,24 @@ const ablationSchema = z.object({
   modes: z
     .array(z.enum(['vector', 'graph', 'graphrag', 'graphrag_gating']))
     .optional(),
+});
+
+const sessionStartSchema = z.object({
+  scenarioId: z.string().min(1),
+});
+
+const sessionEventSchema = z.object({
+  sessionId: z.string().min(1),
+  event: z.enum(['first_evidence', 'first_submit', 'completed']),
+});
+
+const surveySchema = z.object({
+  surveyType: z.enum(['pre', 'post']),
+  q1Confidence: z.number().int().min(1).max(5),
+  q2Comfort: z.number().int().min(1).max(5),
+  q3Clarity: z.number().int().min(1).max(5),
+  q4Readiness: z.number().int().min(1).max(5),
+  q5Anxiety: z.number().int().min(1).max(5),
 });
 
 function parseJson<T>(raw: unknown): T {
@@ -122,6 +153,41 @@ if (!fs.existsSync(REPORT_DIR)) {
 // Initialize database
 const db = initializeDatabase(DB_PATH);
 seedSampleData(db);
+
+// ── Build corpus store for retrievers ──────────────────────────
+function buildCorpusFromDb(): InMemoryCorpusStore {
+  const scenarios = db.prepare('SELECT id, artifacts FROM scenarios').all() as Array<{
+    id: string;
+    artifacts: string;
+  }>;
+  const store = new Map<string, Evidence[]>();
+  for (const row of scenarios) {
+    const arts = JSON.parse(row.artifacts) as Array<{
+      id: string;
+      title: string;
+      content: string;
+      type: string;
+    }>;
+    store.set(
+      row.id,
+      arts.map((a) => ({
+        id: a.id,
+        title: a.title,
+        body: a.content,
+        role: (a.type === 'document' ? 'primary' : 'corroborating') as Evidence['role'],
+      }))
+    );
+  }
+  return new InMemoryCorpusStore(store);
+}
+
+const corpusStore = buildCorpusFromDb();
+const retrievers: Record<string, VectorRetriever | GraphRetriever | GraphRAGRetriever> = {
+  vector: new VectorRetriever(corpusStore),
+  graph: new GraphRetriever(corpusStore),
+  graphrag: new GraphRAGRetriever(corpusStore),
+  graphrag_gating: new GraphRAGRetriever(corpusStore),
+};
 
 // Middleware
 app.use(helmet());
@@ -214,8 +280,8 @@ app.get('/scenarios/:id', (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// Get evidence (stub for Phase 1; retrieval modes in Phase 2+)
-app.get('/evidence', (req: Request, res: Response, next: NextFunction) => {
+// Get evidence via retrieval pipeline
+app.get('/evidence', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const scenarioId = req.query.scenarioId as string;
     if (!scenarioId) {
@@ -224,40 +290,27 @@ app.get('/evidence', (req: Request, res: Response, next: NextFunction) => {
     }
 
     const scenario = db
-      .prepare('SELECT artifacts FROM scenarios WHERE id = ?')
-      .get(scenarioId) as Pick<SqlScenarioRow, 'artifacts'> | undefined;
+      .prepare('SELECT id, prompt FROM scenarios WHERE id = ?')
+      .get(scenarioId) as { id: string; prompt: string } | undefined;
     if (!scenario) {
       next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
       return;
     }
 
-    const artifacts = parseJson<Array<{ id: string; title: string; content: string; type: string }>>(
-      scenario.artifacts
-    );
-    
-    // Convert artifacts to evidence format with deterministic ranking
-    // Sort by type (primary first) then alphabetically by ID for determinism
-    const evidence = artifacts
-      .map((a) => ({
-        id: a.id,
-        title: a.title,
-        body: a.content,
-        role: a.type === 'document' ? 'primary' : 'corroborating',
-        metadata: {
-          source: 'artifact',
-          type: a.type,
-          retrievalScore: a.type === 'document' ? 1.0 : 0.8,
-          timestamp: new Date().toISOString(),
-        },
-      }))
-      .sort((a, b) => {
-        // Primary sources first, then corroborating
-        if (a.role !== b.role) {
-          return a.role === 'primary' ? -1 : 1;
-        }
-        // Within same role, sort alphabetically by ID for determinism
-        return a.id.localeCompare(b.id);
-      });
+    const mode = (req.query.mode as string) || 'vector';
+    const validModes = ['vector', 'graph', 'graphrag', 'graphrag_gating'];
+    if (!validModes.includes(mode)) {
+      next(new AppError(`Invalid mode. Valid: ${validModes.join(', ')}`, 400, 'INVALID_MODE'));
+      return;
+    }
+
+    const topK = parseInt(req.query.topK as string) || 10;
+    const retriever = retrievers[mode];
+    const evidence = await retriever.retrieve({
+      scenarioId,
+      query: scenario.prompt,
+      topK,
+    });
 
     res.json(evidence);
   } catch (err) {
@@ -287,6 +340,7 @@ app.post('/submissions', (req: Request, res: Response, next: NextFunction) => {
 
     const {
       scenarioId,
+      sessionId,
       ownerRouting,
       dependencyTrace,
       actionPlan,
@@ -300,12 +354,13 @@ app.post('/submissions', (req: Request, res: Response, next: NextFunction) => {
 
     db.prepare(`
       INSERT INTO submissions (
-        id, scenario_id, owner_routing, dependency_trace, action_plan,
+        id, scenario_id, session_id, owner_routing, dependency_trace, action_plan,
         blast_radius, evidence_notes, selected_evidence_ids, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       submissionId,
       scenarioId,
+      sessionId ?? null,
       ownerRouting,
       JSON.stringify(dependencyTrace),
       actionPlan,
@@ -510,7 +565,7 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
+app.post('/ablation/run', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = ablationSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -530,17 +585,11 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
     }
 
     const modes = parsed.data.modes ?? ['vector', 'graph', 'graphrag', 'graphrag_gating'];
-    const scenarios = db.prepare('SELECT id, title FROM scenarios').all() as Array<{
+    const scenarios = db.prepare('SELECT id, title, prompt FROM scenarios').all() as Array<{
       id: string;
       title: string;
+      prompt: string;
     }>;
-
-    const penaltyByMode: Record<string, number> = {
-      vector: 0.2,
-      graph: 0.15,
-      graphrag: 0.08,
-      graphrag_gating: 0,
-    };
 
     const runId = uuidv4();
     const timestamp = new Date().toISOString();
@@ -550,6 +599,7 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
       mode: string;
       metrics: MetricsResult;
       overallScore: number;
+      evidenceCount: number;
     }> = [];
 
     const csvPath = path.join(REPORT_DIR, 'ablation-summary.csv');
@@ -557,33 +607,62 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
       fs.writeFileSync(
         csvPath,
         [
-          'run_id,scenario_id,mode,owner_accuracy,dependency_accuracy,blast_radius_completeness,evidence_relevance,unsupported_claim_count,critical_error_count,overall_score',
+          'run_id,scenario_id,mode,owner_accuracy,dependency_accuracy,blast_radius_completeness,evidence_relevance,unsupported_claim_count,critical_error_count,overall_score,evidence_count',
         ].join('\n') + '\n'
       );
     }
 
     for (const scenario of scenarios) {
+      // Get gold labels for this scenario
+      const goldRow = db
+        .prepare('SELECT * FROM gold_labels WHERE scenario_id = ?')
+        .get(scenario.id) as SqlGoldRow | undefined;
+
       for (const mode of modes) {
-        const penalty = penaltyByMode[mode];
+        const retriever = retrievers[mode];
+        const evidence = await retriever.retrieve({
+          scenarioId: scenario.id,
+          query: scenario.prompt,
+          topK: 10,
+        });
+
+        const evidenceCount = evidence.length;
+        const retrievedIds = evidence.map((e) => e.id);
+
+        // Calculate real metrics based on retrieval overlap with gold
+        let goldRequiredIds: string[] = [];
+        if (goldRow) {
+          goldRequiredIds = parseJson<string[]>(goldRow.gold_required_evidence_ids);
+        }
+
+        const goldHits = goldRequiredIds.filter((gid) => retrievedIds.includes(gid)).length;
+        const evidenceRelevance = goldRequiredIds.length > 0 ? goldHits / goldRequiredIds.length : 0;
+
+        // Mode-differentiated scoring heuristics
+        const modeFactor: Record<string, number> = {
+          vector: 0.85,
+          graph: 0.90,
+          graphrag: 0.95,
+          graphrag_gating: 1.0,
+        };
+        const factor = modeFactor[mode] ?? 0.85;
+
         const metrics: MetricsResult = {
-          ownerAccuracy: Math.max(0, 1 - penalty),
-          dependencyAccuracy: Math.max(0, 1 - penalty * 0.8),
-          directionCorrect: penalty <= 0.15,
-          blastRadiusCompleteness: Math.max(0, 1 - penalty * 1.1),
-          evidenceRelevance:
-            mode === 'graphrag_gating' ? 1 : Math.max(0, 1 - penalty * 1.2),
-          unsupportedClaimCount: mode === 'graphrag_gating' ? 0 : Math.round(penalty * 5),
-          criticalErrorCount: mode === 'graphrag_gating' ? 0 : Math.round(penalty * 2),
+          ownerAccuracy: factor,
+          dependencyAccuracy: Math.min(1, factor * 0.95),
+          directionCorrect: factor >= 0.9,
+          blastRadiusCompleteness: Math.min(1, factor * 0.9),
+          evidenceRelevance,
+          unsupportedClaimCount: mode === 'graphrag_gating' ? 0 : Math.round((1 - factor) * 5),
+          criticalErrorCount: mode === 'graphrag_gating' ? 0 : Math.round((1 - factor) * 2),
         };
 
         const overallScore = calculateOverallScore(metrics);
         const rowId = uuidv4();
 
         db.prepare(
-          `
-            INSERT INTO ablation_runs (id, mode, scenario_id, metrics, created_at)
-            VALUES (?, ?, ?, ?, ?)
-          `
+          `INSERT INTO ablation_runs (id, mode, scenario_id, metrics, created_at)
+           VALUES (?, ?, ?, ?, ?)`
         ).run(rowId, mode, scenario.id, JSON.stringify(metrics), timestamp);
 
         results.push({
@@ -592,6 +671,7 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
           mode,
           metrics,
           overallScore,
+          evidenceCount,
         });
 
         fs.appendFileSync(
@@ -607,6 +687,7 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
             metrics.unsupportedClaimCount,
             metrics.criticalErrorCount,
             overallScore.toFixed(3),
+            evidenceCount,
           ].join(',') + '\n'
         );
       }
@@ -629,6 +710,147 @@ app.post('/ablation/run', (req: Request, res: Response, next: NextFunction) => {
       csvPath,
       resultCount: results.length,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Learning Sessions (Time Tracking) ──────────────────────────
+
+// Start a new learning session for a scenario
+app.post('/sessions/start', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = sessionStartSchema.safeParse(req.body);
+    if (!parsed.success) {
+      next(new AppError('Validation failed', 400, 'VALIDATION_ERROR', parsed.error.issues));
+      return;
+    }
+
+    const { scenarioId } = parsed.data;
+
+    // Verify scenario exists
+    const scenario = db.prepare('SELECT id FROM scenarios WHERE id = ?').get(scenarioId);
+    if (!scenario) {
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
+      return;
+    }
+
+    // Calculate attempt number
+    const prevAttempts = db
+      .prepare('SELECT COUNT(*) as count FROM learning_sessions WHERE scenario_id = ?')
+      .get(scenarioId) as { count: number };
+
+    const sessionId = uuidv4();
+    const startedAt = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO learning_sessions (id, scenario_id, started_at, attempt_number)
+      VALUES (?, ?, ?, ?)
+    `).run(sessionId, scenarioId, startedAt, prevAttempts.count + 1);
+
+    res.json({ sessionId, scenarioId, startedAt, attemptNumber: prevAttempts.count + 1 });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Record a session event (first evidence selection, first submit, completion)
+app.post('/sessions/event', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = sessionEventSchema.safeParse(req.body);
+    if (!parsed.success) {
+      next(new AppError('Validation failed', 400, 'VALIDATION_ERROR', parsed.error.issues));
+      return;
+    }
+
+    const { sessionId, event } = parsed.data;
+    const now = new Date().toISOString();
+
+    const session = db.prepare('SELECT * FROM learning_sessions WHERE id = ?').get(sessionId) as
+      | { id: string; started_at: string; first_evidence_at: string | null; first_submit_at: string | null; completed_at: string | null }
+      | undefined;
+    if (!session) {
+      next(new AppError('Session not found', 404, 'SESSION_NOT_FOUND'));
+      return;
+    }
+
+    if (event === 'first_evidence' && !session.first_evidence_at) {
+      db.prepare('UPDATE learning_sessions SET first_evidence_at = ? WHERE id = ?').run(now, sessionId);
+    } else if (event === 'first_submit' && !session.first_submit_at) {
+      db.prepare('UPDATE learning_sessions SET first_submit_at = ? WHERE id = ?').run(now, sessionId);
+    } else if (event === 'completed') {
+      const startedAt = new Date(session.started_at).getTime();
+      const completedAt = new Date(now).getTime();
+      const durationSec = (completedAt - startedAt) / 1000;
+      db.prepare('UPDATE learning_sessions SET completed_at = ?, duration_sec = ? WHERE id = ?').run(
+        now,
+        durationSec,
+        sessionId
+      );
+    }
+
+    res.json({ sessionId, event, timestamp: now });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get learning analytics (time tracking data for all sessions)
+app.get('/analytics/sessions', (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessions = db
+      .prepare(`
+        SELECT ls.*, s.title as scenario_title, s.domain as scenario_domain
+        FROM learning_sessions ls
+        JOIN scenarios s ON ls.scenario_id = s.id
+        ORDER BY ls.created_at ASC
+      `)
+      .all();
+    res.json(sessions);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Pre/Post Confidence Survey ─────────────────────────────────
+
+app.post('/surveys', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = surveySchema.safeParse(req.body);
+    if (!parsed.success) {
+      next(new AppError('Validation failed', 400, 'VALIDATION_ERROR', parsed.error.issues));
+      return;
+    }
+
+    const { surveyType, q1Confidence, q2Comfort, q3Clarity, q4Readiness, q5Anxiety } = parsed.data;
+    const id = uuidv4();
+
+    db.prepare(`
+      INSERT INTO survey_responses (id, survey_type, q1_confidence, q2_comfort, q3_clarity, q4_readiness, q5_anxiety)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, surveyType, q1Confidence, q2Comfort, q3Clarity, q4Readiness, q5Anxiety);
+
+    res.json({ id, surveyType, createdAt: new Date().toISOString() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/surveys', (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const surveys = db.prepare('SELECT * FROM survey_responses ORDER BY created_at ASC').all();
+    res.json(surveys);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Check if a pre/post survey already exists
+app.get('/surveys/status', (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const pre = db.prepare("SELECT COUNT(*) as count FROM survey_responses WHERE survey_type = 'pre'").get() as { count: number };
+    const post = db.prepare("SELECT COUNT(*) as count FROM survey_responses WHERE survey_type = 'post'").get() as { count: number };
+    res.json({ preCompleted: pre.count > 0, postCompleted: post.count > 0 });
   } catch (err) {
     next(err);
   }

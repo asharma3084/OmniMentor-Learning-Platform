@@ -52,7 +52,7 @@ export function checkClaimSupport(
       combinedText.includes(kw.toLowerCase())
     ).length / Math.max(claimKeywords.length, 1);
 
-    if (matchScore > 0.5) {
+    if (matchScore > 0.25) {
       citedIds.push(evidenceId);
       if (evidence.role === 'primary') {
         supportsInPrimary = true;

@@ -156,7 +156,7 @@ export interface GatingPolicy {
 
 export const DEFAULT_GATING_POLICY: GatingPolicy = {
   requirePrimaryEvidence: true,
-  allowCorroboratingOnly: false,
+  allowCorroboratingOnly: true,
   goldEvidenceThreshold: 0.7,
   criticalErrorOnUnsupported: true,
 };

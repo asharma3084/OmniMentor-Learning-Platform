@@ -5,7 +5,7 @@
 ### From Architecture Blindness to Architectural Fluency.
 #### The Intelligence Platform for Better Decisions.
 
-[![Tests](https://img.shields.io/badge/Tests-24%20passing-22c55e?style=flat-square)](config/vitest.config.ts)
+[![Tests](https://img.shields.io/badge/Tests-28%20passing-22c55e?style=flat-square)](config/vitest.config.ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript)](apps/web/tsconfig.json)
 [![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Node%20%2B%20SQLite-0ea5e9?style=flat-square)](docs/architecture.md)
 [![Platform](https://img.shields.io/badge/Platform-macOS-000000?style=flat-square&logo=apple)](docs/05-development-setup.md)
@@ -46,7 +46,9 @@ It provides a practice environment to build evidence-first reasoning before thos
 
 ## Quick Start
 
-**Prerequisites**: Node.js 20+, pnpm, macOS
+New TPMs should start with [docs/user-guide.md](docs/user-guide.md) before using the app.
+
+**Prerequisites**: Node.js 20+, pnpm, sqlite, macOS
 
 ```bash
 git clone https://github.com/asharma3084/OmniMentor-Learning-Platform.git
@@ -66,12 +68,12 @@ Web UI → [http://localhost:9991](http://localhost:9991) · API → [http://loc
 
 ## How It Works
 
-OmniMentor runs a **scenario-based practice loop** grounded in cognitive apprenticeship (Collins et al., 1989), scaffolding theory (Wood et al., 1976), and self-explanation (Chi et al., 1989):
+OmniMentor now defaults to a **guided-first practice loop** grounded in cognitive apprenticeship (Collins et al., 1989), scaffolding theory (Wood et al., 1976), and self-explanation (Chi et al., 1989):
 
-1. **Select a scenario** — a realistic operational prompt from the synthetic Omni-Mart corpus
-2. **Inspect the evidence** — ownership records, dependency traces, runbooks, incident notes, policy artefacts
-3. **Submit your analysis** — owner routing, dependency trace (upstream → downstream), blast-radius plan, evidence notes
-4. **Receive rubric feedback** — score, critical-error flags, gold-aligned explanation of what was missing and why it matters
+1. **Brief** — read the mission, constraints, and success criteria for one scenario
+2. **Investigate** — inspect evidence, extract owner/dependency/risk clues, and select one primary plus one corroborating artifact
+3. **Decide** — submit owner routing, dependency trace (upstream → downstream), action plan, blast radius, and evidence notes
+4. **Feedback** — receive rubric feedback, critical-error flags, and gold-aligned explanation of what was missing and why it matters
 
 The feedback engine evaluates five dimensions:
 
@@ -92,38 +94,41 @@ Critical errors — wrong owner, wrong directionality, unsafe action without ver
 ```mermaid
 flowchart TB
   U["Learner / Reviewer"]
-  subgraph UI["TPM Command Center"]
-    DASH["Overview"]
-    WS["Scenario Workspace"]
-    SG["System Graph"]
-    EV["Evidence"]
-    EVAL["Evaluation"]
-    EXP["Check-in Export"]
+  subgraph UI["Guided-First Web UI"]
+    direction TB
+    subgraph GUIDED["Guided Mode (default)"]
+      B["Brief"]
+      INV["Investigate"]
+      DEC["Decide"]
+      FB["Feedback"]
+      B --> INV --> DEC --> FB
+    end
+    subgraph ADV["Advanced Mode"]
+      DASH["Overview"]
+      WS["Scenario Workspace"]
+      SG["System Graph"]
+      EV["Evidence"]
+      EVAL["Evaluation"]
+      EXP["Check-in Export"]
+    end
   end
 
   A["API Service\nExpress + Node"]
   C["Core Engine\nEvidence Gating + Rubric Scoring"]
   R["Retrieval Layer\nvector | graph | graphrag | graphrag_gating"]
-  LLM["Ollama\nLocal LLM"]
-  NEO["Neo4j\nGraph Store"]
-  QD["Qdrant\nVector Store"]
+  LLM["Ollama\nTarget Local LLM"]
+  NEO["Neo4j\nTarget Graph Store"]
+  QD["Qdrant\nTarget Vector Store"]
   DB[("SQLite")]
   DS["Synthetic Corpus"]
   BM["Benchmark + Gold Labels"]
   REP["Reports\nJSON + CSV"]
 
-  U --> DASH
-  DASH --> WS
-  DASH --> SG
-  DASH --> EV
-  DASH --> EVAL
-  DASH --> EXP
+  U --> GUIDED
+  U -.->|switch mode| ADV
 
-  WS -->|REST| A
-  SG -->|Graph queries| A
-  EV -->|Evidence retrieval| A
-  EVAL -->|Score + gate request| A
-  EXP -->|Export request| A
+  GUIDED -->|REST| A
+  ADV -->|REST| A
 
   A --> C
   A --> R
@@ -146,14 +151,14 @@ See [`docs/architecture.md`](docs/architecture.md) for full architecture, sequen
 
 Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 6 scenarios across three domains: Catalog, Cart & Checkout, Risk & Compliance.
 
-| Mode | What it does |
-|---|---|
-| `vector` | Top-k vector retrieval via Qdrant |
-| `graph` | 1–3 hop graph traversal via Neo4j + APOC |
-| `graphrag` | Graph-grounded retrieval context assembly |
-| `graphrag_gating` | GraphRAG + claim-level evidence gating |
+| Mode | Current Baseline | Target |
+|---|---|---|
+| `vector` | Keyword-overlap ranking (deterministic) | Top-k vector retrieval via Qdrant |
+| `graph` | Keyword-overlap + dependency-term boosting | 1–3 hop graph traversal via Neo4j |
+| `graphrag` | Keyword-overlap + dependency + provenance boosting | Graph-grounded retrieval context assembly |
+| `graphrag_gating` | GraphRAG baseline + role-diversity enforcement + evidence gating | GraphRAG + claim-level evidence gating |
 
-TPM Command Center tabs:
+Advanced mode review surfaces:
 - `Overview`
 - `Scenario Workspace`
 - `System Graph`
@@ -173,7 +178,8 @@ Freeze-scope enhancements (design/architecture baseline before coding completion
 ```bash
 pnpm --dir workspace lint        # zero warnings
 pnpm --dir workspace typecheck   # strict TypeScript
-pnpm --dir workspace test        # 24 tests across 4 suites
+pnpm --dir workspace test        # 28 tests across 5 suites
+pnpm --dir workspace test:e2e    # guided GUI automation on isolated ports
 pnpm --dir workspace build       # clean production build
 pnpm --dir workspace smoke       # end-to-end health check
 pnpm --dir workspace eval        # benchmark + ablation report
@@ -189,11 +195,20 @@ All gates must pass before any change is considered done.
 GET  /health
 GET  /scenarios
 GET  /scenarios/:id
+GET  /scenarios/:id/example-answer
 GET  /evidence?scenarioId=:id
 POST /submissions
 POST /score
 POST /ablation/run
+POST /sessions/start
+POST /sessions/event
+GET  /analytics/sessions
+POST /surveys
+GET  /surveys
+GET  /surveys/status
 ```
+
+See [`docs/03-api-contract.md`](docs/03-api-contract.md) for the complete API contract with request/response schemas.
 
 Full contract: [`docs/03-api-contract.md`](docs/03-api-contract.md)
 
@@ -223,4 +238,5 @@ Full contract: [`docs/03-api-contract.md`](docs/03-api-contract.md)
 | [`docs/10-security-and-compliance.md`](docs/10-security-and-compliance.md) | Security and data policy |
 | [`docs/11-decisions-log.md`](docs/11-decisions-log.md) | Architecture and process decisions |
 | [`docs/12-risks-and-technical-debt.md`](docs/12-risks-and-technical-debt.md) | Risks, fallbacks, and technical debt |
+| [`docs/user-guide.md`](docs/user-guide.md) | Practical usage guide for new, intermediate, and advanced TPMs |
 

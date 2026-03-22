@@ -93,4 +93,21 @@ describe('Evidence Gating', () => {
     expect(gatingResults.length).toBeGreaterThan(0);
     expect(criticalErrors.length).toBe(0);
   });
+
+  it('should not clear unsupported claims just because gold evidence ids are selected', () => {
+    const submissionText = 'Redis cache saturation requires paging the SRE incident commander.';
+
+    const { gatingPass, gatingResults, criticalErrors } = gateSubmission(
+      submissionText,
+      ['evidence-1'],
+      mockEvidenceMap,
+      ['evidence-1'],
+      DEFAULT_GATING_POLICY
+    );
+
+    expect(gatingPass).toBe(false);
+    expect(gatingResults).toHaveLength(1);
+    expect(gatingResults[0].supported).toBe(false);
+    expect(criticalErrors).toContain('1 claim(s) not sufficiently supported by evidence');
+  });
 });

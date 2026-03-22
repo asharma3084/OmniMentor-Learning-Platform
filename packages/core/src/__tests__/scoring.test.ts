@@ -51,6 +51,22 @@ describe('Scoring Logic', () => {
     expect(result.completeness).toBeGreaterThan(0.5); // Partial match
   });
 
+  it('should prefer dedicated blast radius gold labels when present', () => {
+    const result = scoreBlastRadius(
+      {
+        ...mockSubmission,
+        blastRadius: ['Customer support spike', 'Payment failures for new orders'],
+      } as Submission,
+      {
+        ...mockBenchmark,
+        goldBlastRadius: ['Customer support spike', 'Payment failures for new orders'],
+      } as ScenarioBenchmark
+    );
+
+    expect(result.completeness).toBe(1.0);
+    expect(result.quality).toBe(1.0);
+  });
+
   it('should build rubric scores', () => {
     const rubric = buildRubricScores(
       1.0, // ownerScore

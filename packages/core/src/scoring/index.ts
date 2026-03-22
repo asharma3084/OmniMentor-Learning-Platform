@@ -66,7 +66,10 @@ export function scoreBlastRadius(
   benchmark: ScenarioBenchmark
 ): { completeness: number; quality: number } {
   const submitted = submission.blastRadius.map((s) => s.toLowerCase());
-  const gold = benchmark.goldSafeActions.map((g) => g.toLowerCase());
+  const goldSource = benchmark.goldBlastRadius && benchmark.goldBlastRadius.length > 0
+    ? benchmark.goldBlastRadius
+    : benchmark.goldSafeActions;
+  const gold = goldSource.map((g) => g.toLowerCase());
 
   if (gold.length === 0) {
     return { completeness: submitted.length === 0 ? 1.0 : 0.5, quality: 1.0 };

@@ -13,7 +13,7 @@ API_PORT=9992
 WEB_PORT=9991
 OLLAMA_PORT=11434
 API_HOST="127.0.0.1"
-WEB_HOST="127.0.0.1"
+WEB_HOST="localhost"
 OLLAMA_HOST="127.0.0.1"
 DATABASE_URL="./data/omnimentor.db"
 OLLAMA_DEFAULT_MODEL="llama3.2"
@@ -26,6 +26,13 @@ mkdir -p "$PID_DIR" "$LOG_DIR"
 log_info() { echo "[INFO] $*"; }
 log_warn() { echo "[WARN] $*"; }
 log_error() { echo "[ERROR] $*" >&2; }
+
+get_port_pids() {
+  local port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti tcp:"$port" || true
+  fi
+}
 
 load_config() {
   if [[ -f "$CONFIG_FILE" ]]; then
@@ -76,13 +83,13 @@ kill_port() {
   local port="$1"
   if command -v lsof >/dev/null 2>&1; then
     local pids
-    pids="$(lsof -ti tcp:"$port" || true)"
+    pids="$(get_port_pids "$port")"
     if [[ -n "$pids" ]]; then
       log_warn "Killing existing process(es) on port $port: $pids"
       # shellcheck disable=SC2086
       kill $pids >/dev/null 2>&1 || true
       sleep 1
-      pids="$(lsof -ti tcp:"$port" || true)"
+      pids="$(get_port_pids "$port")"
       if [[ -n "$pids" ]]; then
         # shellcheck disable=SC2086
         kill -9 $pids >/dev/null 2>&1 || true
@@ -93,25 +100,54 @@ kill_port() {
   fi
 }
 
+external_port_pids() {
+  local service="$1"
+  local port managed_pid pids
+  port="$(service_port "$service")"
+  managed_pid=""
+  if [[ -f "$(pid_file "$service")" ]]; then
+    managed_pid="$(cat "$(pid_file "$service")")"
+  fi
+  pids="$(get_port_pids "$port")"
+
+  if [[ -z "$pids" ]]; then
+    return 0
+  fi
+
+  if [[ -n "$managed_pid" ]]; then
+    printf '%s\n' "$pids" | grep -vx "$managed_pid" || true
+  else
+    printf '%s\n' "$pids"
+  fi
+}
+
 start_service() {
   local service="$1"
   local cmd=""
   local port
+  local launch_prefix=""
   port="$(service_port "$service")"
 
   stop_service "$service" >/dev/null 2>&1 || true
-  kill_port "$port"
+
+  local conflicting_pids
+  conflicting_pids="$(external_port_pids "$service")"
+  if [[ -n "$conflicting_pids" ]]; then
+    log_error "Port $port is already in use by external process(es): $conflicting_pids"
+    log_error "Use scripts/manage.sh kill-port $service only if you intentionally want to stop them."
+    exit 1
+  fi
 
   case "$service" in
     api)
-      cmd="cd '$ROOT_DIR' && API_PORT='$API_PORT' DATABASE_URL='$DATABASE_URL' pnpm --dir workspace --filter @omnimentor/api dev"
+      cmd="cd '$ROOT_DIR' && exec env API_PORT='$API_PORT' DATABASE_URL='$DATABASE_URL' pnpm --dir workspace --filter @omnimentor/api dev"
       ;;
     web)
-      cmd="cd '$ROOT_DIR' && pnpm --dir workspace --filter @omnimentor/web exec vite --host '$WEB_HOST' --port '$WEB_PORT' --strictPort"
+      cmd="cd '$ROOT_DIR' && exec pnpm --dir workspace --filter @omnimentor/web exec vite --host '$WEB_HOST' --port '$WEB_PORT' --strictPort"
       ;;
     ollama)
       require_cmd ollama
-      cmd="cd '$ROOT_DIR' && OLLAMA_HOST='$OLLAMA_HOST:$OLLAMA_PORT' ollama serve"
+      cmd="cd '$ROOT_DIR' && exec env OLLAMA_HOST='$OLLAMA_HOST:$OLLAMA_PORT' ollama serve"
       ;;
     *)
       log_error "Unsupported service: $service"
@@ -120,7 +156,10 @@ start_service() {
   esac
 
   log_info "Starting $service on port $port"
-  nohup bash -lc "$cmd" >"$(log_file "$service")" 2>&1 &
+  if command -v setsid >/dev/null 2>&1; then
+    launch_prefix="setsid "
+  fi
+  nohup ${launch_prefix}bash -lc "$cmd" >"$(log_file "$service")" 2>&1 &
   local pid=$!
   echo "$pid" >"$(pid_file "$service")"
   sleep 1
@@ -136,6 +175,7 @@ start_service() {
 stop_service() {
   local service="$1"
   local pid_path
+  local stopped_managed=false
   pid_path="$(pid_file "$service")"
 
   if [[ -f "$pid_path" ]]; then
@@ -143,17 +183,30 @@ stop_service() {
     pid="$(cat "$pid_path")"
     if is_pid_running "$pid"; then
       log_info "Stopping $service (pid=$pid)"
-      kill "$pid" >/dev/null 2>&1 || true
+      kill -TERM "-$pid" >/dev/null 2>&1 || kill "$pid" >/dev/null 2>&1 || true
       sleep 1
       if is_pid_running "$pid"; then
-        kill -9 "$pid" >/dev/null 2>&1 || true
+        kill -KILL "-$pid" >/dev/null 2>&1 || kill -9 "$pid" >/dev/null 2>&1 || true
       fi
+      stopped_managed=true
     fi
     rm -f "$pid_path"
   fi
 
-  kill_port "$(service_port "$service")"
-  log_info "$service stopped"
+  local remaining_pids
+  remaining_pids="$(get_port_pids "$(service_port "$service")")"
+  if [[ -n "$remaining_pids" ]]; then
+    log_warn "$service still has external process(es) using port $(service_port "$service"): $remaining_pids"
+    log_warn "Leaving external process(es) untouched. Use scripts/manage.sh kill-port $service only if intentional."
+  fi
+
+  if [[ "$stopped_managed" == true ]]; then
+    log_info "$service stopped"
+  elif [[ -n "$remaining_pids" ]]; then
+    log_info "$service was not managed by this script; external process(es) remain running"
+  else
+    log_info "$service stopped"
+  fi
 }
 
 status_service() {
@@ -167,7 +220,7 @@ status_service() {
     echo "$service: running (pid=$(cat "$pid_path"), port=$port)"
   elif command -v lsof >/dev/null 2>&1; then
     local port_pids
-    port_pids="$(lsof -ti tcp:"$port" || true)"
+    port_pids="$(get_port_pids "$port" | tr '\n' ',' | sed 's/,$//')"
     if [[ -n "$port_pids" ]]; then
       echo "$service: running (external pid=$port_pids, port=$port)"
     else
@@ -210,6 +263,46 @@ logs_service() {
 run_workspace_cmd() {
   cd "$ROOT_DIR"
   pnpm --dir workspace "$@"
+}
+
+run_with_api_if_needed() {
+  local started_api=false
+
+  if ! health_service api >/dev/null 2>&1; then
+    start_service api
+    started_api=true
+    health_service api >/dev/null 2>&1
+  fi
+
+  run_workspace_cmd "$@"
+
+  if [[ "$started_api" == true ]]; then
+    stop_service api >/dev/null 2>&1 || true
+  fi
+}
+
+run_full_gate() {
+  local started_api=false
+
+  run_workspace_cmd lint
+  run_workspace_cmd typecheck
+  run_workspace_cmd test
+  run_workspace_cmd test:e2e
+  run_workspace_cmd build
+
+  if ! health_service api >/dev/null 2>&1; then
+    start_service api
+    started_api=true
+    health_service api >/dev/null 2>&1
+  fi
+
+  run_workspace_cmd smoke
+  run_workspace_cmd eval
+  run_workspace_cmd audit
+
+  if [[ "$started_api" == true ]]; then
+    stop_service api >/dev/null 2>&1 || true
+  fi
 }
 
 pkg_cmd() {
@@ -344,9 +437,11 @@ health_group() {
   local target="${1:-all}"
   case "$target" in
     all)
-      health_service api || true
-      health_service web || true
-      health_service ollama || true
+      local failed=0
+      health_service api || failed=1
+      health_service web || failed=1
+      health_service ollama || failed=1
+      return "$failed"
       ;;
     api|web|ollama) health_service "$target" ;;
     *) log_error "Unknown service target: $target"; exit 1 ;;
@@ -391,7 +486,7 @@ Package commands:
   pkg update [pkg]
 
 Compatibility shortcuts:
-  lint | typecheck | test | build | smoke | dev | all
+  lint | typecheck | test | test:e2e | test:e2e:headed | build | smoke | eval | audit | dev | all
 
 Config file:
   config/manage.env
@@ -437,16 +532,14 @@ case "$command" in
   lint) run_workspace_cmd lint ;;
   typecheck) run_workspace_cmd typecheck ;;
   test) run_workspace_cmd test ;;
+  test:e2e) run_workspace_cmd test:e2e ;;
+  test:e2e:headed) run_workspace_cmd test:e2e:headed ;;
   build) run_workspace_cmd build ;;
-  smoke) run_workspace_cmd smoke ;;
+  smoke) run_with_api_if_needed smoke ;;
+  eval) run_with_api_if_needed eval ;;
+  audit) run_workspace_cmd audit ;;
   dev) run_workspace_cmd dev ;;
-  all)
-    run_workspace_cmd lint
-    run_workspace_cmd typecheck
-    run_workspace_cmd test
-    run_workspace_cmd build
-    run_workspace_cmd smoke
-    ;;
+  all) run_full_gate ;;
   help|--help|-h) show_help ;;
   *)
     log_error "Unknown command: $command"

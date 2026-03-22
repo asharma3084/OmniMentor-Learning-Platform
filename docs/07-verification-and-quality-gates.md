@@ -17,6 +17,7 @@ This distinction matters: a passing smoke test is not just a health check — it
 ```bash
 pnpm --dir workspace lint
 pnpm --dir workspace test
+pnpm --dir workspace test:e2e
 pnpm --dir workspace typecheck
 pnpm --dir workspace build
 pnpm --dir workspace smoke
@@ -44,6 +45,7 @@ Reproducibility is a research requirement, not just engineering convenience. Eac
 |---|---|---|
 | `lint` | Code hygiene | Consistent codebase state across iterations |
 | `test` | Regression safety | Scoring logic stability across DBR cycles |
+| `test:e2e` | Guided-flow regression safety | New-TPM onboarding path remains demoable and coachable |
 | `typecheck` | Type correctness | Contract integrity between system components |
 | `build` | Deployability | Reproducible build for evaluation |
 | `smoke` | End-to-end health | Full pipeline produces consistent results against benchmark |

@@ -11,6 +11,7 @@ Base URL (local): `http://localhost:9992`
 - `GET /health` health status
 - `GET /scenarios` list scenarios
 - `GET /scenarios/:id` scenario details
+- `GET /scenarios/:id/example-answer` scenario-specific strong example answer with coaching
 - `GET /evidence?scenarioId=:id` scenario evidence
 - `POST /submissions` create submission
 - `POST /score` score submission
@@ -33,8 +34,8 @@ Base URL (local): `http://localhost:9992`
 ## Pre/Post Surveys
 
 - `POST /surveys` — Submit a pre or post survey.
-  - Body: `{ type: "pre" | "post", q1Confidence: 1-5, q2Comfort: 1-5, q3Clarity: 1-5, q4Readiness: 1-5, q5Anxiety: 1-5 }`
-  - Response: `{ id: number }`
+  - Body: `{ surveyType: "pre" | "post", q1Confidence: 1-5, q2Comfort: 1-5, q3Clarity: 1-5, q4Readiness: 1-5, q5Anxiety: 1-5 }`
+  - Response: `{ id: string, surveyType: "pre" | "post", createdAt: string }`
 
 - `GET /surveys` — Retrieve submitted survey responses.
   - Query: optional `type` (pre | post)
@@ -49,6 +50,23 @@ Base URL (local): `http://localhost:9992`
 - Health route returns an `ok` status and timestamp.
 - Score route returns gating + rubric/metric outputs.
 - Session/survey endpoints use Zod-validated request schemas.
+- Submission and score endpoints reject evidence that is not part of the active scenario.
+- Submission and score endpoints require at least one `primary` and one `corroborating` artifact.
+
+## Scenario Example Answer
+
+- `GET /scenarios/:id/example-answer`
+  - Purpose: provide a strong scenario-specific answer that a new TPM can study or apply into the form.
+  - Response includes:
+    - `ownerRouting`
+    - `dependencyTrace`
+    - `actionPlan`
+    - `blastRadius`
+    - `evidenceNotes`
+    - `selectedEvidenceIds`
+    - `selectedEvidence`
+    - `whyItWorks`
+    - `fieldGuidance`
 
 ## Versioning Guidance
 

@@ -59,6 +59,7 @@ export function initializeDatabase(dbPath: string): Database.Database {
       gold_owner TEXT,
       gold_dependency_trace JSONB,
       gold_safe_actions JSONB,
+      gold_blast_radius JSONB,
       gold_required_evidence_ids JSONB,
       rubric_explanations TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -103,6 +104,12 @@ export function initializeDatabase(dbPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_ablation_runs_scenario ON ablation_runs(scenario_id);
     CREATE INDEX IF NOT EXISTS idx_learning_sessions_scenario ON learning_sessions(scenario_id);
   `);
+
+  try {
+    db.exec('ALTER TABLE gold_labels ADD COLUMN gold_blast_radius JSONB');
+  } catch {
+    // Column already exists.
+  }
 
   return db;
 }
@@ -183,8 +190,8 @@ export function seedSampleData(db: Database.Database): void {
 
   const insertGold = db.prepare(`
     INSERT OR IGNORE INTO gold_labels (id, scenario_id, gold_owner, gold_dependency_trace,
-                              gold_safe_actions, gold_required_evidence_ids, rubric_explanations)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+                              gold_safe_actions, gold_blast_radius, gold_required_evidence_ids, rubric_explanations)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const seedAll = db.transaction(() => {
@@ -212,8 +219,18 @@ export function seedSampleData(db: Database.Database): void {
         scenario.goldOwner,
         JSON.stringify(scenario.goldDependencyTrace),
         JSON.stringify(scenario.goldSafeActions),
+        JSON.stringify(scenario.goldBlastRadius ?? scenario.goldSafeActions),
         JSON.stringify(scenario.goldRequiredEvidenceIds),
         scenario.rubricExplanations
+      );
+
+      db.prepare(`
+        UPDATE gold_labels
+        SET gold_blast_radius = ?
+        WHERE scenario_id = ? AND (gold_blast_radius IS NULL OR gold_blast_radius = '')
+      `).run(
+        JSON.stringify(scenario.goldBlastRadius ?? scenario.goldSafeActions),
+        scenario.id
       );
     }
   });

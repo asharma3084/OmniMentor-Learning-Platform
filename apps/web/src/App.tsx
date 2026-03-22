@@ -23,6 +23,7 @@ const DOMAIN_STYLES: Record<string, { bg: string; text: string; border: string; 
 };
 
 const DEFAULT_DOMAIN_STYLE = { bg: 'rgba(148,163,184,0.14)', text: '#94a3b8', border: 'rgba(148,163,184,0.4)', icon: '📊' };
+const WALKTHROUGH_STORAGE_KEY = 'omnimentor.walkthrough.dismissed.v1';
 
 function DomainBadge({ domain, size = 'sm' }: { domain: string; size?: 'sm' | 'xs' }) {
   const style = DOMAIN_STYLES[domain] || DEFAULT_DOMAIN_STYLE;
@@ -77,6 +78,30 @@ interface ScoreResponse {
   metrics?: MetricsData;
 }
 
+interface ExampleAnswerResponse {
+  scenarioId: string;
+  ownerRouting: string;
+  dependencyTrace: Array<{ from: string; to: string; type: 'upstream' | 'downstream' }>;
+  actionPlan: string;
+  blastRadius: string[];
+  evidenceNotes: string;
+  selectedEvidenceIds: string[];
+  selectedEvidence: EvidenceItem[];
+  whyItWorks: string;
+  fieldGuidance: {
+    ownerRouting: string;
+    actionPlan: string;
+    dependencyTrace: string;
+    blastRadius: string;
+    evidenceNotes: string;
+  };
+}
+
+type WorkspaceTab = 'Overview' | 'Scenario Workspace' | 'System Graph' | 'Evidence' | 'Evaluation' | 'Check-in Export';
+type GuidedStep = 'Brief' | 'Investigate' | 'Decide' | 'Feedback';
+
+const SERVICE_NAME_PATTERN = /\b([A-Z][A-Za-z0-9&/-]+(?: [A-Z][A-Za-z0-9&/-]+){0,3} (?:API|Team|BFF|Indexer|Engine|Service|Gateway|Sync|Router|Provider|Portal|Hub|Control|Logger|Detection|Orchestrator))\b/g;
+
 function Spinner() {
   return (
     <svg className="animate-spin w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" aria-hidden="true">
@@ -112,6 +137,42 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+function getPerformanceLabel(score: number) {
+  if (score >= 0.8) return 'Strong';
+  if (score >= 0.6) return 'Needs work';
+  return 'High risk';
+}
+
+function getPerformanceTone(score: number) {
+  if (score >= 0.8) return 'text-[var(--ok)]';
+  if (score >= 0.6) return 'text-[var(--warn)]';
+  return 'text-[var(--danger)]';
+}
+
+function getMetricCoaching(label: string, value: number) {
+  if (value >= 0.8) {
+    return `${label}: strong`;
+  }
+
+  if (value >= 0.6) {
+    return `${label}: partially supported`;
+  }
+
+  if (label === 'Evidence Support') {
+    return 'Evidence support: missing or weak support';
+  }
+
+  if (label === 'Owner Match') {
+    return 'Owner match: likely wrong team or unclear owner';
+  }
+
+  if (label === 'System Connections') {
+    return 'System connections: missing systems or wrong direction';
+  }
+
+  return 'Blast radius: missing impacts or too vague';
+}
+
 export default function App() {
   const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
   const [selectedScenario, setSelectedScenario] = useState<ScenarioData | null>(null);
@@ -130,7 +191,9 @@ export default function App() {
   const [bootLoading, setBootLoading] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'Overview' | 'Scenario Workspace' | 'System Graph' | 'Evidence' | 'Evaluation' | 'Check-in Export'>('Overview');
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('Overview');
+  const [viewMode, setViewMode] = useState<'guided' | 'advanced'>('guided');
+  const [guidedStep, setGuidedStep] = useState<GuidedStep>('Brief');
   const [dependencyTraceInput, setDependencyTraceInput] = useState('');
   const [blastRadiusInput, setBlastRadiusInput] = useState('');
 
@@ -144,8 +207,20 @@ export default function App() {
   const [showSurvey, setShowSurvey] = useState<'pre' | 'post' | null>(null);
   const [surveyStatus, setSurveyStatus] = useState({ preCompleted: false, postCompleted: false });
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, number>>({});
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [exampleAnswer, setExampleAnswer] = useState<ExampleAnswerResponse | null>(null);
+  const [showExampleModal, setShowExampleModal] = useState(false);
+  const [exampleLoading, setExampleLoading] = useState(false);
 
   const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:9992';
+
+  const getSelectedEvidenceRoleState = useCallback(() => {
+    const selectedItems = evidenceItems.filter((item) => selectedEvidence.includes(item.id));
+    return {
+      hasPrimary: selectedItems.some((item) => item.role === 'primary'),
+      hasCorroborating: selectedItems.some((item) => item.role === 'corroborating'),
+    };
+  }, [evidenceItems, selectedEvidence]);
 
   // Timer tick effect
   useEffect(() => {
@@ -224,6 +299,47 @@ export default function App() {
     checkSurveyStatus();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hasDismissedWalkthrough = window.localStorage.getItem(WALKTHROUGH_STORAGE_KEY) === 'true';
+    if (!hasDismissedWalkthrough) {
+      setShowWalkthrough(true);
+    }
+  }, []);
+
+  const closeWalkthrough = (nextTab?: WorkspaceTab, nextGuidedStep?: GuidedStep) => {
+    setShowWalkthrough(false);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(WALKTHROUGH_STORAGE_KEY, 'true');
+    }
+    if (nextTab) {
+      setActiveTab(nextTab);
+    }
+    if (nextGuidedStep) {
+      setGuidedStep(nextGuidedStep);
+    }
+  };
+
+  const selectScenario = useCallback((next: ScenarioData | null, options?: { tab?: WorkspaceTab; step?: GuidedStep; reuseScore?: ScoreResponse | null }) => {
+    setSelectedScenario(next);
+    setSelectedEvidence([]);
+    setScore(options?.reuseScore ?? null);
+    setSubmitError(null);
+    setDependencyTraceInput('');
+    setBlastRadiusInput('');
+    setFormData({ ownerRouting: '', actionPlan: '', evidenceNotes: '', dependencyTrace: [], blastRadius: [] });
+    if (options?.tab) {
+      setActiveTab(options.tab);
+    }
+    if (options?.step) {
+      setGuidedStep(options.step);
+    }
+    if (next) {
+      fetchEvidence(next.id);
+      startSession(next.id);
+    }
+  }, [fetchEvidence, startSession]);
+
   const fetchScenarios = async () => {
     setBootLoading(true);
     setBootError(null);
@@ -231,12 +347,10 @@ export default function App() {
       const res = await axios.get(`${API_URL}/scenarios`);
       setScenarios(res.data);
       if (res.data.length > 0) {
-        setSelectedScenario(res.data[0]);
-        await fetchEvidence(res.data[0].id);
-        await startSession(res.data[0].id);
-        // Show pre-survey if not yet completed
+        selectScenario(res.data[0], { tab: 'Overview', step: 'Brief' });
         const surveyRes = await axios.get(`${API_URL}/surveys/status`).catch(() => null);
-        if (surveyRes && !surveyRes.data.preCompleted) {
+        if (surveyRes?.data && !surveyRes.data.preCompleted) {
+          setSurveyStatus(surveyRes.data);
           setShowSurvey('pre');
         }
       } else {
@@ -263,6 +377,10 @@ export default function App() {
     if (formData.blastRadius.length === 0) return 'Blast-Radius Plan is required.';
     if (!formData.evidenceNotes.trim()) return 'Evidence Notes are required.';
     if (selectedEvidence.length === 0) return 'Select at least one evidence artifact.';
+    const { hasPrimary, hasCorroborating } = getSelectedEvidenceRoleState();
+    if (!hasPrimary || !hasCorroborating) {
+      return 'Select at least one primary artifact and one corroborating artifact.';
+    }
     return null;
   };
 
@@ -293,6 +411,48 @@ export default function App() {
       .map((line) => line.trim())
       .filter(Boolean);
   };
+
+  const applyExampleAnswer = (example: ExampleAnswerResponse) => {
+    setEvidenceItems((prev) => {
+      const merged = new Map(prev.map((item) => [item.id, item]));
+      example.selectedEvidence.forEach((item) => merged.set(item.id, item));
+      return Array.from(merged.values());
+    });
+    setSelectedEvidence(example.selectedEvidenceIds);
+    setFormData({
+      ownerRouting: example.ownerRouting,
+      dependencyTrace: example.dependencyTrace,
+      actionPlan: example.actionPlan,
+      blastRadius: example.blastRadius,
+      evidenceNotes: example.evidenceNotes,
+    });
+    setDependencyTraceInput(
+      example.dependencyTrace.map((edge) => `${edge.from} -> ${edge.to} (${edge.type})`).join('\n')
+    );
+    setBlastRadiusInput(example.blastRadius.join('\n'));
+    setSubmitError(null);
+    setShowExampleModal(false);
+    setActiveTab('Scenario Workspace');
+    setGuidedStep('Decide');
+  };
+
+  const fetchExampleAnswer = useCallback(async () => {
+    if (!selectedScenario) return;
+    setExampleLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/scenarios/${encodeURIComponent(selectedScenario.id)}/example-answer`);
+      setExampleAnswer(res.data);
+      setShowExampleModal(true);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setSubmitError(err.response?.data?.error || err.message || 'Failed to load example answer.');
+      } else {
+        setSubmitError('Failed to load example answer.');
+      }
+    } finally {
+      setExampleLoading(false);
+    }
+  }, [API_URL, selectedScenario]);
 
   const handleSubmit = async () => {
     const validationError = validateSubmission();
@@ -335,6 +495,8 @@ export default function App() {
       if (scenario) {
         setCompletedScenarios((prev) => new Map(prev).set(scenario.id, scoreResult));
       }
+      setActiveTab('Evaluation');
+      setGuidedStep('Feedback');
       // Mark session completed
       await logSessionEvent('completed');
       // Check if all scenarios done → trigger post-survey
@@ -395,11 +557,154 @@ export default function App() {
 
   if (!selectedScenario) return null;
 
+  const showOverview = viewMode === 'guided' ? guidedStep === 'Brief' : activeTab === 'Overview';
+  const showScenarioWorkspace = viewMode === 'guided'
+    ? guidedStep === 'Investigate' || guidedStep === 'Decide'
+    : activeTab === 'Scenario Workspace';
+  const showSystemGraph = viewMode === 'advanced' && activeTab === 'System Graph';
+  const showEvidence = viewMode === 'advanced' && activeTab === 'Evidence';
+  const showEvaluation = viewMode === 'guided' ? guidedStep === 'Feedback' : activeTab === 'Evaluation';
+  const showCheckInExport = viewMode === 'advanced' && activeTab === 'Check-in Export';
+
   const validationMsg = validateSubmission();
   const canSubmit = !loading && !validationMsg;
+  const hasEvidence = selectedEvidence.length > 0;
+  const { hasPrimary, hasCorroborating } = getSelectedEvidenceRoleState();
+  const hasOwner = formData.ownerRouting.trim().length > 0;
+  const hasAction = formData.actionPlan.trim().length > 0;
+  const hasTrace = formData.dependencyTrace.length > 0;
+  const hasBlast = formData.blastRadius.length > 0;
+  const hasNotes = formData.evidenceNotes.trim().length > 0;
+
+  const selectedEvidenceItems = evidenceItems.filter((ev) => selectedEvidence.includes(ev.id));
+
+  const extractNamedEntities = (texts: string[]) => {
+    const matches = new Set<string>();
+
+    texts.forEach((text) => {
+      const found = text.match(SERVICE_NAME_PATTERN) ?? [];
+      found.forEach((item) => matches.add(item.trim()));
+    });
+
+    return Array.from(matches);
+  };
+
+  const extractKeyFacts = (items: EvidenceItem[]) => {
+    const owners = new Set<string>();
+    const dependencies = new Set<string>();
+    const impacts = new Set<string>();
+
+    const addMatches = (set: Set<string>, text: string, regex: RegExp) => {
+      const match = text.match(regex);
+      if (match && match[1]) {
+        set.add(match[1].trim());
+      }
+    };
+
+    items.forEach((item) => {
+      const text = `${item.title}. ${item.body}`;
+      addMatches(owners, text, /owned by ([^.\n]+)/i);
+      addMatches(owners, text, /owner(?:ship)?:? ([^.\n]+)/i);
+      addMatches(owners, text, /escalation path: ([^.\n]+)/i);
+
+      const depPatterns = [
+        /depends on ([^.\n]+)/i,
+        /consumes ([^.\n]+)/i,
+        /publishes ([^.\n]+)/i,
+        /calls ([^.\n]+)/i,
+        /downstream impact: ([^.\n]+)/i,
+      ];
+      depPatterns.forEach((re) => addMatches(dependencies, text, re));
+
+      const impactPatterns = [
+        /impact: ([^.\n]+)/i,
+        /failure mode: ([^.\n]+)/i,
+        /rollback trigger: ([^.\n]+)/i,
+        /risk: ([^.\n]+)/i,
+        /stale ([^.\n]+)/i,
+      ];
+      impactPatterns.forEach((re) => addMatches(impacts, text, re));
+    });
+
+    return {
+      owners: Array.from(owners),
+      dependencies: Array.from(dependencies),
+      impacts: Array.from(impacts),
+    };
+  };
+
+  const keyFacts = extractKeyFacts(selectedEvidenceItems);
+
+  const scenarioEntities = extractNamedEntities([
+    selectedScenario.title,
+    selectedScenario.prompt,
+    ...selectedEvidenceItems.flatMap((item) => [item.title, item.body]),
+  ]);
+
+  const suggestedTeams = scenarioEntities.filter((entity) => entity.endsWith('Team'));
+  const suggestedSystems = scenarioEntities.filter((entity) => !entity.endsWith('Team'));
+  const focusSystem = suggestedSystems[0] ?? '[main system]';
+  const upstreamSystem = suggestedSystems[1] ?? '[upstream system]';
+  const downstreamSystem = suggestedSystems[2] ?? suggestedSystems[1] ?? '[downstream system]';
+  const primaryEvidence = selectedEvidenceItems.find((item) => item.role === 'primary');
+  const corroboratingEvidence = selectedEvidenceItems.find((item) => item.role === 'corroborating');
+  const beginnerDependencyTemplate = [
+    `${upstreamSystem} -> ${focusSystem} (upstream)`,
+    `${focusSystem} -> ${downstreamSystem} (downstream)`,
+  ].join('\n');
+  const beginnerBlastTemplate = (keyFacts.impacts.length > 0
+    ? keyFacts.impacts.slice(0, 3)
+    : [
+        '[customer-facing impact]',
+        '[downstream system impact]',
+        '[operational risk to monitor]',
+      ]
+  ).join('\n');
+  const scoreStatusLabel = score ? getPerformanceLabel(score.overallScore) : null;
+  const scoreStatusTone = score ? getPerformanceTone(score.overallScore) : '';
+  const scoreSummary = score
+    ? score.gatingPass
+      ? score.overallScore >= 0.8
+        ? 'Your answer is well supported and close to production-ready for this scenario.'
+        : 'Your answer is supported, but it still misses some important TPM details.'
+      : 'The app found unsupported reasoning. Tighten the answer using the evidence you selected.'
+    : null;
+  const beginnerMetrics = score?.metrics
+    ? [
+        { label: 'Owner Match', value: score.metrics.ownerAccuracy },
+        { label: 'System Connections', value: score.metrics.dependencyAccuracy },
+        { label: 'Blast Radius', value: score.metrics.blastRadiusCompleteness },
+        { label: 'Evidence Support', value: score.metrics.evidenceRelevance },
+      ]
+    : [];
+
+  const fillBeginnerDraft = () => {
+    const ownerGuess = keyFacts.owners[0] ?? '';
+    const ownerLine = ownerGuess || suggestedTeams[0] || '[owner team]';
+
+    setFormData({
+      ownerRouting: ownerLine,
+      dependencyTrace: parseDependencyTrace(beginnerDependencyTemplate),
+      actionPlan: [
+        `Confirm the risk and current state using ${primaryEvidence?.id ?? '[primary artifact id]'}.`,
+        `Notify ${ownerLine} and align with ${suggestedTeams[1] ?? '[dependent team]'}.`,
+        `Verify ${downstreamSystem} before rollout or recovery.`,
+        'Monitor the key metric and rollback if customer impact appears.'
+      ].join('\n'),
+      blastRadius: beginnerBlastTemplate.split('\n'),
+      evidenceNotes: [
+        `Owner evidence: ${primaryEvidence?.id ?? '[primary artifact id]'}.`,
+        `Dependency evidence: ${corroboratingEvidence?.id ?? '[corroborating artifact id]'}.`,
+        'Why this matters: the selected evidence names the owner, affected systems, and likely impact.',
+      ].join('\n'),
+    });
+
+    setDependencyTraceInput(beginnerDependencyTemplate);
+    setBlastRadiusInput(beginnerBlastTemplate);
+  };
 
   return (
-    <div className="min-h-screen text-[var(--text-0)] font-sans">
+    <div className="min-h-screen text-[var(--text-0)] font-sans" data-testid="app-root">
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-[color:var(--line)] bg-[rgba(7,11,20,0.78)] backdrop-blur-md reveal-up">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -412,37 +717,83 @@ export default function App() {
               <span className="text-[11px] tracking-wide text-[var(--text-2)] font-medium">From Architecture Blindness to Fluency</span>
             </div>
           </div>
-          {sessionStartTime && (
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-2)]">
-              <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-[var(--text-1)]">{formatTime(elapsedSeconds)}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowWalkthrough(true)}
+              data-testid="open-walkthrough"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] transition-colors"
+            >
+              How It Works
+            </button>
+            {sessionStartTime && (
+              <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-2)]">
+                <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-[var(--text-1)]">{formatTime(elapsedSeconds)}</span>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
+        <div className="mb-5 reveal-up" style={{ animationDelay: '40ms' }}>
+          <div className="card p-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">Learning Mode</p>
+              <p className="text-sm text-[var(--text-1)] mt-1">
+                {viewMode === 'guided'
+                  ? 'Guided mode teaches one onboarding decision at a time.'
+                  : 'Advanced mode exposes graph, evidence, evaluation, and export surfaces for deeper review.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setViewMode('guided')}
+                data-testid="guided-mode-toggle"
+                className={`text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors ${
+                  viewMode === 'guided'
+                    ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
+                    : 'border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]'
+                }`}
+              >
+                Guided Mode
+              </button>
+              <button
+                onClick={() => setViewMode('advanced')}
+                data-testid="advanced-mode-toggle"
+                className={`text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors ${
+                  viewMode === 'advanced'
+                    ? 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border border-[rgba(240,180,90,0.35)]'
+                    : 'border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]'
+                }`}
+              >
+                Advanced Mode
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {viewMode === 'advanced' && (
+          <div className="mb-5 reveal-up" style={{ animationDelay: '55ms' }}>
+            <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] px-4 py-3 text-sm text-[var(--text-1)]">
+              Advanced mode is for deeper graph, evidence, evaluation, and export review. Guided mode is still the recommended path for a new TPM.
+            </div>
+          </div>
+        )}
+
         {/* Scenario selector */}
         <div className="mb-5 reveal-up" style={{ animationDelay: '80ms' }}>
           <label className="label">Active Scenario</label>
           <div className="relative max-w-xl">
             <select
               value={selectedScenario.id}
+              aria-label="Active Scenario"
+              data-testid="scenario-select"
               onChange={(e) => {
                 const next = scenarios.find((s) => s.id === e.target.value) ?? null;
-                setSelectedScenario(next);
-                setSelectedEvidence([]);
-                setScore(null);
-                setSubmitError(null);
-                setDependencyTraceInput('');
-                setBlastRadiusInput('');
-                setFormData((prev) => ({ ...prev, ownerRouting: '', actionPlan: '', evidenceNotes: '', dependencyTrace: [], blastRadius: [] }));
-                if (next) {
-                  fetchEvidence(next.id);
-                  startSession(next.id);
-                }
+                selectScenario(next, { tab: viewMode === 'advanced' ? activeTab : 'Overview', step: 'Brief' });
               }}
               className="form-input pr-10 appearance-none cursor-pointer"
             >
@@ -469,34 +820,185 @@ export default function App() {
         )}
 
         <div className="mb-6 reveal-up" style={{ animationDelay: '160ms' }}>
-          <div className="card p-2">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-              {(['Overview', 'Scenario Workspace', 'System Graph', 'Evidence', 'Evaluation', 'Check-in Export'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                    activeTab === tab
-                      ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
-                      : 'text-[var(--text-1)] border border-transparent hover:bg-[rgba(18,30,47,0.74)]'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+          {viewMode === 'guided' ? (
+            <div className="card p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-2)]">Guided Practice Flow</p>
+                  <p className="text-sm text-[var(--text-1)] mt-1">Move through the scenario in order: understand it, inspect evidence, make the call, then learn from feedback.</p>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {(['Brief', 'Investigate', 'Decide', 'Feedback'] as const).map((step, index) => (
+                    <button
+                      key={step}
+                      onClick={() => setGuidedStep(step)}
+                      data-testid={`guided-step-${step.toLowerCase()}`}
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                        guidedStep === step
+                          ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
+                          : 'text-[var(--text-1)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.74)]'
+                      }`}
+                    >
+                      {index + 1}. {step}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="card p-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                {(['Overview', 'Scenario Workspace', 'System Graph', 'Evidence', 'Evaluation', 'Check-in Export'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                      activeTab === tab
+                        ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
+                        : 'text-[var(--text-1)] border border-transparent hover:bg-[rgba(18,30,47,0.74)]'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {activeTab === 'Overview' && (
+        {showOverview && (
           <div className="space-y-6 reveal-up">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {viewMode === 'guided' && (
+              <>
+                <div className="card p-6 border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.06)]">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">Mission Brief</p>
+                  <div className="mt-3 max-w-4xl">
+                    <h2 className="text-2xl font-bold text-[var(--text-0)]">{selectedScenario.title}</h2>
+                    <p className="text-base text-[var(--text-1)] mt-3 leading-relaxed">{selectedScenario.prompt}</p>
+                  </div>
+                  <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Step 1 Goal</p>
+                      <p className="text-sm text-[var(--text-0)] mt-2">Find the likely owner and the source of truth.</p>
+                    </div>
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Step 2 Goal</p>
+                      <p className="text-sm text-[var(--text-0)] mt-2">Trace one 1-3 hop path of affected systems.</p>
+                    </div>
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Step 3 Goal</p>
+                      <p className="text-sm text-[var(--text-0)] mt-2">Write one safe next-step plan with a clear blast radius.</p>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setGuidedStep('Investigate')}
+                      data-testid="start-with-evidence"
+                      className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
+                    >
+                      Start With Evidence
+                    </button>
+                    <button
+                      onClick={() => setShowWalkthrough(true)}
+                      data-testid="replay-walkthrough"
+                      className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                    >
+                      Replay Walkthrough
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[1.3fr,0.7fr] gap-4">
+                  <div className="card p-5">
+                    <p className="label mb-3">Scenario Queue</p>
+                    <div className="space-y-2">
+                      {scenarios.map((s) => {
+                        const result = completedScenarios.get(s.id);
+                        const isActive = selectedScenario?.id === s.id;
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              selectScenario(s, {
+                                reuseScore: result ?? null,
+                                tab: 'Overview',
+                                step: 'Brief',
+                              });
+                            }}
+                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-150 ${
+                              isActive
+                                ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.06)]'
+                                : 'border-[color:var(--line)] hover:bg-[rgba(16,27,42,0.68)] hover:border-[color:var(--line-strong)]'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-[var(--text-0)] truncate">{s.title}</p>
+                              <div className="mt-1 flex items-center gap-2">
+                                {s.domain && <DomainBadge domain={s.domain} size="xs" />}
+                                <span className="text-[10px] text-[var(--text-2)]">{result ? `${Math.round(result.overallScore * 100)}% complete` : 'Not started'}</span>
+                              </div>
+                            </div>
+                            <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[color:var(--line)] text-[var(--text-1)]">
+                              Open
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="card p-5">
+                      <p className="label">Progress Snapshot</p>
+                      <p className="text-2xl font-bold mt-2">{completedScenarios.size} / {scenarios.length}</p>
+                      <p className="text-xs text-[var(--text-2)] mt-1">scenarios complete</p>
+                      <div className="mt-3 w-full bg-[rgba(10,18,30,0.8)] rounded-full h-2.5 overflow-hidden">
+                        <div className="h-2.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
+                      </div>
+                    </div>
+                    <div className="card p-5">
+                      <p className="label">What Success Looks Like</p>
+                      <ul className="mt-3 space-y-2 text-sm text-[var(--text-1)]">
+                        <li>Name the right owner.</li>
+                        <li>Show one clear upstream/downstream path.</li>
+                        <li>State what could break and what to verify.</li>
+                        <li>Support your answer with main and supporting evidence.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            {viewMode === 'advanced' && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="card p-5">
                 <p className="label">Progress Snapshot</p>
                 <p className="text-2xl font-bold">{completedScenarios.size} <span className="text-base font-normal text-[var(--text-2)]">/</span> <span className="text-base font-normal text-[var(--text-2)]">{scenarios.length}</span></p>
                 <p className="text-xs text-[var(--text-2)] mt-1">scenarios complete</p>
                 <div className="mt-3 w-full bg-[rgba(10,18,30,0.8)] rounded-full h-2.5 overflow-hidden">
                   <div className="h-2.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
+                </div>
+                <div className="mt-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        const nextSurvey = !surveyStatus.preCompleted ? 'pre' : (!surveyStatus.postCompleted ? 'post' : null);
+                        if (nextSurvey) setShowSurvey(nextSurvey);
+                      }}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] transition-colors"
+                      disabled={surveyStatus.preCompleted && surveyStatus.postCompleted}
+                    >
+                      Measure my progress
+                    </button>
+                    <button
+                      onClick={() => setShowWalkthrough(true)}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)] transition-colors"
+                    >
+                      Show walkthrough
+                    </button>
+                  </div>
+                  {surveyStatus.preCompleted && surveyStatus.postCompleted && (
+                    <p className="text-[10px] text-[var(--text-2)] mt-1">Progress survey completed</p>
+                  )}
                 </div>
                 <div className="flex gap-1.5 mt-3 flex-wrap">
                   {scenarios.map((s) => (
@@ -535,13 +1037,12 @@ export default function App() {
                 <p className="text-xs text-[var(--text-2)] mt-1">evidence selected</p>
                 <div className="mt-3 flex gap-2">
                   <button onClick={() => setActiveTab('Scenario Workspace')} className="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6] transition-colors shadow-sm">Resume Practice</button>
-                  <button onClick={() => setActiveTab('Evaluation')} className="text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-[rgba(240,180,90,0.45)] bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.22)] transition-colors">View Evaluation</button>
+                  <button onClick={() => setActiveTab('Evaluation')} className="text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-[rgba(240,180,90,0.45)] bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.22)] transition-colors">Review Feedback</button>
                 </div>
               </div>
-            </div>
+            </div>}
 
-            {/* Scenario list with status */}
-            <div className="card p-5">
+            {viewMode === 'advanced' && <div className="card p-5">
               <p className="label mb-3">All Scenarios</p>
               <div className="space-y-2">
                 {scenarios.map((s) => {
@@ -551,15 +1052,11 @@ export default function App() {
                     <div
                       key={s.id}
                       onClick={() => {
-                        setSelectedScenario(s);
-                        setSelectedEvidence([]);
-                        setScore(result ?? null);
-                        setDependencyTraceInput('');
-                        setBlastRadiusInput('');
-                        setFormData({ ownerRouting: '', actionPlan: '', evidenceNotes: '', dependencyTrace: [], blastRadius: [] });
-                        fetchEvidence(s.id);
-                        startSession(s.id);
-                        setActiveTab('Scenario Workspace');
+                        selectScenario(s, {
+                          reuseScore: result ?? null,
+                          tab: 'Scenario Workspace',
+                          step: 'Decide',
+                        });
                       }}
                       className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-150 ${
                         isActive
@@ -597,14 +1094,86 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </div>}
           </div>
         )}
 
-        {activeTab === 'Scenario Workspace' && (
+        {showScenarioWorkspace && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {/* Left: Scenario + Evidence */}
           <div className="space-y-5 reveal-up" style={{ animationDelay: '180ms' }}>
+            {viewMode === 'guided' && (
+              <div className="card p-4 border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.06)]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">Current Step</p>
+                <h2 className="text-lg font-bold text-[var(--text-0)] mt-2">
+                  {guidedStep === 'Investigate' ? 'Investigate the situation first.' : 'Make your call and justify it.'}
+                </h2>
+                <p className="text-sm text-[var(--text-1)] mt-2 leading-relaxed">
+                  {guidedStep === 'Investigate'
+                    ? 'Open evidence, identify the likely owner, and note the systems and risks that keep appearing. Do not rush to fill every field yet.'
+                    : 'Use the evidence you selected to write one clear owner, one critical path, one safe plan, and one explicit blast radius.'}
+                </p>
+                {guidedStep === 'Investigate' && (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => {
+                        setViewMode('advanced');
+                        setActiveTab('System Graph');
+                      }}
+                      className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                    >
+                      Open Advanced Graph If Needed
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Guided flow */}
+            <div className="card p-4 border-[rgba(39,211,182,0.35)]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-2)]">Guided Flow</p>
+              <p className="mt-2 text-xs text-[var(--text-1)] leading-relaxed">
+                New TPM shortcut: pick evidence, answer who owns it, list 2-5 connected systems, then write what could break and what safe step comes first.
+              </p>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="rounded-lg border border-[color:var(--line)] p-3 bg-[rgba(12,20,32,0.44)]">
+                  <p className="text-[11px] text-[var(--text-2)]">Step 1</p>
+                  <p className="text-xs font-semibold text-[var(--text-0)]">Pick evidence</p>
+                  <p className={`text-[10px] mt-1 ${hasEvidence ? 'text-[var(--ok)]' : 'text-[var(--text-2)]'}`}>
+                    {hasEvidence ? 'Ready' : 'Select 1+ artifact'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[color:var(--line)] p-3 bg-[rgba(12,20,32,0.44)]">
+                  <p className="text-[11px] text-[var(--text-2)]">Step 2</p>
+                  <p className="text-xs font-semibold text-[var(--text-0)]">Draft response</p>
+                  <p className={`text-[10px] mt-1 ${hasOwner && hasAction ? 'text-[var(--ok)]' : 'text-[var(--text-2)]'}`}>
+                    {hasOwner && hasAction ? 'Owner + plan done' : 'Add owner + action plan'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[color:var(--line)] p-3 bg-[rgba(12,20,32,0.44)]">
+                  <p className="text-[11px] text-[var(--text-2)]">Step 3</p>
+                  <p className="text-xs font-semibold text-[var(--text-0)]">Submit & score</p>
+                  <p className={`text-[10px] mt-1 ${canSubmit ? 'text-[var(--ok)]' : 'text-[var(--text-2)]'}`}>
+                    {canSubmit ? 'Ready to submit' : 'Complete required fields'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-[var(--text-2)]">
+                <span className={hasPrimary ? 'text-[var(--ok)]' : ''}>Primary evidence</span>
+                <span className={hasCorroborating ? 'text-[var(--ok)]' : ''}>Corroborating evidence</span>
+                <span className={hasTrace ? 'text-[var(--ok)]' : ''}>Dependency trace</span>
+                <span className={hasBlast ? 'text-[var(--ok)]' : ''}>Blast radius</span>
+                <span className={hasNotes ? 'text-[var(--ok)]' : ''}>Evidence notes</span>
+              </div>
+              <div className="mt-3 rounded-lg border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Answer These Questions</p>
+                <div className="mt-2 grid gap-2 text-xs text-[var(--text-1)] md:grid-cols-2">
+                  <p>Who is on the hook if this breaks?</p>
+                  <p>What system is changing first?</p>
+                  <p>What other systems depend on it?</p>
+                  <p>What customer or operational risk shows up if the change goes wrong?</p>
+                </div>
+              </div>
+            </div>
             {/* Scenario card */}
             <div className="card p-6">
               <div className="flex items-start gap-3 mb-4">
@@ -636,12 +1205,14 @@ export default function App() {
                   </span>
                 )}
               </div>
+              <p className="text-[11px] text-[var(--text-2)] mb-3">Pick at least one primary artifact and one corroborating artifact before you submit.</p>
               <div className="space-y-2">
                 {evidenceItems.map((ev) => {
                   const checked = selectedEvidence.includes(ev.id);
                   return (
                     <label
                       key={ev.id}
+                      data-testid={`evidence-card-${ev.id}`}
                       className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all duration-150 ${
                         checked
                           ? 'bg-[rgba(39,211,182,0.12)] border-[rgba(39,211,182,0.5)]'
@@ -662,6 +1233,8 @@ export default function App() {
                       </div>
                       <input
                         type="checkbox"
+                        data-testid={`evidence-toggle-${ev.id}`}
+                        aria-label={`Select evidence ${ev.id}`}
                         checked={checked}
                         onChange={(e) => {
                           if (e.target.checked) {
@@ -689,7 +1262,7 @@ export default function App() {
                         <p className="text-xs text-[var(--text-2)] mt-0.5 line-clamp-2">
                           {ev.body.substring(0, 150)}…
                         </p>
-                        {ev.metadata?.retrievalScore !== undefined && (
+                        {viewMode === 'advanced' && ev.metadata?.retrievalScore !== undefined && (
                           <p className="text-[10px] text-[var(--text-2)] mt-1 font-mono">
                             relevance: {(ev.metadata.retrievalScore * 100).toFixed(0)}%
                             {ev.metadata.source && <> · {ev.metadata.source}</>}
@@ -700,14 +1273,139 @@ export default function App() {
                   );
                 })}
                 {evidenceItems.length === 0 && (
-                  <p className="text-sm text-[var(--text-2)] italic">No evidence retrieved for this scenario.</p>
+                  <div className="text-center py-6">
+                    <p className="text-sm text-[var(--text-2)]">No evidence retrieved for this scenario yet.</p>
+                    <p className="text-xs text-[var(--text-2)] mt-1">Try another scenario or check back after evidence is refreshed.</p>
+                    <button
+                      onClick={() => fetchEvidence(selectedScenario.id)}
+                      className="mt-3 text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.3)] transition-colors"
+                    >
+                      Refresh evidence
+                    </button>
+                  </div>
                 )}
+              </div>
+            </div>
+
+            {/* Key facts */}
+            <div className="card p-6">
+              <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 mb-3">
+                <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Key Facts (from selected evidence)
+              </h3>
+              {selectedEvidenceItems.length === 0 ? (
+                <p className="text-xs text-[var(--text-2)]">Select evidence above to see key facts.</p>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Owner / Escalation</p>
+                    {keyFacts.owners.length > 0 ? (
+                      <ul className="text-xs text-[var(--text-1)] space-y-1">
+                        {keyFacts.owners.map((item) => (
+                          <li key={item}>• {item}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-[var(--text-2)]">No owner hints found yet.</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Dependencies</p>
+                    {keyFacts.dependencies.length > 0 ? (
+                      <ul className="text-xs text-[var(--text-1)] space-y-1">
+                        {keyFacts.dependencies.map((item) => (
+                          <li key={item}>• {item}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-[var(--text-2)]">No dependency hints found yet.</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Impacts / Risks</p>
+                    {keyFacts.impacts.length > 0 ? (
+                      <ul className="text-xs text-[var(--text-1)] space-y-1">
+                        {keyFacts.impacts.map((item) => (
+                          <li key={item}>• {item}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-[var(--text-2)]">No impact hints found yet.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="card p-6">
+              <h3 className="text-sm font-semibold text-[var(--text-1)] mb-3">Beginner Hints</h3>
+              <div className="space-y-3 text-xs text-[var(--text-1)]">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Likely Owner</p>
+                  <p>{keyFacts.owners[0] ?? suggestedTeams[0] ?? 'Look for "owned by" or the on-call / escalation line in the evidence.'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Systems To Reuse In Your Answer</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(suggestedSystems.length > 0 ? suggestedSystems.slice(0, 6) : ['Select evidence to surface system names']).map((item) => (
+                      <span key={item} className="rounded-full border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] px-2.5 py-1 text-[11px]">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Starter Dependency Format</p>
+                  <pre className="whitespace-pre-wrap rounded-lg border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3 font-mono text-[11px] text-[var(--text-1)]">{beginnerDependencyTemplate}</pre>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Suggested Next Move</p>
+                  <p>{hasEvidence ? 'You have enough evidence selected to start writing your answer.' : 'Select one main artifact and one supporting artifact before writing your answer.'}</p>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Right: Form + Score */}
           <div className="space-y-5 reveal-up" style={{ animationDelay: '230ms' }}>
+            {viewMode === 'guided' && guidedStep === 'Investigate' ? (
+              <div className="card p-6">
+                <h3 className="text-sm font-semibold text-[var(--text-1)] mb-4">What to extract before answering</h3>
+                <div className="space-y-4 text-sm text-[var(--text-1)]">
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">1. Likely Owner</p>
+                    <p>{keyFacts.owners[0] ?? suggestedTeams[0] ?? 'Find the team or escalation path in the ownership or runbook artifact.'}</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">2. Connected Systems</p>
+                    <p>{suggestedSystems.length > 0 ? suggestedSystems.slice(0, 4).join(', ') : 'Look for service names repeated across the selected artifacts.'}</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">3. Risk To Watch</p>
+                    <p>{keyFacts.impacts[0] ?? 'Look for impact, failure mode, rollback trigger, or stale-result wording in the evidence.'}</p>
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    onClick={fillBeginnerDraft}
+                    disabled={selectedEvidenceItems.length === 0}
+                    data-testid="build-starter-draft"
+                    className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6] disabled:bg-[rgba(18,29,45,0.85)] disabled:text-[var(--text-2)]"
+                  >
+                    Build My Starter Draft
+                  </button>
+                  <button
+                    onClick={() => setGuidedStep('Decide')}
+                    data-testid="continue-to-decision"
+                    className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                  >
+                    Continue To Decision
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="card p-6">
               <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 mb-5">
                 <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -715,12 +1413,40 @@ export default function App() {
                 </svg>
                 Your Submission
               </h3>
+              <div className="mb-4 rounded-xl border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.08)] p-3">
+                <p className="text-xs font-semibold text-[var(--accent-2)]">How to use evidence</p>
+                <p className="text-[11px] text-[var(--text-1)] mt-1">Pull the owner, dependencies, and action steps directly from the evidence artifacts you opened.</p>
+              </div>
+              <div className="mb-4">
+                <button
+                  onClick={fillBeginnerDraft}
+                  disabled={selectedEvidenceItems.length === 0}
+                  data-testid="fill-beginner-template"
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
+                >
+                  Fill Beginner Template
+                </button>
+                <p className="text-[10px] text-[var(--text-2)] mt-1">Creates a clean starter draft with simple TPM-friendly prompts. Replace any bracketed text before submit.</p>
+              </div>
+              <div className="mb-4">
+                <button
+                  onClick={fetchExampleAnswer}
+                  disabled={exampleLoading}
+                  data-testid="show-example-answer"
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-[rgba(240,180,90,0.35)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.12)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
+                >
+                  {exampleLoading ? 'Loading example...' : 'Show Me A Good Answer'}
+                </button>
+                <p className="text-[10px] text-[var(--text-2)] mt-1">Preview a strong scenario-specific answer and optionally copy it into the form.</p>
+              </div>
               <div className="space-y-4">
                 <div>
-                  <label className="label">Owner Routing</label>
+                  <label className="label">Who Should Own This?</label>
                   <input
                     type="text"
-                    placeholder="e.g., Platform Team"
+                    placeholder="e.g., Checkout Platform Team"
+                    aria-label="Who Should Own This?"
+                    data-testid="owner-routing-input"
                     value={formData.ownerRouting}
                     onChange={(e) => {
                       setSubmitError(null);
@@ -728,12 +1454,15 @@ export default function App() {
                     }}
                     className="form-input"
                   />
+                  <p className="text-[11px] text-[var(--text-2)] mt-1">Use the evidence to name the owning team or escalation path. A good answer is usually one team name, not a sentence.</p>
                 </div>
 
                 <div>
-                  <label className="label">Action Plan</label>
+                  <label className="label">What Should Happen Next?</label>
                   <textarea
-                    placeholder="What actions should be taken?"
+                    placeholder="e.g., Pause rollout, notify owner team, verify error rate"
+                    aria-label="What Should Happen Next?"
+                    data-testid="action-plan-input"
                     value={formData.actionPlan}
                     onChange={(e) => {
                       setSubmitError(null);
@@ -741,12 +1470,15 @@ export default function App() {
                     }}
                     className="form-input resize-none h-28"
                   />
+                  <p className="text-[11px] text-[var(--text-2)] mt-1">Write 3-4 short steps. Start with verify, notify, coordinate, monitor, or rollback.</p>
                 </div>
 
                 <div>
-                  <label className="label">Dependency Trace</label>
+                  <label className="label">Which Systems Are Connected?</label>
                   <textarea
-                    placeholder={'One edge per line, e.g.\nGateway -> Auth (upstream)\nAuth -> Checkout (downstream)'}
+                    placeholder={'One edge per line, e.g.\nCheckout API -> Payments (downstream)\nCatalog -> Checkout API (upstream)'}
+                    aria-label="Which Systems Are Connected?"
+                    data-testid="dependency-trace-input"
                     value={dependencyTraceInput}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -756,12 +1488,15 @@ export default function App() {
                     }}
                     className="form-input resize-none h-24"
                   />
+                  <p className="text-[11px] text-[var(--text-2)] mt-1">Use real system names from the evidence. Avoid placeholders like "Service A". One line means one connection.</p>
                 </div>
 
                 <div>
-                  <label className="label">Blast-Radius Plan</label>
+                  <label className="label">What Could Break?</label>
                   <textarea
-                    placeholder={'One downstream impact per line, e.g.\nCheckout API latency risk\nSLA alert noise increase'}
+                    placeholder={'One downstream impact per line, e.g.\nPayment failures for new orders\nCustomer support spike'}
+                    aria-label="What Could Break?"
+                    data-testid="blast-radius-input"
                     value={blastRadiusInput}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -771,12 +1506,15 @@ export default function App() {
                     }}
                     className="form-input resize-none h-24"
                   />
+                  <p className="text-[11px] text-[var(--text-2)] mt-1">List customer-facing impact, downstream-system impact, and one operational risk to monitor.</p>
                 </div>
 
                 <div>
-                  <label className="label">Evidence Notes</label>
+                  <label className="label">Why Do You Believe This?</label>
                   <textarea
-                    placeholder="Explain how your evidence supports your submission"
+                    placeholder="e.g., Runbook lists owner; incident note confirms dependency"
+                    aria-label="Why Do You Believe This?"
+                    data-testid="evidence-notes-input"
                     value={formData.evidenceNotes}
                     onChange={(e) => {
                       setSubmitError(null);
@@ -784,11 +1522,13 @@ export default function App() {
                     }}
                     className="form-input resize-none h-28"
                   />
+                  <p className="text-[11px] text-[var(--text-2)] mt-1">Name the artifact IDs you used and what each one proves.</p>
                 </div>
 
                 <button
                   onClick={handleSubmit}
                   disabled={!canSubmit}
+                  data-testid="submit-and-score"
                   className="w-full flex items-center justify-center gap-2 bg-[#1db8a2] hover:bg-[#27d3b6] active:bg-[#17a08d] disabled:bg-[rgba(18,29,45,0.85)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm mt-1"
                 >
                   {loading ? (
@@ -810,16 +1550,31 @@ export default function App() {
                 )}
               </div>
             </div>
+            )}
 
             {/* Score result */}
             {score && (
-              <div className={`card p-6 ${score.gatingPass ? 'border-[rgba(75,215,158,0.45)]' : 'border-[rgba(240,180,90,0.55)]'}`}>
+              <div data-testid="score-result-card" className={`card p-6 ${score.gatingPass ? 'border-[rgba(75,215,158,0.45)]' : 'border-[rgba(240,180,90,0.55)]'}`}>
                 <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 mb-5">
                   <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
                   </svg>
                   Evaluation Result
                 </h3>
+                <div className="mb-5 rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Quick Read</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span data-testid="score-status-label" className={`text-lg font-bold ${scoreStatusTone}`}>{scoreStatusLabel}</span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                      score.gatingPass
+                        ? 'bg-[rgba(75,215,158,0.14)] text-[#7ee8b5] border-[rgba(75,215,158,0.45)]'
+                        : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.5)]'
+                    }`}>
+                      {score.gatingPass ? 'Evidence support passed' : 'Missing evidence support'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-[var(--text-1)] mt-2 leading-relaxed">{scoreSummary}</p>
+                </div>
                 <div className="flex items-center gap-6">
                   <ScoreRing score={score.overallScore} />
                   <div className="flex-1 space-y-3 min-w-0">
@@ -861,13 +1616,26 @@ export default function App() {
                     )}
                   </div>
                 </div>
+                {beginnerMetrics.length > 0 && (
+                  <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {beginnerMetrics.map((metric) => (
+                      <div key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-semibold text-[var(--text-0)]">{metric.label}</span>
+                          <span className={`text-xs font-semibold ${getPerformanceTone(metric.value)}`}>{getPerformanceLabel(metric.value)}</span>
+                        </div>
+                        <p className="text-[11px] text-[var(--text-2)] mt-1">{getMetricCoaching(metric.label, metric.value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
         )}
 
-        {activeTab === 'System Graph' && (
+        {showSystemGraph && (
           <div className="space-y-4 reveal-up">
             <div className="card p-6">
               <h3 className="text-sm font-semibold text-[var(--text-1)] mb-4 flex items-center gap-2">
@@ -921,7 +1689,7 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'Evidence' && (
+        {showEvidence && (
           <div className="space-y-4 reveal-up">
             <div className="card p-6">
               <div className="flex items-center justify-between mb-4">
@@ -985,16 +1753,18 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'Evaluation' && (
+        {showEvaluation && (
           <div className="space-y-4 reveal-up">
             {score ? (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Overall score */}
-                  <div className="card p-6 flex items-center gap-6">
+                  <div data-testid="evaluation-overall-score" className="card p-6 flex items-center gap-6">
                     <ScoreRing score={score.overallScore} />
                     <div>
                       <p className="text-sm font-semibold text-[var(--text-1)] mb-2">Overall Score</p>
+                      <p data-testid="evaluation-score-status" className={`text-lg font-bold ${scoreStatusTone}`}>{scoreStatusLabel}</p>
+                      <p className="text-xs text-[var(--text-2)] mt-1 max-w-sm">{scoreSummary}</p>
                       <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
                         score.gatingPass
                           ? 'bg-[rgba(75,215,158,0.14)] text-[#7ee8b5] border-[rgba(75,215,158,0.45)]'
@@ -1016,13 +1786,14 @@ export default function App() {
                   {/* Metrics breakdown */}
                   {score.metrics && (
                     <div className="card p-6">
-                      <p className="text-sm font-semibold text-[var(--text-1)] mb-3">Metrics</p>
+                      <p className="text-sm font-semibold text-[var(--text-1)] mb-1">What the app is checking</p>
+                      <p className="text-xs text-[var(--text-2)] mb-3">These are the four things that matter most for a new TPM answer.</p>
                       <div className="space-y-2.5">
                         {[
-                          { label: 'Owner Accuracy', value: score.metrics.ownerAccuracy },
-                          { label: 'Dependency Accuracy', value: score.metrics.dependencyAccuracy },
+                          { label: 'Owner Match', value: score.metrics.ownerAccuracy },
+                          { label: 'System Connections', value: score.metrics.dependencyAccuracy },
                           { label: 'Blast Radius', value: score.metrics.blastRadiusCompleteness },
-                          { label: 'Evidence Relevance', value: score.metrics.evidenceRelevance },
+                          { label: 'Evidence Support', value: score.metrics.evidenceRelevance },
                         ].map((m) => (
                           <div key={m.label}>
                             <div className="flex justify-between text-xs mb-1">
@@ -1034,10 +1805,11 @@ export default function App() {
                                 m.value >= 0.8 ? 'bg-[var(--ok)]' : m.value >= 0.6 ? 'bg-[var(--warn)]' : 'bg-[var(--danger)]'
                               }`} style={{ width: `${Math.round(m.value * 100)}%` }} />
                             </div>
+                            <p className="text-[11px] text-[var(--text-2)] mt-1">{getMetricCoaching(m.label, m.value)}</p>
                           </div>
                         ))}
                         <div className="flex gap-4 mt-2 pt-2 border-t border-[color:var(--line)]">
-                          <span className="text-xs text-[var(--text-2)]">Direction: <span className={score.metrics.directionCorrect ? 'text-[var(--ok)]' : 'text-[var(--danger)]'}>{score.metrics.directionCorrect ? 'Correct' : 'Incorrect'}</span></span>
+                          <span className="text-xs text-[var(--text-2)]">Direction: <span className={score.metrics.directionCorrect ? 'text-[var(--ok)]' : 'text-[var(--danger)]'}>{score.metrics.directionCorrect ? 'Clear' : 'Needs fixing'}</span></span>
                           <span className="text-xs text-[var(--text-2)]">Unsupported claims: <span className="text-[var(--text-1)]">{score.metrics.unsupportedClaimCount}</span></span>
                         </div>
                       </div>
@@ -1068,15 +1840,16 @@ export default function App() {
             ) : (
               <div className="card p-6 text-center py-12">
                 <p className="text-sm text-[var(--text-2)] mb-2">No evaluation results yet.</p>
+                <p className="text-xs text-[var(--text-2)] mb-4">Complete a submission to see rubric feedback and metrics.</p>
                 <button onClick={() => setActiveTab('Scenario Workspace')} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
-                  Go to Scenario Workspace to submit
+                  Go to Scenario Workspace
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {activeTab === 'Check-in Export' && (() => {
+        {showCheckInExport && (() => {
           const completedArr = Array.from(completedScenarios.entries());
           const avgScore = completedArr.length > 0
             ? completedArr.reduce((s, [, r]) => s + r.overallScore, 0) / completedArr.length
@@ -1137,9 +1910,178 @@ export default function App() {
         })()}
       </main>
 
+      {/* First-run walkthrough modal */}
+      {showWalkthrough && !showSurvey && (
+        <div data-testid="walkthrough-modal" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="card max-w-4xl w-full p-6 shadow-2xl reveal-up">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">First Run Walkthrough</p>
+                <h2 className="text-xl font-bold text-[var(--text-0)] mt-1">How a new TPM should use OmniMentor</h2>
+                <p className="text-sm text-[var(--text-1)] mt-2 max-w-2xl leading-relaxed">
+                  You do not need to know the whole system upfront. The goal is to make one defensible decision using evidence, system connections, and a safe next step.
+                </p>
+              </div>
+              <button
+                onClick={() => closeWalkthrough()}
+                data-testid="close-walkthrough"
+                className="px-3 py-2 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.68)]"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              {[
+                {
+                  step: '1',
+                  title: 'Pick A Scenario',
+                  text: 'Start in Overview. Choose one scenario and read the prompt. You are answering one architecture decision, not solving everything.',
+                },
+                {
+                  step: '2',
+                  title: 'Open Evidence',
+                  text: 'Select at least one primary artifact and one corroborating artifact. Look for owner names, system names, risks, and deployment clues.',
+                },
+                {
+                  step: '3',
+                  title: 'Fill Five Answers',
+                  text: 'Answer: who owns it, what happens next, which systems are connected, what could break, and why you believe it.',
+                },
+                {
+                  step: '4',
+                  title: 'Submit And Learn',
+                  text: 'Submit once your answer is grounded in evidence. The score tells you where your reasoning is strong and where support is missing.',
+                },
+              ].map((item) => (
+                <div key={item.step} className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                  <div className="w-8 h-8 rounded-full bg-[rgba(39,211,182,0.14)] border border-[rgba(39,211,182,0.34)] text-[var(--accent-2)] flex items-center justify-center text-sm font-bold">
+                    {item.step}
+                  </div>
+                  <h3 className="text-sm font-semibold text-[var(--text-0)] mt-3">{item.title}</h3>
+                  <p className="text-xs text-[var(--text-1)] mt-2 leading-relaxed">{item.text}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-[rgba(39,211,182,0.3)] bg-[rgba(39,211,182,0.08)] p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">What Good Looks Like</p>
+                <ul className="mt-2 space-y-2 text-sm text-[var(--text-1)]">
+                  <li>Use the exact team and system names you saw in the evidence.</li>
+                  <li>Write short, concrete action steps like verify, notify, coordinate, monitor, or rollback.</li>
+                  <li>List downstream impacts, not vague concerns.</li>
+                  <li>Name the artifact IDs that support your answer.</li>
+                </ul>
+              </div>
+              <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#ffd9a0]">What To Avoid</p>
+                <ul className="mt-2 space-y-2 text-sm text-[var(--text-1)]">
+                  <li>Do not use placeholders like Service A or Team X.</li>
+                  <li>Do not invent systems, owners, or risks that are not supported by evidence.</li>
+                  <li>Do not skip the corroborating artifact; the app requires both evidence roles.</li>
+                  <li>Do not over-explain. Short, evidence-backed answers score better here.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={() => closeWalkthrough('Overview', 'Brief')}
+                data-testid="walkthrough-start-overview"
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+              >
+                Start In Overview
+              </button>
+              <button
+                onClick={() => closeWalkthrough('Scenario Workspace', 'Investigate')}
+                data-testid="walkthrough-start-practice"
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
+              >
+                Take Me To Practice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExampleModal && exampleAnswer && !showSurvey && !showWalkthrough && (
+        <div data-testid="example-answer-modal" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="card max-w-4xl w-full p-6 shadow-2xl reveal-up max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#ffd9a0]">Good Answer Example</p>
+                <h2 className="text-xl font-bold text-[var(--text-0)] mt-1">{selectedScenario.title}</h2>
+                <p className="text-sm text-[var(--text-1)] mt-2 max-w-2xl leading-relaxed">{exampleAnswer.whyItWorks}</p>
+              </div>
+              <button
+                onClick={() => setShowExampleModal(false)}
+                className="px-3 py-2 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.68)]"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Who Should Own This?</p>
+                <p className="text-sm text-[var(--text-0)]">{exampleAnswer.ownerRouting}</p>
+                <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.ownerRouting}</p>
+              </div>
+              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Evidence Used</p>
+                <div className="flex flex-wrap gap-2">
+                  {exampleAnswer.selectedEvidence.map((item) => (
+                    <span key={item.id} className="rounded-full border border-[color:var(--line)] px-2.5 py-1 text-[11px] text-[var(--text-1)]">
+                      {item.id}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">What Should Happen Next?</p>
+                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.actionPlan}</pre>
+                <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.actionPlan}</p>
+              </div>
+              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Why Do You Believe This?</p>
+                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.evidenceNotes}</pre>
+                <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.evidenceNotes}</p>
+              </div>
+              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Which Systems Are Connected?</p>
+                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.dependencyTrace.map((edge) => `${edge.from} -> ${edge.to} (${edge.type})`).join('\n')}</pre>
+                <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.dependencyTrace}</p>
+              </div>
+              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">What Could Break?</p>
+                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.blastRadius.join('\n')}</pre>
+                <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.blastRadius}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={() => applyExampleAnswer(exampleAnswer)}
+                data-testid="use-example-answer"
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
+              >
+                Use This Example In The Form
+              </button>
+              <button
+                onClick={() => setShowExampleModal(false)}
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+              >
+                Keep My Current Draft
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pre/Post Confidence Survey Modal */}
       {showSurvey && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div data-testid="survey-modal" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="card p-6 max-w-lg w-full mx-4 shadow-2xl reveal-up">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-lg">📋</span>
@@ -1167,6 +2109,7 @@ export default function App() {
                       <button
                         key={v}
                         onClick={() => setSurveyAnswers((prev) => ({ ...prev, [q.key]: v }))}
+                        data-testid={`survey-${showSurvey}-${q.key}-${v}`}
                         className={`w-10 h-10 rounded-lg text-sm font-bold transition-all ${
                           surveyAnswers[q.key] === v
                             ? 'bg-[var(--accent)] text-slate-950 ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]'
@@ -1188,12 +2131,14 @@ export default function App() {
               <button
                 onClick={submitSurvey}
                 disabled={Object.keys(surveyAnswers).length < 5}
+                data-testid="submit-survey"
                 className="flex-1 bg-[var(--accent)] hover:bg-[#27d3b6] disabled:bg-[rgba(18,29,45,0.85)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
               >
                 Submit Survey
               </button>
               <button
                 onClick={() => { setShowSurvey(null); setSurveyAnswers({}); }}
+                data-testid="skip-survey"
                 className="px-4 py-2.5 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.68)]"
               >
                 Skip

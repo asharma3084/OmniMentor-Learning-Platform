@@ -118,7 +118,7 @@ async function runSmoke() {
           actionPlan: gold
             ? gold.goldSafeActions.join('. ') + '.'
             : 'Coordinate with dependent teams.',
-          blastRadius: gold?.goldSafeActions ?? ['Downstream impact possible'],
+          blastRadius: gold?.goldBlastRadius ?? gold?.goldSafeActions ?? ['Downstream impact possible'],
           evidenceNotes: evidenceNoteParts.join('. ') + '.',
           selectedEvidenceIds: evidence.map((e) => e.id),
         }),

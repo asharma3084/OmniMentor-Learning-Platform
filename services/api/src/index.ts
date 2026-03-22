@@ -25,6 +25,7 @@ import {
   GraphRAGRetriever,
   InMemoryCorpusStore,
 } from '@omnimentor/retrieval';
+import { AblationMode, scoreAblationScenario } from './ablation';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -48,6 +49,13 @@ type SqlScenarioRow = {
   artifacts: string;
 };
 
+type ScenarioArtifact = {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+};
+
 type SqlSubmissionRow = {
   id: string;
   scenario_id: string;
@@ -65,7 +73,9 @@ type SqlGoldRow = {
   gold_owner: string;
   gold_dependency_trace: string;
   gold_safe_actions: string;
+  gold_blast_radius?: string;
   gold_required_evidence_ids: string;
+  rubric_explanations?: string;
 };
 
 type ErrorResponse = {
@@ -141,6 +151,105 @@ function parseJson<T>(raw: unknown): T {
   return raw as T;
 }
 
+function parseScenarioArtifacts(raw: unknown): ScenarioArtifact[] {
+  return parseJson<ScenarioArtifact[]>(raw);
+}
+
+function buildEvidenceMapFromArtifacts(artifacts: ScenarioArtifact[]): Map<string, Evidence> {
+  return new Map<string, Evidence>(
+    artifacts.map((artifact) => [
+      artifact.id,
+      {
+        id: artifact.id,
+        title: artifact.title,
+        body: artifact.content,
+        role: artifact.type === 'document' ? 'primary' : 'corroborating',
+      },
+    ])
+  );
+}
+
+function getSelectedEvidenceRoleState(
+  selectedEvidenceIds: string[],
+  evidenceMap: Map<string, Evidence>
+): {
+  hasPrimary: boolean;
+  hasCorroborating: boolean;
+  invalidEvidenceIds: string[];
+} {
+  let hasPrimary = false;
+  let hasCorroborating = false;
+  const invalidEvidenceIds: string[] = [];
+
+  for (const evidenceId of selectedEvidenceIds) {
+    const evidence = evidenceMap.get(evidenceId);
+    if (!evidence) {
+      invalidEvidenceIds.push(evidenceId);
+      continue;
+    }
+
+    if (evidence.role === 'primary') {
+      hasPrimary = true;
+    }
+
+    if (evidence.role === 'corroborating') {
+      hasCorroborating = true;
+    }
+  }
+
+  return {
+    hasPrimary,
+    hasCorroborating,
+    invalidEvidenceIds,
+  };
+}
+
+function buildScenarioExampleAnswer(input: {
+  scenarioId: string;
+  benchmark: ScenarioBenchmark;
+  evidenceMap: Map<string, Evidence>;
+  rubricExplanations?: string;
+}) {
+  const selectedEvidence = input.benchmark.goldRequiredEvidenceIds
+    .map((evidenceId) => input.evidenceMap.get(evidenceId))
+    .filter((item): item is Evidence => Boolean(item));
+
+  const blastRadius = input.benchmark.goldBlastRadius && input.benchmark.goldBlastRadius.length > 0
+    ? input.benchmark.goldBlastRadius
+    : input.benchmark.goldSafeActions;
+
+  const evidenceNotes = selectedEvidence.length > 0
+    ? selectedEvidence
+        .map((item) => `${item.id}: ${item.title}`)
+        .join('. ') + '.'
+    : 'Use the selected evidence to justify owner, system connections, and downstream impact.';
+
+  const primaryEvidenceIds = selectedEvidence.filter((item) => item.role === 'primary').map((item) => item.id);
+  const corroboratingEvidenceIds = selectedEvidence.filter((item) => item.role === 'corroborating').map((item) => item.id);
+
+  return {
+    scenarioId: input.scenarioId,
+    ownerRouting: input.benchmark.goldOwner,
+    actionPlan: input.benchmark.goldSafeActions.join('\n'),
+    dependencyTrace: input.benchmark.goldDependencyTrace,
+    blastRadius,
+    evidenceNotes: [
+      evidenceNotes,
+      'Each selected artifact supports the owner, dependency path, or impact assessment.',
+    ].join('\n'),
+    selectedEvidenceIds: selectedEvidence.map((item) => item.id),
+    selectedEvidence,
+    whyItWorks: input.rubricExplanations ?? 'This example uses the gold owner, supported dependencies, concrete blast radius, and required evidence.',
+    fieldGuidance: {
+      ownerRouting: `Uses the exact gold owner and ties it back to ownership evidence${primaryEvidenceIds.length > 0 ? ` (${primaryEvidenceIds.join(', ')})` : ''}.`,
+      actionPlan: 'Lists concrete safe actions in execution order, which matches how the scorer and reviewers expect a TPM response to read.',
+      dependencyTrace: `Uses the real system names and direction labels from the benchmark path (${input.benchmark.goldDependencyTrace.length} connection${input.benchmark.goldDependencyTrace.length === 1 ? '' : 's'}).`,
+      blastRadius: 'Names downstream customer and system impact explicitly instead of vague risk statements.',
+      evidenceNotes: `Cites artifact IDs directly so the reasoning is traceable${corroboratingEvidenceIds.length > 0 ? `, including corroborating support from ${corroboratingEvidenceIds.join(', ')}` : ''}.`,
+    },
+  };
+}
+
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dataDir)) {
@@ -162,21 +271,8 @@ function buildCorpusFromDb(): InMemoryCorpusStore {
   }>;
   const store = new Map<string, Evidence[]>();
   for (const row of scenarios) {
-    const arts = JSON.parse(row.artifacts) as Array<{
-      id: string;
-      title: string;
-      content: string;
-      type: string;
-    }>;
-    store.set(
-      row.id,
-      arts.map((a) => ({
-        id: a.id,
-        title: a.title,
-        body: a.content,
-        role: (a.type === 'document' ? 'primary' : 'corroborating') as Evidence['role'],
-      }))
-    );
+    const artifacts = parseScenarioArtifacts(row.artifacts);
+    store.set(row.id, Array.from(buildEvidenceMapFromArtifacts(artifacts).values()));
   }
   return new InMemoryCorpusStore(store);
 }
@@ -280,6 +376,51 @@ app.get('/scenarios/:id', (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+app.get('/scenarios/:id/example-answer', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const scenario = db
+      .prepare('SELECT id, artifacts FROM scenarios WHERE id = ?')
+      .get(req.params.id) as Pick<SqlScenarioRow, 'id' | 'artifacts'> | undefined;
+
+    if (!scenario) {
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
+      return;
+    }
+
+    const gold = db
+      .prepare('SELECT * FROM gold_labels WHERE scenario_id = ?')
+      .get(req.params.id) as SqlGoldRow | undefined;
+
+    if (!gold) {
+      next(new AppError('Gold labels not found for scenario', 404, 'GOLD_LABELS_NOT_FOUND'));
+      return;
+    }
+
+    const benchmark: ScenarioBenchmark = {
+      id: gold.id,
+      prompt: '',
+      goldOwner: gold.gold_owner,
+      goldDependencyTrace: parseJson<ScenarioBenchmark['goldDependencyTrace']>(gold.gold_dependency_trace),
+      goldSafeActions: parseJson<string[]>(gold.gold_safe_actions),
+      goldBlastRadius: parseJson<string[]>(gold.gold_blast_radius ?? gold.gold_safe_actions),
+      goldRequiredEvidenceIds: parseJson<string[]>(gold.gold_required_evidence_ids),
+      rubricExplanations: gold.rubric_explanations ?? '',
+    };
+
+    const evidenceMap = buildEvidenceMapFromArtifacts(parseScenarioArtifacts(scenario.artifacts));
+    const exampleAnswer = buildScenarioExampleAnswer({
+      scenarioId: scenario.id,
+      benchmark,
+      evidenceMap,
+      rubricExplanations: gold.rubric_explanations,
+    });
+
+    res.json(exampleAnswer);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Get evidence via retrieval pipeline
 app.get('/evidence', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -348,6 +489,41 @@ app.post('/submissions', (req: Request, res: Response, next: NextFunction) => {
       evidenceNotes,
       selectedEvidenceIds,
     } = parsed.data;
+
+    const scenario = db
+      .prepare('SELECT artifacts FROM scenarios WHERE id = ?')
+      .get(scenarioId) as Pick<SqlScenarioRow, 'artifacts'> | undefined;
+
+    if (!scenario) {
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
+      return;
+    }
+
+    const evidenceMap = buildEvidenceMapFromArtifacts(parseScenarioArtifacts(scenario.artifacts));
+    const selectedEvidenceState = getSelectedEvidenceRoleState(selectedEvidenceIds, evidenceMap);
+
+    if (selectedEvidenceState.invalidEvidenceIds.length > 0) {
+      next(
+        new AppError(
+          'Selected evidence must belong to the scenario',
+          400,
+          'INVALID_EVIDENCE_SELECTION',
+          selectedEvidenceState.invalidEvidenceIds
+        )
+      );
+      return;
+    }
+
+    if (!selectedEvidenceState.hasPrimary || !selectedEvidenceState.hasCorroborating) {
+      next(
+        new AppError(
+          'Submission requires at least one primary artifact and one corroborating artifact',
+          400,
+          'EVIDENCE_ROLE_REQUIREMENT'
+        )
+      );
+      return;
+    }
 
     const submissionId = uuidv4();
     const createdAt = new Date();
@@ -434,6 +610,7 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       Array<{ from: string; to: string; type: 'upstream' | 'downstream' }>
     >(goldLabels.gold_dependency_trace);
     const goldSafeActions = parseJson<string[]>(goldLabels.gold_safe_actions);
+    const goldBlastRadius = parseJson<string[]>(goldLabels.gold_blast_radius ?? goldLabels.gold_safe_actions);
     const goldRequiredEvidenceIds = parseJson<string[]>(goldLabels.gold_required_evidence_ids);
 
     // Fetch scenario for artifacts/evidence
@@ -446,22 +623,32 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       return;
     }
 
-    const artifacts = parseJson<Array<{ id: string; title: string; content: string; type: string }>>(
-      scenario.artifacts
-    );
+    const artifacts = parseScenarioArtifacts(scenario.artifacts);
+    const evidenceMap = buildEvidenceMapFromArtifacts(artifacts);
+    const selectedEvidenceState = getSelectedEvidenceRoleState(selectedEvidenceIds, evidenceMap);
 
-    // Convert artifacts to evidence map
-    const evidenceMap = new Map<string, Evidence>(
-      artifacts.map((a) => [
-        a.id,
-        {
-          id: a.id,
-          title: a.title,
-          body: a.content,
-          role: a.type === 'document' ? 'primary' : 'corroborating',
-        },
-      ])
-    );
+    if (selectedEvidenceState.invalidEvidenceIds.length > 0) {
+      next(
+        new AppError(
+          'Submission includes evidence that does not belong to the scenario',
+          400,
+          'INVALID_EVIDENCE_SELECTION',
+          selectedEvidenceState.invalidEvidenceIds
+        )
+      );
+      return;
+    }
+
+    if (!selectedEvidenceState.hasPrimary || !selectedEvidenceState.hasCorroborating) {
+      next(
+        new AppError(
+          'Submission must include at least one primary artifact and one corroborating artifact before scoring',
+          400,
+          'EVIDENCE_ROLE_REQUIREMENT'
+        )
+      );
+      return;
+    }
 
     const submissionText = [
       submission.owner_routing,
@@ -496,6 +683,7 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       goldOwner: goldLabels.gold_owner,
       goldDependencyTrace,
       goldSafeActions,
+      goldBlastRadius,
       goldRequiredEvidenceIds,
       rubricExplanations: '',
     };
@@ -584,7 +772,7 @@ app.post('/ablation/run', async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    const modes = parsed.data.modes ?? ['vector', 'graph', 'graphrag', 'graphrag_gating'];
+    const modes = (parsed.data.modes ?? ['vector', 'graph', 'graphrag', 'graphrag_gating']) as AblationMode[];
     const scenarios = db.prepare('SELECT id, title, prompt FROM scenarios').all() as Array<{
       id: string;
       title: string;
@@ -626,38 +814,31 @@ app.post('/ablation/run', async (req: Request, res: Response, next: NextFunction
           topK: 10,
         });
 
-        const evidenceCount = evidence.length;
-        const retrievedIds = evidence.map((e) => e.id);
-
-        // Calculate real metrics based on retrieval overlap with gold
-        let goldRequiredIds: string[] = [];
-        if (goldRow) {
-          goldRequiredIds = parseJson<string[]>(goldRow.gold_required_evidence_ids);
+        if (!goldRow) {
+          continue;
         }
 
-        const goldHits = goldRequiredIds.filter((gid) => retrievedIds.includes(gid)).length;
-        const evidenceRelevance = goldRequiredIds.length > 0 ? goldHits / goldRequiredIds.length : 0;
-
-        // Mode-differentiated scoring heuristics
-        const modeFactor: Record<string, number> = {
-          vector: 0.85,
-          graph: 0.90,
-          graphrag: 0.95,
-          graphrag_gating: 1.0,
-        };
-        const factor = modeFactor[mode] ?? 0.85;
-
-        const metrics: MetricsResult = {
-          ownerAccuracy: factor,
-          dependencyAccuracy: Math.min(1, factor * 0.95),
-          directionCorrect: factor >= 0.9,
-          blastRadiusCompleteness: Math.min(1, factor * 0.9),
-          evidenceRelevance,
-          unsupportedClaimCount: mode === 'graphrag_gating' ? 0 : Math.round((1 - factor) * 5),
-          criticalErrorCount: mode === 'graphrag_gating' ? 0 : Math.round((1 - factor) * 2),
+        const benchmark: ScenarioBenchmark = {
+          id: goldRow.id,
+          prompt: scenario.prompt,
+          goldOwner: goldRow.gold_owner,
+          goldDependencyTrace: parseJson<ScenarioBenchmark['goldDependencyTrace']>(goldRow.gold_dependency_trace),
+          goldSafeActions: parseJson<string[]>(goldRow.gold_safe_actions),
+          goldBlastRadius: parseJson<string[]>(goldRow.gold_blast_radius ?? goldRow.gold_safe_actions),
+          goldRequiredEvidenceIds: parseJson<string[]>(goldRow.gold_required_evidence_ids),
+          rubricExplanations: '',
         };
 
-        const overallScore = calculateOverallScore(metrics);
+        const scoredScenario = scoreAblationScenario({
+          scenarioId: scenario.id,
+          mode,
+          retrievedEvidence: evidence,
+          benchmark,
+        });
+
+        const metrics = scoredScenario.metrics;
+        const overallScore = scoredScenario.overallScore;
+        const evidenceCount = scoredScenario.selectedEvidence.length;
         const rowId = uuidv4();
 
         db.prepare(

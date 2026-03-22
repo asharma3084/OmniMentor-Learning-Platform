@@ -1,12 +1,12 @@
 # 14. GUI Justification From QQ And Proposal
 
-Version: 1.2
-Last Updated: 2026-03-09
-Status: Finalized baseline
+Version: 1.3
+Last Updated: 2026-03-15
+Status: Guided-first implementation update
 
 ## Purpose
 
-This document explains why the selected GUI (`Design 1.1: TPM Onboarding Command Center`) is the strongest fit for:
+This document explains why the selected GUI (`Guided-first TPM Practice Studio with Advanced Review Mode`) is the strongest fit for:
 - Assignment progression (`A1 -> A2 -> A3 -> A4 -> Proposal`)
 - Qualifier Question (QQ) expectations
 - Proposal research questions (`RQ1`, `RQ2`, `RQ3`)
@@ -21,9 +21,9 @@ What A1 established:
 - New TPMs struggle to see ownership, dependency direction, and governance constraints in complex service ecosystems.
 
 GUI justification:
-- `System Graph` tab makes ownership and dependency relationships visually navigable.
-- `Scenario Workspace` requires directional dependency trace before submission.
-- `Evidence` tab ensures decisions are grounded in visible artifacts, not assumptions.
+- `Brief` reduces first-run ambiguity by turning each scenario into a bounded mission instead of a blank dashboard.
+- `Investigate` makes evidence selection the first serious action, which matches the proposal's evidence-first learning claim.
+- `Advanced Mode` still exposes `System Graph`, `Evidence`, and `Evaluation` when deeper relationship visibility is needed.
 
 Why this is correct:
 - A1 defines the problem as systems orientation, not just missing docs.
@@ -35,9 +35,9 @@ What A2 established:
 - Fragmented knowledge creates high extraneous load and slows onboarding decisions.
 
 GUI justification:
-- Dashboard summarizes progress, risk, and readiness so TPMs do not mentally stitch state across screens.
-- Workspace uses structured fields (owner, dependency, blast radius, evidence notes) to reduce ambiguity.
-- Error and readiness signals are visible in-context to avoid repeated trial-and-error.
+- The guided flow separates reading, investigation, decision, and reflection so new TPMs do not have to self-assemble the workflow.
+- Structured fields and beginner coaching reduce blank-page friction.
+- Error and readiness signals remain visible in-context to avoid repeated trial-and-error.
 
 Why this is correct:
 - A2 calls for cognitive scaffolding.
@@ -49,9 +49,9 @@ What A3 established:
 - Learners need relational scaffolds, not flat documentation lookup.
 
 GUI justification:
-- `System Graph` tab links node/edge navigation to evidence and decision drafting.
-- Provenance display shows where each claim came from.
-- `Score & Reflection` emphasizes model correction and reasoning improvement.
+- `Investigate` extracts key facts from selected evidence before the learner is asked to decide.
+- Provenance remains visible through evidence IDs, role tags, and example-answer coaching.
+- `Feedback` emphasizes model correction and reasoning improvement.
 
 Why this is correct:
 - A3 requires learnable relationships and traceable cues.
@@ -64,9 +64,9 @@ What QQ emphasized:
 - Trust depends on transparent scaffolding and explainable outputs.
 
 GUI justification:
-- Ollama assistant is constrained to supportive coaching and explanation.
-- Evidence-gating remains the hard trust boundary; AI cannot override required evidence.
-- Uncertainty signaling is explicit, reducing false confidence and over-automation risk.
+- The current implementation uses bounded scaffolds such as walkthroughs, example answers, and evidence-backed coaching rather than open-ended automation.
+- Evidence-gating remains the hard trust boundary; helper surfaces cannot override required evidence.
+- Uncertainty and support status remain explicit, reducing false confidence and over-automation risk.
 
 Why this is correct:
 - This preserves learner agency while still offering non-judgmental support.
@@ -80,8 +80,8 @@ RQ1 target:
 - Scenario practice + knowledge graph should reduce orientation time vs static docs.
 
 GUI support:
-- `Scenario Workspace` + `System Graph` workflow accelerates owner/dependency resolution.
-- `Evaluation` tab compares retrieval modes (`vector`, `graph`, `graphrag`, `graphrag_gating`).
+- `Brief` + `Investigate` + `Decide` accelerates owner/dependency resolution for first-time learners.
+- `Advanced Mode` still exposes graph and evaluation surfaces for deeper review and later research analysis.
 - **Live session timer** in header tracks time-on-task per scenario (start → first evidence → first submit → completion).
 - **Learning session API** records `durationSec`, `firstEvidenceAt`, `firstSubmitAt` for time-to-competent-submission analysis.
 
@@ -91,7 +91,7 @@ RQ2 target:
 - Assistant interaction should reduce anxiety while maintaining learning integrity.
 
 GUI support:
-- Non-judgmental coaching tone in assistant responses.
+- Non-judgmental coaching tone in walkthrough copy, example guidance, and feedback summaries.
 - Clear uncertainty/provenance markers to avoid misleading authority.
 - Reflection outputs frame improvement actions without punitive language.
 - **Pre/post 5-item Likert survey modals** measure self-reported confidence and anxiety change across the scenario run.
@@ -102,24 +102,22 @@ RQ3 target:
 - Ownership visualization should accelerate movement from peripheral to active participation.
 
 GUI support:
-- `System Graph` gives ownership/dependency visibility.
-- Contribution-oriented progress indicators on dashboard and check-in outputs.
+- `Advanced Mode` `System Graph` gives ownership/dependency visibility without overwhelming the learner by default.
+- Progress indicators and scenario completion surfaces show growing participation readiness.
 - Scenario completion evidence supports practical participation readiness.
 - **Behavioral proxy tracking**: hesitation time (session start → first evidence selection) and attempt count per scenario.
 
 ## Technical Stack Justification In GUI
 
-The GUI explicitly reflects the proposal stack:
-- **Neo4j**: node-edge ownership/dependency exploration (`System Graph`)
-- **GraphRAG**: graph-grounded context assembly for retrieval and explanation
-- **Ollama**: local assistant for bounded coaching/explanation (no external API dependence)
-- **Evidence Gating**: final decision trust boundary
+The GUI reflects the current implementation and the proposal target separately:
+- **Current implementation**: guided-first learner flow, deterministic retrieval modes, example-answer coaching, evidence gating, and structured evaluation feedback.
+- **Proposal target**: richer Neo4j/GraphRAG/Ollama-backed graph and explanation surfaces exposed primarily through advanced review paths.
 
 This prevents UI/architecture mismatch and keeps the demo proposal-faithful.
 
 ## Why Design 1.1 Is The Best Fit
 
-Compared to alternatives, Design 1.1 gives the strongest combined score on:
+Compared to alternatives, the guided-first design gives the strongest combined score on:
 - proposal fidelity
 - assignment traceability
 - measurable evaluation readiness
@@ -129,7 +127,7 @@ It is not only visually strong; it is epistemically aligned with the course outc
 
 ## Coverage Statement
 
-Design 1.1 is a **full-coverage baseline** because it explicitly includes:
+The guided-first baseline is strong because it explicitly includes:
 - Required structured submission fields:
   - owner routing
   - dependency trace
@@ -142,14 +140,15 @@ Design 1.1 is a **full-coverage baseline** because it explicitly includes:
 - Unsupported claim visibility
 - Uncertainty signaling and provenance display
 - Four-mode evaluation surfaces
-- Neo4j/GraphRAG graph visibility
-- Ollama assistant with evidence-gated safety boundary
+- guided onboarding for first-session learners
+- bounded example-answer scaffolding with evidence-backed field guidance
+- advanced review surfaces for graph/evaluation/export when needed
 - **Learning session time tracking (timer + session API)**
 - **Pre/post survey instrumentation (5-item Likert, matched pre/post)**
 - **Behavioral proxy logging (hesitation time, attempt count)**
 - **KPI evaluation framework (9 KPIs × 3 RQs, see `docs/16-evaluation-and-kpis.md`)**
 
-This baseline is used as the implementation and review reference for check-in.
+This baseline is used as the current implementation and review reference for check-in and milestone packaging.
 
 ## Freeze-Scope Requirements
 

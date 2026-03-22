@@ -1,7 +1,7 @@
 # OmniMentor Detailed UI Design
 
-Version: 3.1
-Last Updated: 2026-03-09
+Version: 3.2
+Last Updated: 2026-03-15
 
 This GUI is based on the Assignment (QQ) and Project Proposal.
 
@@ -24,7 +24,13 @@ Design a TPM onboarding interface that improves architecture fluency through:
 
 ## 3. Information Architecture (Post-Login)
 
-Primary tabs:
+Default learner flow:
+- `Brief`
+- `Investigate`
+- `Decide`
+- `Feedback`
+
+Secondary advanced review surfaces:
 - `Overview`
 - `Scenario Workspace`
 - `System Graph`
@@ -33,9 +39,9 @@ Primary tabs:
 - `Check-in Export`
 
 Navigation behavior:
-- Persistent top navigation on desktop.
-- Collapsible navigation drawer on mobile.
-- Current tab and scenario context always visible.
+- Guided mode is the default entry experience for a new TPM.
+- Advanced mode is visually secondary and intended for deeper graph, evaluator, and export review.
+- Current scenario context and learning progress remain visible in both modes.
 
 ## 4. Global Shell Mockup
 
@@ -43,7 +49,7 @@ Navigation behavior:
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
 │ 🎓 OmniMentor | From Architecture Blindness to Fluency              ⏱ 03:42 | User | Help │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Overview | Scenario Workspace | System Graph | Evidence | Evaluation | Check-in Export     │
+│ Guided Mode: Brief | Investigate | Decide | Feedback         [Advanced Mode]               │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ Page Content Area                                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -51,29 +57,29 @@ Navigation behavior:
 
 The live elapsed timer (`⏱ mm:ss`) is displayed in the shell header during an active learning session, providing continuous time-on-task awareness for the learner (RQ1 instrumentation).
 
-## 5. Primary Mockup (Design A: TPM Onboarding Command Center)
+## 5. Primary Mockup (Design A: Guided-First TPM Practice Studio)
 
-## 5.1 Overview Mockup
+## 5.1 Brief Mockup
 
 ```text
-┌─────────────────────────────┬──────────────────────────────┬──────────────────────────────┐
-│ Progress Snapshot           │ Decision Quality             │ Retrieval Health              │
-│ 7 / 12 scenarios complete   │ Unsupported claims: 14%      │ vector | graph | graphrag    │
-│ Domain focus: Checkout      │ Critical errors: 2           │ Last run: complete            │
-│ Pre-survey: ✅ Complete      │ Avg session time: 8m 24s     │                               │
-├─────────────────────────────┴──────────────────────────────┴──────────────────────────────┤
-│ Recommended Next Scenario: "Payment Retry Storm"                                        │
-│ [Resume Scenario] [Open System Graph] [Run Evaluation]                                   │
+┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
+│ Mission Brief                               │ Success Criteria                             │
+│ Scenario: Payment Retry Storm               │ - find likely owner                          │
+│ Domain: Cart & Checkout                     │ - trace 1-3 critical connections             │
+│ Prompt: [scenario statement]                │ - name what could break                      │
+│                                             │ - justify with main + supporting evidence    │
+├──────────────────────────────────────────────┴──────────────────────────────────────────────┤
+│ [Start With Evidence] [Replay Walkthrough] [Open Advanced Mode]                           │
 └────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The Overview dashboard reflects survey completion status and average session duration to give learners and reviewers a high-level view of engagement and progress.
+The Brief step reduces first-run ambiguity by turning the scenario into a bounded mission before the learner sees the full form.
 
-## 5.2 Scenario Workspace Mockup
+## 5.2 Investigate + Decide Mockup
 
 ```text
 ┌───────────────────────────────┬─────────────────────────────────┬──────────────────────────────┐
-│ Scenario + Selected Evidence  │ Structured Submission           │ Decision Quality Rail        │
+│ Evidence + Key Facts          │ Structured Submission           │ Guided Readiness Rail        │
 │ Scenario: Checkout auth fail  │ Owner Routing [..............]  │ Readiness: 72%               │
 │ ⏱ Session: 04:17               │ Dependency Trace [...........]  │ Missing: policy artifact      │
 │ [x] Ownership Registry        │ Action Plan [.................] │ Warning: C2 unsupported       │
@@ -84,7 +90,7 @@ The Overview dashboard reflects survey completion status and average session dur
 └───────────────────────────────┴─────────────────────────────────┴──────────────────────────────┘
 ```
 
-The session timer (`⏱ Session: mm:ss`) shows elapsed time since session start, providing time-on-task awareness and feeding the RQ1 time-tracking instrumentation.
+The Investigate step emphasizes evidence and extracted clues first. The Decide step exposes the full structured form after the learner has enough context to answer concretely.
 
 ## 5.3 System Graph Mockup
 
@@ -143,17 +149,15 @@ The session timer (`⏱ Session: mm:ss`) shows elapsed time since session start,
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 6. Alternate Mockup B (Guided Stepper Experience)
+## 6. Alternate Mockup B (Advanced Review Workspace)
 
 ```text
-Tabs: Overview | Guided Workspace | System Graph | Evidence | Evaluation | Check-in Export
+Tabs: Overview | Scenario Workspace | System Graph | Evidence | Evaluation | Check-in Export
 
-Guided Workspace Stepper:
-1) Understand Scenario
-2) Select Evidence
-3) Draft Decision
-4) Validate & Submit
-5) Review Score
+Use case:
+- deeper graph review
+- evaluator comparison
+- export and reviewer-facing narrative work
 ```
 
 ## 7. Alternate Mockup C (Graph-First Workbench)
@@ -353,7 +357,7 @@ RQ3:
 
 Pre-survey modal:
 - Displayed on first application load when no pre-survey response exists.
-- Blocks scenario workspace access until completed.
+- Current prototype auto-opens it before practice starts, but the learner may dismiss it and continue.
 - Title: "Before You Begin — Quick Self-Assessment"
 - 5 Likert items (1 = Strongly Disagree to 5 = Strongly Agree):
   1. I feel confident navigating architecture decisions.

@@ -7,13 +7,14 @@
 
 - Git
 - Node.js 20+
-- pnpm --dir workspace - sqlite3
+- pnpm
+- sqlite3
 
 macOS install:
 
 ```bash
 brew update
-brew install git node pnpm --dir workspace sqlite
+brew install git node pnpm sqlite
 ```
 
 ## Install
@@ -41,3 +42,11 @@ curl -s http://localhost:9992/surveys/status
 ```
 
 The `/surveys/status` endpoint should return `{"preCompleted": false, "postCompleted": false}` on a fresh database.
+
+## Optional Guided GUI Check
+
+```bash
+pnpm --dir workspace test:e2e
+```
+
+`pnpm --dir workspace test:e2e` starts an isolated API on `10092` and web app on `10091`, runs the Playwright guided-flow checks, and cleans up both processes automatically.

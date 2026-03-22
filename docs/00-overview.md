@@ -66,12 +66,13 @@ The focus is not to answer questions. It is to build the capacity to ask them â€
 |---|---|
 | Web UI | React + Vite + Tailwind |
 | API | Express + Node.js |
-| Database | SQLite (Phase 1) â†’ Qdrant + Neo4j (Phase 2) |
+| Current persistence | SQLite |
 | Core scoring + gating | TypeScript |
-| Vector retrieval | Qdrant |
-| Local LLM | Ollama |
-| Graph store | Neo4j Community |
-| Graph retrieval | GraphRAG |
+| Current retrieval baseline | Deterministic in-memory ranking across `vector`, `graph`, `graphrag`, and `graphrag_gating` |
+| Target vector retrieval | Qdrant |
+| Target graph store | Neo4j Community |
+| Target graph retrieval | GraphRAG |
+| Target local LLM | Ollama |
 
 ## Out Of Scope (Current)
 

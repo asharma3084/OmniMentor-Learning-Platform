@@ -41,7 +41,7 @@ These research questions define the functional and evaluative scope of OmniMento
 | Deterministic unit tests | Scoring and gating behavior must be verifiable independently of LLM output |
 | Synthetic-only data | No personal, internal, or proprietary data in any repository artifact |
 | Dependency hygiene | Audit gate; no known vulnerabilities in shipped dependencies |
-| Local LLM (Ollama) | No external API calls; privacy-safe, no data leaves the machine |
+| Local-first assistant path | Any future LLM assistance must stay privacy-safe and avoid external data transmission |
 | Single-user local operation | Initial runtime target; multi-user is out of scope for current phase |
 | Open-source only | No paid feature tiers or commercial dependencies |
 | No telemetry | No external user-data collection of any kind |
@@ -52,18 +52,20 @@ These research questions define the functional and evaluative scope of OmniMento
 |---|---|
 | Web UI | React + Vite + Tailwind |
 | API | Express + Node.js |
-| Database | SQLite (Phase 1) → Qdrant + Neo4j (Phase 2) |
+| Current persistence | SQLite |
 | Core engine | TypeScript + Vitest |
-| Vector retrieval | Qdrant |
-| Local LLM | Ollama |
-| Graph store | Neo4j Community |
-| Graph retrieval | GraphRAG |
+| Current retrieval baseline | Deterministic in-memory retrieval across `vector`, `graph`, `graphrag`, and `graphrag_gating` |
+| Target vector retrieval | Qdrant |
+| Target graph store | Neo4j Community |
+| Target graph retrieval | GraphRAG |
+| Target local LLM | Ollama |
 
 ## Acceptance Criteria
 
 **Phase 1 — baseline system:**
 - `pnpm lint` passes with zero warnings.
-- `pnpm test` passes all 24 tests across 4 suites.
+- `pnpm test` passes all 28 tests across 5 suites.
+- `pnpm test:e2e` passes the guided new-TPM browser path on isolated ports.
 - `pnpm typecheck` passes with strict TypeScript.
 - `pnpm build` produces a clean production build.
 - `pnpm smoke` passes end-to-end with API running.

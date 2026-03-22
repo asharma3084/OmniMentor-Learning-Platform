@@ -49,13 +49,13 @@ Comparative evaluation across retrieval modes. An ablation run processes all ben
 Graph-Retrieval-Augmented Generation. A retrieval pattern that traverses a knowledge graph (ownership → dependency → policy edges) to assemble a structured context before sending it to an LLM. Produces more grounded, traceable responses than pure embedding-based retrieval.
 
 **Qdrant**
-Vector database used for semantic similarity retrieval. Stores dense embeddings of corpus documents; supports top-k search by cosine similarity. Integrated in Week 3.
+Target vector database for semantic similarity retrieval. Stores dense embeddings of corpus documents and supports top-k search by cosine similarity. The current checked-in baseline still uses deterministic in-memory retrieval.
 
 **Neo4j**
-Graph database used to store the Omni-Mart ownership and dependency graph. Supports multi-hop traversal via Cypher and APOC procedures. Integrated in Week 4.
+Target graph database for the Omni-Mart ownership and dependency graph. Supports multi-hop traversal via Cypher and APOC procedures. The current checked-in baseline still uses deterministic in-memory retrieval rather than a live graph store.
 
 **Ollama**
-Local LLM runtime. Runs open-weight models (e.g., Llama 3, Mistral) entirely on-device, with no external API calls. Preserves data privacy; no corpus content leaves the machine.
+Target local LLM runtime for later explanation depth. Runs open-weight models entirely on-device, with no external API calls. In the current checked-in baseline, learner support is provided through guided scaffolds, example answers, and evidence-backed feedback rather than a live LLM assistant.
 
 **Knowledge graph**
 A structured representation of entities (systems, services, teams, owners) and their relationships (depends-on, owns, escalates-to, documented-in). The OmniMentor knowledge graph encodes Omni-Mart's system topology as a traversable graph.

@@ -3,8 +3,8 @@
 [![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](README.md) [![Overview](https://img.shields.io/badge/Overview-14b8a6?style=for-the-badge&labelColor=042f2e)](00-overview.md) [![Requirements](https://img.shields.io/badge/Requirements-6366f1?style=for-the-badge&labelColor=1e1b4b)](01-requirements.md) [![Architecture](https://img.shields.io/badge/Architecture-a855f7?style=for-the-badge&labelColor=3b0764)](architecture.md) [![Quality Gates](https://img.shields.io/badge/Quality%20Gates-22c55e?style=for-the-badge&labelColor=052e16)](07-verification-and-quality-gates.md) [![Security](https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a)](10-security-and-compliance.md)
 
 
-Version: 2.8
-Last Updated: 2026-03-09
+Version: 2.9
+Last Updated: 2026-03-15
 
 ## 1. Architecture Objectives
 
@@ -20,12 +20,17 @@ The platform supports deliberate technical practice through:
 Source-of-truth references for this section:
 - `docs/00-overview.md` (Problem and RQ framing)
 - `docs/01-requirements.md` (functional/non-functional requirements)
-- `personal/A4-QQ-SUBMIT.pdf` (qualifier-question framing)
-- `personal/Project-Proposal-SUBMIT.pdf` (proposal baseline)
+- approved qualifier-question and proposal submissions (kept outside the check-in set)
 
 ## 2. High-Level System Architecture
 
-Canonical proposal-aligned stack:
+Current implemented runtime:
+- Web UI: React + Vite guided-first learner flow
+- API: Express + Node
+- Persistence: SQLite
+- Retrieval runtime: deterministic in-memory `vector`, `graph`, `graphrag`, `graphrag_gating`
+
+Proposal-target stack for later milestones:
 - Vector store: Qdrant
 - Graph store: Neo4j
 - Graph retrieval: GraphRAG
@@ -37,24 +42,23 @@ The architecture below is proposal-aligned and consistent with `docs/detailed-ui
 flowchart TB
   %% ---------- User + UI ----------
   U["Learner / Reviewer"]
-  subgraph UI["TPM Command Center UI (apps/web)"]
-    DASH["Overview Dashboard"]
-    WS["Scenario Workspace"]
-    SG["System Graph"]
-    EV["Evidence"]
-    EVAL["Evaluation"]
-    EXP["Check-in Export"]
+  subgraph UI["Guided-First Web UI (apps/web)"]
+    BRIEF["Brief"]
+    INVESTIGATE["Investigate"]
+    DECIDE["Decide"]
+    FEEDBACK["Feedback"]
+    ADV["Advanced Mode\nOverview | Graph | Evidence | Evaluation | Export"]
   end
 
   %% ---------- Services ----------
   A["API Service\nservices/api\nNode + Express"]
   C["Core Engine\npackages/core\nEvidence Gating + Rubric Scoring"]
-  R["Retrieval Layer\npackages/retrieval\nvector | graph | graphrag | graphrag_gating"]
+  R["Retrieval Layer\npackages/retrieval\ndeterministic vector | graph | graphrag | graphrag_gating"]
 
   %% ---------- Infrastructure ----------
-  LLM["Ollama\nLocal LLM"]
-  NEO[("Neo4j\nGraph Store")]
-  QD[("Qdrant\nVector Store")]
+  LLM["Ollama\nTarget LLM"]
+  NEO[("Neo4j\nTarget Graph Store")]
+  QD[("Qdrant\nTarget Vector Store")]
 
   %% ---------- Data ----------
   DB[("SQLite\n./data/omnimentor.db")]
@@ -64,19 +68,17 @@ flowchart TB
   %% ---------- Outputs ----------
   REP["Reports\nJSON + CSV"]
 
-  U --> DASH
-  DASH --> WS
-  DASH --> SG
-  DASH --> EV
-  DASH --> EVAL
-  DASH --> EXP
+  U --> BRIEF
+  BRIEF --> INVESTIGATE
+  INVESTIGATE --> DECIDE
+  DECIDE --> FEEDBACK
+  FEEDBACK --> ADV
 
-  WS -->|REST| A
-  SG -->|Graph queries| A
-  EV -->|Evidence retrieval| A
-  EVAL -->|Score + gate request| A
-  EXP -->|Export request| A
-  DASH -->|Session start / survey| A
+  INVESTIGATE -->|Evidence retrieval| A
+  DECIDE -->|Submission| A
+  FEEDBACK -->|Score + gate request| A
+  ADV -->|Deep review / export| A
+  BRIEF -->|Session start / survey| A
 
   A --> C
   A --> R
@@ -102,7 +104,7 @@ flowchart TB
   classDef infra fill:#E0F2F1,stroke:#00695C,color:#004D40,stroke-width:2px;
 
   class U client;
-  class DASH,WS,SG,EV,EVAL,EXP ui;
+  class BRIEF,INVESTIGATE,DECIDE,FEEDBACK,ADV ui;
   class A api;
   class C,R core;
   class DB,DS,BM data;
@@ -118,16 +120,13 @@ Flow A is the primary learning workflow.
 sequenceDiagram
   autonumber
   participant L as Learner
-  participant UI as TPM Command Center UI
+  participant UI as Guided-First Web UI
   participant API as API Service
   participant RET as Retrieval Layer
-  participant NEO as Neo4j
-  participant QD as Qdrant
-  participant OLL as Ollama
   participant CORE as Core Engine
   participant DB as SQLite
 
-  L->>UI: Open dashboard (pre-survey if first visit)
+  L->>UI: Open app (pre-survey if first visit)
   UI->>API: GET /surveys/status
   API-->>UI: Survey completion state
   alt Pre-survey not completed
@@ -137,7 +136,7 @@ sequenceDiagram
     API->>DB: Persist survey_responses
     API-->>UI: Survey saved
   end
-  L->>UI: Select Scenario Workspace
+  L->>UI: Start Brief
   UI->>API: POST /sessions/start (scenarioId)
   API->>DB: Create learning_session
   API-->>UI: sessionId + startedAt
@@ -146,12 +145,9 @@ sequenceDiagram
   DB-->>API: Scenario payload
   API-->>UI: Scenario + evidence list
 
-  L->>UI: Open System Graph and Evidence tabs
+  L->>UI: Move to Investigate and select evidence
   UI->>API: GET /evidence?scenarioId=...
   API->>RET: retrieve(mode, scenario)
-  RET->>NEO: graph traversal / subgraph fetch
-  RET->>QD: vector similarity search
-  RET->>OLL: graph-context synthesis (graphrag modes)
   RET-->>API: ranked evidence + provenance
   API-->>UI: Evidence bundle + graph context
 
@@ -159,7 +155,7 @@ sequenceDiagram
   UI->>API: POST /sessions/event (first_evidence)
   API->>DB: Update learning_session.first_evidence_at
   API-->>UI: ack
-  L->>UI: Fill submission fields
+  L->>UI: Move to Decide and fill submission fields
   UI->>API: POST /sessions/event (first_submit)
   API->>DB: Update learning_session.first_submit_at
   UI->>API: POST /submissions (includes sessionId)
@@ -167,7 +163,7 @@ sequenceDiagram
   DB-->>API: submissionId
   API-->>UI: submissionId
 
-  L->>UI: Run Evaluation tab
+  L->>UI: Move to Feedback
   UI->>API: POST /score (submissionId, mode)
   API->>DB: Load submission + gold labels
   API->>RET: retrieve(mode, submission context)
@@ -261,15 +257,16 @@ flowchart LR
 - Responsive model:
   - Mobile-first single column.
   - Two-panel layout at large breakpoints (`lg:grid-cols-2`) for evidence/form parallel work.
-- Result: GUI architecture is defined for a TPM-first onboarding command center with evidence-first reasoning and transparent feedback.
+- Result: GUI architecture is defined for a guided-first TPM onboarding flow with advanced review surfaces available when needed.
 
-### 5.1b TPM Command Center UI Contract
-- Post-login dashboard is the entry point with required tabs: `Overview`, `Scenario Workspace`, `System Graph`, `Evidence`, `Evaluation`, `Check-in Export`.
-- Scenario Workspace enforces required structured fields: owner routing, dependency trace, blast-radius plan, evidence notes.
+### 5.1b Guided-First UI Contract
+- Default entry is a guided 4-step flow: `Brief`, `Investigate`, `Decide`, `Feedback`.
+- `Advanced Mode` preserves richer review surfaces: `Overview`, `Scenario Workspace`, `System Graph`, `Evidence`, `Evaluation`, `Check-in Export`.
+- Decide step enforces required structured fields: owner routing, dependency trace, action plan, blast-radius plan, evidence notes.
 - Score surfaces must explicitly show critical error categories: wrong owner, wrong directionality, unsafe action without verification.
 - Uncertainty and provenance are mandatory user-visible signals for trust design.
-- System Graph is a first-class UI surface for Neo4j/GraphRAG node-edge navigation.
-- AI assistant surface uses local Ollama guidance and remains bounded by evidence-gating policy.
+- Example-answer scaffolding and walkthrough guidance are learner aids, but evidence gating remains the trust boundary.
+- System Graph remains an advanced review surface rather than the first interaction for a new TPM.
 
 ### 5.1c Freeze-Scope Enhancements
 - `System Graph` must provide interactive graph operations: zoom, pan, node/edge filtering, path tracing, and impact highlighting.
@@ -294,14 +291,14 @@ flowchart LR
 ### 5.4 Retrieval Layer (`packages/retrieval`)
 - Pluggable retrieval interface for ablation modes.
 - Canonical retrieval modes: `vector`, `graph`, `graphrag`, `graphrag_gating`.
-- Graph retrieval and context assembly are architecturally tied to Neo4j/GraphRAG.
-- LLM-augmented explanations are architecturally tied to Ollama, bounded by evidence-gating policy.
+- Current implementation uses deterministic in-memory retrieval over the synthetic corpus.
+- Neo4j/GraphRAG/Ollama remain proposal-target infrastructure for later milestone depth.
 
-### 5.6 LLM And Graph Infrastructure (Canonical)
-- **Ollama** is the local LLM provider for generation/explanation surfaces.
-- **Neo4j** is the graph-of-record for ownership/dependency traversal.
-- **Qdrant** is the vector retrieval store for semantic evidence lookup.
-- **GraphRAG** composes graph and retrieval context before LLM assistance.
+### 5.6 LLM And Graph Infrastructure (Target Scope)
+- **Ollama** is the planned local LLM provider for later generation/explanation depth.
+- **Neo4j** is the planned graph-of-record for ownership/dependency traversal.
+- **Qdrant** is the planned vector retrieval store for semantic evidence lookup.
+- **GraphRAG** remains the proposal-target composition layer for graph and retrieval context.
 
 ### 5.5 Data And Benchmarks
 - Synthetic corpus in `datasets/synth-corpus`.
@@ -314,6 +311,7 @@ flowchart LR
 - `GET /health`
 - `GET /scenarios`
 - `GET /scenarios/:id`
+- `GET /scenarios/:id/example-answer`
 - `GET /evidence?scenarioId=:id`
 - `POST /submissions`
 - `POST /score`

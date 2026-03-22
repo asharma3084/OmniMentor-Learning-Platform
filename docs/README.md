@@ -27,6 +27,7 @@ This directory follows a practical SDLC documentation flow.
 ## Existing Supporting Guides
 
 - [`quickstart.md`](quickstart.md)
+- [`user-guide.md`](user-guide.md)
 - [`verification.md`](verification.md)
 - [`review-guide.md`](review-guide.md)
 - [`detailed-ui-design.md`](detailed-ui-design.md)

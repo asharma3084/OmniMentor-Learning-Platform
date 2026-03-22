@@ -23,9 +23,10 @@
     "paths": {
       "@omnimentor/*": ["packages/*/src"],
       "@api/*": ["services/api/src/*"],
-      "@web/*": ["apps/web/src/*"]
+      "@web/*": ["apps/web/src/*"],
+      "@playwright/test": ["workspace/node_modules/@playwright/test"]
     }
   },
-  "include": ["../apps/**/*.ts", "../apps/**/*.tsx", "../services/**/*.ts", "../packages/**/*.ts", "../scripts/**/*.ts"],
+  "include": ["../apps/**/*.ts", "../apps/**/*.tsx", "../services/**/*.ts", "../packages/**/*.ts", "../scripts/**/*.ts", "../tests/**/*.ts"],
   "exclude": ["../node_modules", "../dist", "../build", "../reports", "../data"]
 }

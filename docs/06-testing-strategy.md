@@ -49,7 +49,8 @@ Weekly work cycles map directly to DBR phases: each development week constitutes
 
 ## Test Layers
 
-- Unit tests: core scoring, gating behavior, and retrieval ranking (24 tests across 4 suites).
+- Unit tests: core scoring, gating behavior, retrieval ranking, and ablation helpers (28 tests across 5 suites).
+- Browser E2E tests: Playwright coverage for the guided new-TPM golden path on isolated ports.
 - Runtime smoke test: end-to-end scenario to scored output across all 6 benchmark scenarios.
 - Evaluation run: retrieval-mode ablation (4 modes × 6 scenarios) and report generation.
 - Session/survey endpoint validation: start session, log events, submit surveys, check status.
@@ -58,9 +59,19 @@ Weekly work cycles map directly to DBR phases: each development week constitutes
 
 ```bash
 pnpm --dir workspace test
+pnpm --dir workspace test:e2e
 pnpm --dir workspace smoke
 pnpm --dir workspace eval
 ```
+
+The current GUI automation suite is intentionally narrow and high-value:
+- first-run walkthrough opens for a new learner
+- evidence-role enforcement blocks low-quality beginner submissions
+- example-answer path reaches feedback successfully
+
+Implementation note:
+- Browser automation lives under `tests/e2e`, while repo-level launch/cleanup stays in `scripts/e2e.sh`.
+- `pnpm --dir workspace test:e2e` uses `scripts/e2e.sh` to start an isolated API and Vite instance, wait for readiness, run Playwright with `tests/playwright.config.js`, and clean up deterministically.
 
 ## Quality Gates
 

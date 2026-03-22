@@ -7,3 +7,5 @@ services/api/reports/
 .DS_Store
 .vscode/
 apps/web/dist/
+playwright-report/
+test-results/

@@ -6,9 +6,12 @@
   "type": "module",
   "packageManager": "pnpm@10.30.3",
   "scripts": {
-    "lint": "eslint ../apps ../services ../packages ../scripts --ext .ts,.tsx -c ../config/.eslintrc.json",
+    "lint": "eslint ../apps ../services ../packages ../scripts ../tests --ext .ts,.tsx -c ../config/.eslintrc.json",
     "test": "vitest run --config ../config/vitest.config.ts",
     "test:watch": "vitest --config ../config/vitest.config.ts",
+    "dev:e2e": "concurrently \"API_PORT=10092 DATABASE_URL=../services/api/data/omnimentor-e2e.db pnpm --filter @omnimentor/api dev\" \"VITE_API_URL=http://127.0.0.1:10092 pnpm --filter @omnimentor/web exec vite --host 127.0.0.1 --port 10091\"",
+    "test:e2e": "../scripts/e2e.sh",
+    "test:e2e:headed": "../scripts/e2e.sh --headed",
     "typecheck": "tsc --noEmit -p ../config/tsconfig.json",
     "build": "pnpm --filter @omnimentor/api --filter @omnimentor/web run build",
     "dev": "concurrently 'pnpm --filter @omnimentor/api dev' 'pnpm --filter @omnimentor/web dev'",
@@ -16,6 +19,7 @@
     "eval": "tsx ../scripts/eval_run.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "concurrently": "^9.0.0",

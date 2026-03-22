@@ -12,6 +12,7 @@ Run from repo root:
 ```bash
 pnpm --dir workspace lint
 pnpm --dir workspace test
+pnpm --dir workspace test:e2e
 pnpm --dir workspace typecheck
 pnpm --dir workspace build
 pnpm --dir workspace smoke
@@ -33,6 +34,8 @@ Health probe:
 curl -s http://localhost:9992/health
 curl -s http://localhost:9992/surveys/status
 ```
+
+`pnpm --dir workspace test:e2e` is self-contained and should not depend on the default API process on `9992`; it starts isolated services on `10092` and `10091`.
 
 ## Expected Artifacts
 
@@ -60,6 +63,7 @@ set -e
 for i in 1 2 3 4 5; do
   pnpm --dir workspace lint
   pnpm --dir workspace test
+  pnpm --dir workspace test:e2e
   pnpm --dir workspace typecheck
   pnpm --dir workspace build
   pnpm --dir workspace audit

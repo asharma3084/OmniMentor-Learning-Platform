@@ -1,16 +1,22 @@
 # 15. TPM Learning Scenarios User Guide (6-Scenario Baseline + 6 Proposed)
 
-Version: 1.3
-Last Updated: 2026-03-09
-Status: Phase 1 baseline (6 scenarios implemented); Phase 2 expands to 12
+Version: 1.4
+Last Updated: 2026-03-22
+Status: Guided-first baseline (6 scenarios implemented); expansion path documented to 12
 
 ## Purpose
 
 This guide explains how TPMs use the GUI across a scenario-based learning run.
-Phase 1 implements 6 scenarios (2 per domain). Phase 2 expands each domain to 4 scenarios (12 total).
-It is written for demo delivery and practice sessions.
+The current baseline implements 6 scenarios (2 per domain). The planned expansion grows each domain to 4 scenarios (12 total).
+This guide is written for live demo delivery, guided practice, and reviewer walkthroughs.
 
-Tab model used in this guide:
+Default learner model used in this guide:
+- `Brief`
+- `Investigate`
+- `Decide`
+- `Feedback`
+
+Advanced review surfaces remain available behind `Advanced Mode`:
 - `Overview`
 - `Scenario Workspace`
 - `System Graph`
@@ -21,31 +27,33 @@ Tab model used in this guide:
 ## Standard TPM Workflow (Used For Every Scenario)
 
 1. On first visit, complete the pre-survey (5-item self-assessment). This only appears once.
-2. Open `Overview` and select the next scenario.
-3. Read scenario objective, constraints, and expected risk posture.
-4. A learning session starts automatically — the elapsed timer begins in the header.
-5. Open `Evidence` and inspect available artifacts (first evidence selection is logged as a behavioral proxy).
-6. Open `System Graph` to verify ownership and directional dependencies.
-7. Move to `Scenario Workspace` and complete required fields:
+2. Start in `Brief` and read the scenario objective, constraints, and success criteria.
+3. A learning session starts automatically — the elapsed timer begins in the header.
+4. Move to `Investigate` and inspect available artifacts.
+5. Select at least one primary artifact and one corroborating artifact (first evidence selection is logged as a behavioral proxy).
+6. If needed, open `Advanced Mode` for deeper graph or evidence inspection.
+7. Move to `Decide` and complete required fields:
    - owner routing
    - dependency trace
+  - action plan
    - blast-radius plan
    - evidence notes
-8. Review uncertainty and unsupported-claim warnings before submit.
-9. Submit and inspect `Score & Reflection` outputs. The session timer records completion.
-10. Capture progress and observations in `Check-in Export`.
-11. After completing all scenarios, complete the post-survey (same 5-item self-assessment).
+8. Optionally open `Show Me A Good Answer` to study a strong answer and its field-by-field coaching.
+9. Review uncertainty and unsupported-claim warnings before submit.
+10. Submit and inspect `Feedback` outputs. The session timer records completion.
+11. Capture progress and observations in `Check-in Export` if deeper review is needed.
+12. After completing all scenarios, complete the post-survey (same 5-item self-assessment).
 
 Freeze-scope behavior expectations during this workflow:
 - `System Graph` interactions include filter, path-trace, and impact-highlight usage before final submission.
 - `Evaluation` review includes mode-delta interpretation, not only top-line score reading.
 - `Check-in Export` output must be review-thread ready (concise narrative + evidence links + score/gating snapshot).
 
-## Scenario Set (Phase 1: 6 Implemented, Phase 2: 12 Target)
+## Scenario Set (Current 6 Implemented, Expansion Path to 12)
 
 Note:
-- Phase 1 implements 6 scenarios (2 per domain) with full gold labels, evidence artifacts, and scoring.
-- Scenarios 7–12 below are planned for Phase 2 expansion. They are documented here for roadmap visibility.
+- The current baseline implements 6 scenarios (2 per domain) with gold labels, evidence artifacts, and scoring.
+- Scenarios 7–12 below are part of the documented expansion path and are included for roadmap visibility.
 - Scenario IDs/titles should be mapped to the canonical benchmark corpus identifiers used in evaluation artifacts.
 
 ## Domain A: Catalog (Scenarios 1–2 implemented; 3–4 Phase 2)
@@ -199,6 +207,6 @@ By the end of the scenario run (6 in Phase 1, 12 once Phase 2 expansion is compl
 
 "This interface trains a new TPM to make defensible architecture decisions.
 Each scenario forces evidence-backed owner routing, directional dependency reasoning, and blast-radius planning.
-GraphRAG and Neo4j provide relationship context, Ollama provides bounded coaching, and evidence gating enforces trust.
+The current prototype teaches through the guided practice loop, example answers, evidence gating, and structured feedback. Proposal-target graph and LLM depth remain future-facing surfaces rather than the center of the current learner flow.
 We evaluate across four retrieval modes and export reproducible outputs for review.
 The platform tracks session timing and administers matched pre/post surveys to measure orientation-time reduction and anxiety change — directly supporting our three research questions with quantitative KPIs."

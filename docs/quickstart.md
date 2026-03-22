@@ -9,13 +9,14 @@ This guide gets OmniMentor running locally with a verified end-to-end pass.
 
 - Git
 - Node.js 20+
-- pnpm --dir workspace - sqlite3
+- pnpm
+- sqlite3
 
 macOS setup:
 
 ```bash
 brew update
-brew install git node pnpm --dir workspace sqlite
+brew install git node pnpm sqlite
 ```
 
 ## Install
@@ -61,7 +62,10 @@ With API running:
 ```bash
 pnpm --dir workspace smoke
 pnpm --dir workspace eval
+pnpm --dir workspace test:e2e
 ```
+
+`pnpm --dir workspace test:e2e` starts an isolated API (`10092`) and web app (`10091`) automatically, runs the guided GUI automation suite, and cleans up both processes.
 
 Optional full gate run:
 
@@ -77,3 +81,5 @@ pnpm --dir workspace audit
 
 If `pnpm --dir workspace smoke` fails with `fetch failed`, the API is not running.
 Start API first, then rerun smoke/eval.
+
+If `pnpm --dir workspace test:e2e` fails, inspect the Playwright output first. The command already manages its own isolated services and should not depend on the default API process on `9992`.

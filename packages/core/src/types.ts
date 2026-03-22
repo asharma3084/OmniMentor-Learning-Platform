@@ -107,6 +107,7 @@ export interface ScenarioBenchmark {
     type: 'upstream' | 'downstream';
   }[];
   goldSafeActions: string[];
+  goldBlastRadius?: string[];
   goldRequiredEvidenceIds: string[];
   rubricExplanations: string;
 }

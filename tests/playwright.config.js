@@ -1,3 +1,6 @@
+/**
+ * Playwright configuration for isolated OmniMentor guided-flow browser verification.
+ */
 const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');

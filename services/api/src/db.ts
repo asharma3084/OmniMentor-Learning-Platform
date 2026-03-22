@@ -1,3 +1,6 @@
+/**
+ * SQLite initialization and seed helpers for scenarios, gold labels, sessions, and survey data.
+ */
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';

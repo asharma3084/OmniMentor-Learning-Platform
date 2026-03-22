@@ -1,5 +1,5 @@
 /**
- * Recapture screenshots at a narrower viewport for better JDF column rendering.
+ * Capture guided-flow screenshots for milestone packaging and reviewer-visible artifacts.
  */
 import { expect, test, type Page } from '@playwright/test';
 

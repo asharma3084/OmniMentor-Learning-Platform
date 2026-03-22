@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Purpose: manage local OmniMentor services and common verification shortcuts safely.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"

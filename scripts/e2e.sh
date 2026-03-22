@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Purpose: run isolated API and web services for Playwright E2E verification, then clean up.
+
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)

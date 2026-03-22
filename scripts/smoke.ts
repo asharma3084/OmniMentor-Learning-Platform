@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+/**
+ * Runtime smoke verification across benchmark scenarios using the live API.
+ */
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';

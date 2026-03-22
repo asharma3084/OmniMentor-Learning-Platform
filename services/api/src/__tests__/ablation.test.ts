@@ -1,3 +1,6 @@
+/**
+ * Regression coverage for ablation evidence selection and score calculation behavior.
+ */
 import { describe, expect, it } from 'vitest';
 import type { Evidence, ScenarioBenchmark } from '@omnimentor/core';
 import { scoreAblationScenario, selectEvidenceForAblation } from '../ablation';

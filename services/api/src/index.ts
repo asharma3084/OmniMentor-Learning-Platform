@@ -1,3 +1,6 @@
+/**
+ * Express API entrypoint for scenarios, evidence retrieval, submissions, scoring, and evaluation runs.
+ */
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

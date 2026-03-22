@@ -1,3 +1,6 @@
+/**
+ * Regression coverage for evidence-gating and unsupported-claim behavior.
+ */
 import { describe, it, expect } from 'vitest';
 import {
   parseClaimUnits,

@@ -1,3 +1,6 @@
+/**
+ * Regression coverage for ownership, dependency, blast-radius, and rubric scoring behavior.
+ */
 import { describe, it, expect } from 'vitest';
 import {
   scoreOwnerRouting,

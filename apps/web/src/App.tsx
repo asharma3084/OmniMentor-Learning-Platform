@@ -1,3 +1,6 @@
+/**
+ * Guided-first TPM practice UI with onboarding help, evidence-backed decisions, and feedback review.
+ */
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 

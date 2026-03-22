@@ -1,3 +1,6 @@
+/**
+ * Helpers for evidence selection and scenario scoring during retrieval-mode ablation runs.
+ */
 import {
   Evidence,
   MetricsResult,

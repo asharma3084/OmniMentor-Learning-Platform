@@ -1,3 +1,6 @@
+/**
+ * Core scoring helpers for rubric dimensions, metrics aggregation, and overall score calculation.
+ */
 import {
   Submission,
   ScenarioBenchmark,

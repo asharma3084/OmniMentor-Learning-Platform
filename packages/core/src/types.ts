@@ -1,4 +1,5 @@
 // OmniMentor Core Types
+// Shared domain contracts for evidence, scenarios, submissions, scoring, and evaluation.
 
 export interface Evidence {
   id: string;

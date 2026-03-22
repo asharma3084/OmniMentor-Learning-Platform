@@ -1,3 +1,6 @@
+/**
+ * Guided new-TPM browser checks covering walkthrough, evidence gating, and feedback flow.
+ */
 import { expect, type Page, test } from '@playwright/test';
 
 async function completePreSurveyIfNeeded(page: Page) {

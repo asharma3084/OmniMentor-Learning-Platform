@@ -7,17 +7,16 @@
 
 [![Tests](https://img.shields.io/badge/Tests-28%20passing-22c55e?style=flat-square)](config/vitest.config.ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript)](apps/web/tsconfig.json)
-[![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Node%20%2B%20SQLite-0ea5e9?style=flat-square)](docs/architecture.md)
-[![Platform](https://img.shields.io/badge/Platform-macOS-000000?style=flat-square&logo=apple)](docs/05-development-setup.md)
+[![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Node%20%2B%20SQLite-0ea5e9?style=flat-square)](docs/architecture/system-architecture.md)
+[![Platform](https://img.shields.io/badge/Platform-macOS-000000?style=flat-square&logo=apple)](docs/start-here/quickstart.md)
 [![License](https://img.shields.io/badge/License-MIT-a855f7?style=flat-square)](LICENSE)
 
 <p>
-  <a href="docs/00-overview.md"><img src="https://img.shields.io/badge/Overview-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Overview" /></a>
-  <a href="docs/architecture.md"><img src="https://img.shields.io/badge/Architecture-6366f1?style=for-the-badge&labelColor=1e1b4b" alt="Architecture" /></a>
-  <a href="docs/03-api-contract.md"><img src="https://img.shields.io/badge/API-22c55e?style=for-the-badge&labelColor=052e16" alt="API" /></a>
-  <a href="docs/05-development-setup.md"><img src="https://img.shields.io/badge/Setup-f97316?style=for-the-badge&labelColor=431407" alt="Setup" /></a>
-  <a href="docs/07-verification-and-quality-gates.md"><img src="https://img.shields.io/badge/Quality%20Gates-a855f7?style=for-the-badge&labelColor=3b0764" alt="Quality Gates" /></a>
-  <a href="docs/10-security-and-compliance.md"><img src="https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a" alt="Security" /></a>
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs%20Hub-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Docs Hub" /></a>
+  <a href="docs/start-here/overview.md"><img src="https://img.shields.io/badge/Overview-6366f1?style=for-the-badge&labelColor=1e1b4b" alt="Overview" /></a>
+  <a href="docs/architecture/system-architecture.md"><img src="https://img.shields.io/badge/Architecture-22c55e?style=for-the-badge&labelColor=052e16" alt="Architecture" /></a>
+  <a href="docs/start-here/quickstart.md"><img src="https://img.shields.io/badge/Quickstart-f97316?style=for-the-badge&labelColor=431407" alt="Quickstart" /></a>
+  <a href="docs/research/evaluation-and-kpis.md"><img src="https://img.shields.io/badge/Evaluation-ef4444?style=for-the-badge&labelColor=450a0a" alt="Evaluation" /></a>
 </p>
 
 </div>
@@ -46,7 +45,11 @@ It provides a practice environment to build evidence-first reasoning before thos
 
 ## Quick Start
 
-New TPMs should start with [docs/user-guide.md](docs/user-guide.md) before using the app.
+Start with the path that matches your role:
+
+- Reviewer or mentor: [docs/start-here/overview.md](docs/start-here/overview.md) then [docs/start-here/quickstart.md](docs/start-here/quickstart.md)
+- Learner or TPM: [docs/start-here/user-guide.md](docs/start-here/user-guide.md)
+- Technical reviewer: [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md) and [docs/research/evaluation-and-kpis.md](docs/research/evaluation-and-kpis.md)
 
 **Prerequisites**: Node.js 20+, pnpm, sqlite, macOS
 
@@ -143,7 +146,7 @@ flowchart TB
   C --> REP
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for full architecture, sequence diagrams, and component responsibilities.
+See [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md) for full architecture, sequence diagrams, and component responsibilities.
 
 ---
 
@@ -167,9 +170,9 @@ Advanced mode review surfaces:
 - `Check-in Export`
 
 Freeze-scope enhancements (design/architecture baseline before coding completion):
-- `System Graph`: interactive node-edge canvas with zoom, pan, filters, path highlighting, and provenance-linked node detail.
+- `System Graph`: interactive review surface with filters, node focus, path review, and provenance-linked node detail.
 - `Evaluation`: richer per-mode analytics (table + trend deltas + error-category breakdown) with clear mode diagnostics.
-- `Check-in Export`: structured review-ready export with evidence links, score/gating snapshot, and copy/download actions.
+- `Check-in Export`: structured review-ready export with selected-evidence references, score/gating snapshot, and copy/download actions.
 
 ---
 
@@ -208,9 +211,9 @@ GET  /surveys
 GET  /surveys/status
 ```
 
-See [`docs/03-api-contract.md`](docs/03-api-contract.md) for the complete API contract with request/response schemas.
+See [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md) for the complete API contract with request/response schemas.
 
-Full contract: [`docs/03-api-contract.md`](docs/03-api-contract.md)
+Full contract: [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md)
 
 ---
 
@@ -224,19 +227,28 @@ Full contract: [`docs/03-api-contract.md`](docs/03-api-contract.md)
 
 ## Documentation
 
+Documentation hub: [`docs/README.md`](docs/README.md)
+
+Recommended reading order:
+
+1. [`docs/start-here/overview.md`](docs/start-here/overview.md)
+2. [`docs/start-here/quickstart.md`](docs/start-here/quickstart.md)
+3. [`docs/architecture/system-architecture.md`](docs/architecture/system-architecture.md)
+4. [`docs/research/evaluation-and-kpis.md`](docs/research/evaluation-and-kpis.md)
+
+Reference set:
+
 | Doc | Contents |
 |---|---|
-| [`docs/architecture.md`](docs/architecture.md) | Full system design, diagrams, component responsibilities |
-| [`docs/detailed-ui-design.md`](docs/detailed-ui-design.md) | Detailed UI architecture, page contracts, and mockups |
-| [`docs/00-overview.md`](docs/00-overview.md) | Project overview and scope |
-| [`docs/01-requirements.md`](docs/01-requirements.md) | Functional and non-functional requirements |
-| [`docs/03-api-contract.md`](docs/03-api-contract.md) | API endpoint contract and response shapes |
-| [`docs/04-data-model.md`](docs/04-data-model.md) | Logical data model |
-| [`docs/05-development-setup.md`](docs/05-development-setup.md) | Local development setup |
-| [`docs/06-testing-strategy.md`](docs/06-testing-strategy.md) | Test pyramid and strategy |
-| [`docs/07-verification-and-quality-gates.md`](docs/07-verification-and-quality-gates.md) | Quality gate commands and criteria |
-| [`docs/10-security-and-compliance.md`](docs/10-security-and-compliance.md) | Security and data policy |
-| [`docs/11-decisions-log.md`](docs/11-decisions-log.md) | Architecture and process decisions |
-| [`docs/12-risks-and-technical-debt.md`](docs/12-risks-and-technical-debt.md) | Risks, fallbacks, and technical debt |
-| [`docs/user-guide.md`](docs/user-guide.md) | Practical usage guide for new, intermediate, and advanced TPMs |
+| [`docs/start-here/user-guide.md`](docs/start-here/user-guide.md) | Practical usage guide for new, intermediate, and advanced TPMs |
+| [`docs/architecture/requirements.md`](docs/architecture/requirements.md) | Functional and non-functional requirements |
+| [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md) | API endpoint contract and response shapes |
+| [`docs/architecture/data-model.md`](docs/architecture/data-model.md) | Logical data model |
+| [`docs/research/testing-strategy.md`](docs/research/testing-strategy.md) | Research and engineering validation strategy |
+| [`docs/research/data-and-security.md`](docs/research/data-and-security.md) | Data handling and security posture |
+| [`docs/architecture/decisions-log.md`](docs/architecture/decisions-log.md) | Architecture and process decisions |
+| [`docs/reference/detailed-ui-design.md`](docs/reference/detailed-ui-design.md) | Detailed UI architecture and mockups |
+| [`docs/reference/scenario-guide.md`](docs/reference/scenario-guide.md) | Current six-scenario walkthrough and demo guidance |
+| [`docs/reference/risks-and-technical-debt.md`](docs/reference/risks-and-technical-debt.md) | Risks, fallbacks, and technical debt |
+| [`docs/reference/glossary.md`](docs/reference/glossary.md) | Domain and product terminology |
 

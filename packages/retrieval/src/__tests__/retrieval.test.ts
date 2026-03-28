@@ -1,9 +1,44 @@
 import { describe, it, expect } from 'vitest';
-import { SimpleContextBuilder, VectorRetriever, GraphRetriever, GraphRAGRetriever, InMemoryCorpusStore } from '../index';
+import {
+  SimpleContextBuilder,
+  VectorRetriever,
+  GraphRetriever,
+  GraphRAGRetriever,
+  InMemoryCorpusStore,
+  InMemoryGraphStore,
+} from '../index';
 import type { Evidence } from '@omnimentor/core';
 
 function makeCorpus(evidence: Evidence[]): InMemoryCorpusStore {
   return new InMemoryCorpusStore(new Map([['test-scenario', evidence]]));
+}
+
+function makeGraphStore(): InMemoryGraphStore {
+  return new InMemoryGraphStore(
+    new Map([
+      [
+        'test-scenario',
+        [
+          {
+            id: 'svc-auth-service',
+            name: 'Auth Service',
+            upstream: ['svc-database-service'],
+            downstream: ['svc-api-gateway', 'svc-web-app', 'svc-mobile-app'],
+          },
+          {
+            id: 'svc-api-gateway',
+            name: 'API Gateway',
+            upstream: ['svc-auth-service'],
+          },
+          {
+            id: 'svc-database-service',
+            name: 'Database Service',
+            downstream: ['svc-auth-service'],
+          },
+        ],
+      ],
+    ])
+  );
 }
 
 const sampleEvidence: Evidence[] = [
@@ -129,6 +164,26 @@ describe('GraphRetriever', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('should use connected services from the graph topology when available', async () => {
+    const retriever = new GraphRetriever(makeCorpus(sampleEvidence), makeGraphStore());
+    const result = await retriever.retrieve({
+      scenarioId: 'test-scenario',
+      query: 'Auth Service deployment risk',
+      topK: 5,
+    });
+
+    expect(result[0].id).toBe('ev-3');
+    expect(result[0].metadata?.graphSeedServices).toContain('Auth Service');
+    expect(result[0].metadata?.graphConnectedServices).toContain('API Gateway');
+    expect(result[0].metadata?.graphMatchedServices).toContain('Database Service');
+    expect(result[0].metadata?.graphTraversalEdges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ from: 'Database Service', to: 'Auth Service', type: 'upstream' }),
+        expect.objectContaining({ from: 'Auth Service', to: 'API Gateway', type: 'downstream' }),
+      ])
+    );
+  });
 });
 
 describe('GraphRAGRetriever', () => {
@@ -153,5 +208,22 @@ describe('GraphRAGRetriever', () => {
     });
 
     expect(result).toEqual([]);
+  });
+
+  it('should carry graph metadata when topology is available', async () => {
+    const retriever = new GraphRAGRetriever(makeCorpus(sampleEvidence), makeGraphStore());
+    const result = await retriever.retrieve({
+      scenarioId: 'test-scenario',
+      query: 'Auth Service owner and dependency blast radius',
+      topK: 5,
+    });
+
+    expect(result[0].metadata?.source).toBe('graphrag');
+    expect(result[0].metadata?.graphConnectedServices).toContain('Auth Service');
+    expect(result[0].metadata?.graphTraversalEdges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ from: 'Auth Service', to: 'API Gateway', type: 'downstream' }),
+      ])
+    );
   });
 });

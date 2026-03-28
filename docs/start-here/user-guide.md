@@ -1,4 +1,4 @@
-# OmniMentor User Guide
+# User Guide
 
 This guide is for TPMs who want to use OmniMentor without reading the rest of the project documentation first.
 

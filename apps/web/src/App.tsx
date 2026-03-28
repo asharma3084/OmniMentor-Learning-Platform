@@ -53,8 +53,15 @@ interface EvidenceItem {
     type?: string;
     retrievalScore?: number;
     timestamp?: string;
+    selectionPolicy?: string;
+    graphSeedServices?: string[];
+    graphConnectedServices?: string[];
+    graphMatchedServices?: string[];
+    graphTraversalEdges?: Array<{ from: string; to: string; type: 'upstream' | 'downstream' }>;
   };
 }
+
+type RetrievalMode = 'vector' | 'graph' | 'graphrag' | 'graphrag_gating';
 
 interface RubricScoreItem {
   criterion: string;
@@ -81,6 +88,24 @@ interface ScoreResponse {
   metrics?: MetricsData;
 }
 
+interface EvaluationCompareModeResult {
+  mode: RetrievalMode;
+  overallScore: number;
+  gatingPass: boolean;
+  criticalErrors: string[];
+  evidenceCount: number;
+  selectedEvidenceIds: string[];
+  selectedEvidenceTitles: string[];
+  metrics: MetricsData;
+}
+
+interface EvaluationCompareResponse {
+  scenarioId: string;
+  scenarioTitle: string;
+  bestMode: RetrievalMode;
+  results: EvaluationCompareModeResult[];
+}
+
 interface ExampleAnswerResponse {
   scenarioId: string;
   ownerRouting: string;
@@ -102,6 +127,13 @@ interface ExampleAnswerResponse {
 
 type WorkspaceTab = 'Overview' | 'Scenario Workspace' | 'System Graph' | 'Evidence' | 'Evaluation' | 'Check-in Export';
 type GuidedStep = 'Brief' | 'Investigate' | 'Decide' | 'Feedback';
+
+const RETRIEVAL_MODE_OPTIONS: Array<{ value: RetrievalMode; label: string; description: string }> = [
+  { value: 'vector', label: 'Vector', description: 'Keyword-ranked baseline evidence.' },
+  { value: 'graph', label: 'Graph', description: 'Topology-aware retrieval from connected services.' },
+  { value: 'graphrag', label: 'GraphRAG', description: 'Graph-aware retrieval with provenance boosting.' },
+  { value: 'graphrag_gating', label: 'GraphRAG + Gating', description: 'GraphRAG evidence set tuned for stronger gating support.' },
+];
 
 const SERVICE_NAME_PATTERN = /\b([A-Z][A-Za-z0-9&/-]+(?: [A-Z][A-Za-z0-9&/-]+){0,3} (?:API|Team|BFF|Indexer|Engine|Service|Gateway|Sync|Router|Provider|Portal|Hub|Control|Logger|Detection|Orchestrator))\b/g;
 
@@ -176,6 +208,93 @@ function getMetricCoaching(label: string, value: number) {
   return 'Blast radius: missing impacts or too vague';
 }
 
+function getScenarioNarrative(scenario: ScenarioData) {
+  const cueTitles = scenario.artifacts.slice(0, 3).map((artifact) => artifact.title);
+
+  const problemByDomain: Record<string, string> = {
+    'Catalog': 'Schema and dependency changes can look safe in isolation while still breaking downstream product and search behavior.',
+    'Cart & Checkout': 'Checkout issues spread quickly across payment, order, and customer-facing flows, so a narrow fix can still create broad operational risk.',
+    'Risk & Compliance': 'Risk and compliance work often depends on cross-system ownership and auditability, so unclear routing can delay the right response.',
+  };
+
+  const motivationByDomain: Record<string, string> = {
+    'Catalog': 'A TPM needs to route the change correctly, trace impact direction, and avoid a rollout that damages customer discovery or storefront behavior.',
+    'Cart & Checkout': 'A TPM needs to keep transaction flows safe under pressure and make sure mitigation actions do not create larger customer-facing failures.',
+    'Risk & Compliance': 'A TPM needs to coordinate the right owners quickly while preserving evidence-backed reasoning and governance discipline.',
+  };
+
+  const defaultProblem = 'Complex service ecosystems make it easy for a new TPM to miss owner, dependency, or blast-radius details even when documentation exists.';
+  const defaultMotivation = 'The point of the scenario is to turn scattered evidence into one safe, defensible next step rather than a vague summary.';
+
+  return {
+    problem: problemByDomain[scenario.domain] ?? defaultProblem,
+    motivation: motivationByDomain[scenario.domain] ?? defaultMotivation,
+    partialSolutions: cueTitles.length > 0
+      ? `There are already useful clues in artifacts like ${cueTitles.join(', ')}, but none of them alone resolves owner, dependency direction, and safe action.`
+      : 'There are partial signals available, but the TPM still has to combine them into one defensible decision.',
+    proofTarget: 'A strong run identifies the right owner, shows one clear path of affected systems, names what could break, and supports the plan with both primary and corroborating evidence.',
+    clueTitles: cueTitles,
+  };
+}
+
+function buildDiagnostics(metrics: MetricsData | undefined, gatingPass: boolean, criticalErrors: string[]) {
+  if (!metrics) return [] as Array<{ label: string; status: 'strong' | 'warning' | 'risk'; detail: string }>;
+
+  const diagnostics: Array<{ label: string; status: 'strong' | 'warning' | 'risk'; detail: string }> = [];
+
+  diagnostics.push({
+    label: 'Owner routing',
+    status: metrics.ownerAccuracy >= 0.8 ? 'strong' : metrics.ownerAccuracy >= 0.6 ? 'warning' : 'risk',
+    detail: metrics.ownerAccuracy >= 0.8
+      ? 'Owner identification is well supported.'
+      : metrics.ownerAccuracy >= 0.6
+        ? 'Owner selection is partially supported but still needs review.'
+        : 'The likely owner is still wrong or too weakly supported.',
+  });
+
+  diagnostics.push({
+    label: 'Dependency direction',
+    status: metrics.directionCorrect && metrics.dependencyAccuracy >= 0.8 ? 'strong' : metrics.directionCorrect ? 'warning' : 'risk',
+    detail: metrics.directionCorrect
+      ? metrics.dependencyAccuracy >= 0.8
+        ? 'System path direction is coherent and mostly complete.'
+        : 'Direction is plausible, but the path is still incomplete.'
+      : 'The dependency path still has directionality problems.',
+  });
+
+  diagnostics.push({
+    label: 'Blast radius',
+    status: metrics.blastRadiusCompleteness >= 0.8 ? 'strong' : metrics.blastRadiusCompleteness >= 0.6 ? 'warning' : 'risk',
+    detail: metrics.blastRadiusCompleteness >= 0.8
+      ? 'Operational impact coverage is strong.'
+      : metrics.blastRadiusCompleteness >= 0.6
+        ? 'Some impact is covered, but important consequences may still be missing.'
+        : 'The blast-radius analysis is too thin for a defensible TPM answer.',
+  });
+
+  diagnostics.push({
+    label: 'Evidence support',
+    status: metrics.evidenceRelevance >= 0.8 && metrics.unsupportedClaimCount === 0 ? 'strong' : metrics.evidenceRelevance >= 0.6 ? 'warning' : 'risk',
+    detail: metrics.unsupportedClaimCount > 0
+      ? `There are still ${metrics.unsupportedClaimCount} unsupported claim(s) in the reasoning path.`
+      : metrics.evidenceRelevance >= 0.8
+        ? 'Claims are grounded in relevant evidence.'
+        : 'Evidence is only partially aligned to the claims being made.',
+  });
+
+  diagnostics.push({
+    label: 'Gating readiness',
+    status: gatingPass ? 'strong' : criticalErrors.length > 0 || metrics.criticalErrorCount > 0 ? 'risk' : 'warning',
+    detail: gatingPass
+      ? 'This path currently clears the hard submission gate.'
+      : criticalErrors.length > 0
+        ? `Hard-stop issues remain: ${criticalErrors.join('; ')}`
+        : 'The submission path still needs tightening before it is review-safe.',
+  });
+
+  return diagnostics;
+}
+
 export default function App() {
   const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
   const [selectedScenario, setSelectedScenario] = useState<ScenarioData | null>(null);
@@ -197,8 +316,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('Overview');
   const [viewMode, setViewMode] = useState<'guided' | 'advanced'>('guided');
   const [guidedStep, setGuidedStep] = useState<GuidedStep>('Brief');
+  const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>('vector');
   const [dependencyTraceInput, setDependencyTraceInput] = useState('');
   const [blastRadiusInput, setBlastRadiusInput] = useState('');
+  const [graphFilter, setGraphFilter] = useState('');
+  const [focusedGraphNode, setFocusedGraphNode] = useState<string | null>(null);
+  const [showOnlyFocusedGraphEdges, setShowOnlyFocusedGraphEdges] = useState(false);
 
   // Learning analytics state
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -214,6 +337,9 @@ export default function App() {
   const [exampleAnswer, setExampleAnswer] = useState<ExampleAnswerResponse | null>(null);
   const [showExampleModal, setShowExampleModal] = useState(false);
   const [exampleLoading, setExampleLoading] = useState(false);
+  const [evaluationCompare, setEvaluationCompare] = useState<EvaluationCompareResponse | null>(null);
+  const [evaluationCompareLoading, setEvaluationCompareLoading] = useState(false);
+  const [evaluationCompareError, setEvaluationCompareError] = useState<string | null>(null);
 
   const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:9992';
 
@@ -288,14 +414,14 @@ export default function App() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const fetchEvidence = useCallback(async (scenarioId: string) => {
+  const fetchEvidence = useCallback(async (scenarioId: string, mode: RetrievalMode = retrievalMode) => {
     try {
-      const res = await axios.get(`${API_URL}/evidence?scenarioId=${encodeURIComponent(scenarioId)}&mode=vector`);
+      const res = await axios.get(`${API_URL}/evidence?scenarioId=${encodeURIComponent(scenarioId)}&mode=${mode}`);
       setEvidenceItems(res.data);
     } catch {
       setEvidenceItems([]);
     }
-  }, [API_URL]);
+  }, [API_URL, retrievalMode]);
 
   useEffect(() => {
     fetchScenarios();
@@ -309,6 +435,48 @@ export default function App() {
       setShowWalkthrough(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!selectedScenario) return;
+    if (viewMode !== 'advanced') return;
+    if (activeTab !== 'Evidence' && activeTab !== 'System Graph') return;
+    fetchEvidence(selectedScenario.id, retrievalMode);
+  }, [selectedScenario, viewMode, activeTab, retrievalMode, fetchEvidence]);
+
+  useEffect(() => {
+    setGraphFilter('');
+    setFocusedGraphNode(null);
+    setShowOnlyFocusedGraphEdges(false);
+  }, [selectedScenario?.id, retrievalMode]);
+
+  const comparisonViewActive = viewMode === 'guided'
+    ? guidedStep === 'Feedback'
+    : activeTab === 'Evaluation' || activeTab === 'Check-in Export';
+  const evaluationViewActive = viewMode === 'guided' ? guidedStep === 'Feedback' : activeTab === 'Evaluation';
+
+  useEffect(() => {
+    if (!selectedScenario || !comparisonViewActive) return;
+
+    const fetchEvaluationCompare = async () => {
+      setEvaluationCompareLoading(true);
+      setEvaluationCompareError(null);
+      try {
+        const res = await axios.get(`${API_URL}/evaluation/compare?scenarioId=${encodeURIComponent(selectedScenario.id)}`);
+        setEvaluationCompare(res.data);
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err)) {
+          setEvaluationCompareError(err.response?.data?.error || err.message || 'Failed to load mode comparison.');
+        } else {
+          setEvaluationCompareError('Failed to load mode comparison.');
+        }
+        setEvaluationCompare(null);
+      } finally {
+        setEvaluationCompareLoading(false);
+      }
+    };
+
+    fetchEvaluationCompare();
+  }, [API_URL, selectedScenario, comparisonViewActive]);
 
   const closeWalkthrough = (nextTab?: WorkspaceTab, nextGuidedStep?: GuidedStep) => {
     setShowWalkthrough(false);
@@ -327,6 +495,9 @@ export default function App() {
     setSelectedScenario(next);
     setSelectedEvidence([]);
     setScore(options?.reuseScore ?? null);
+    setEvaluationCompare(null);
+    setEvaluationCompareError(null);
+    setEvaluationCompareLoading(false);
     setSubmitError(null);
     setDependencyTraceInput('');
     setBlastRadiusInput('');
@@ -566,7 +737,7 @@ export default function App() {
     : activeTab === 'Scenario Workspace';
   const showSystemGraph = viewMode === 'advanced' && activeTab === 'System Graph';
   const showEvidence = viewMode === 'advanced' && activeTab === 'Evidence';
-  const showEvaluation = viewMode === 'guided' ? guidedStep === 'Feedback' : activeTab === 'Evaluation';
+  const showEvaluation = evaluationViewActive;
   const showCheckInExport = viewMode === 'advanced' && activeTab === 'Check-in Export';
 
   const validationMsg = validateSubmission();
@@ -580,6 +751,60 @@ export default function App() {
   const hasNotes = formData.evidenceNotes.trim().length > 0;
 
   const selectedEvidenceItems = evidenceItems.filter((ev) => selectedEvidence.includes(ev.id));
+  const graphSeedServices = Array.from(new Set(
+    evidenceItems.flatMap((item) => item.metadata?.graphSeedServices ?? [])
+  ));
+  const graphConnectedServices = Array.from(new Set(
+    evidenceItems.flatMap((item) => item.metadata?.graphConnectedServices ?? [])
+  ));
+  const graphMatchedServices = Array.from(new Set(
+    selectedEvidenceItems.flatMap((item) => item.metadata?.graphMatchedServices ?? [])
+  ));
+  const retrievedGraphEdges = Array.from(
+    new Map(
+      evidenceItems
+        .flatMap((item) => item.metadata?.graphTraversalEdges ?? [])
+        .map((edge) => [`${edge.from}|${edge.to}|${edge.type}`, edge])
+    ).values()
+  );
+  const displayGraphEdges = formData.dependencyTrace.length > 0 ? formData.dependencyTrace : retrievedGraphEdges;
+  const graphNodes = Array.from(
+    new Set([
+      ...graphConnectedServices,
+      ...displayGraphEdges.flatMap((edge) => [edge.from, edge.to]),
+    ])
+  ).sort((left, right) => left.localeCompare(right));
+  const normalizedGraphFilter = graphFilter.trim().toLowerCase();
+  const filteredGraphEdges = displayGraphEdges.filter((edge) => {
+    const edgeMatchesFilter = !normalizedGraphFilter
+      || edge.from.toLowerCase().includes(normalizedGraphFilter)
+      || edge.to.toLowerCase().includes(normalizedGraphFilter);
+    const edgeMatchesFocus = !focusedGraphNode
+      || edge.from === focusedGraphNode
+      || edge.to === focusedGraphNode;
+    return edgeMatchesFilter && (!showOnlyFocusedGraphEdges || edgeMatchesFocus);
+  });
+  const visibleGraphNodes = Array.from(
+    new Set([
+      ...graphNodes.filter((node) => !normalizedGraphFilter || node.toLowerCase().includes(normalizedGraphFilter)),
+      ...filteredGraphEdges.flatMap((edge) => [edge.from, edge.to]),
+    ])
+  );
+  const graphEvidenceForNode = (node: string) => evidenceItems.filter((item) => {
+    const relatedServices = new Set([
+      ...(item.metadata?.graphSeedServices ?? []),
+      ...(item.metadata?.graphConnectedServices ?? []),
+      ...(item.metadata?.graphMatchedServices ?? []),
+      ...((item.metadata?.graphTraversalEdges ?? []).flatMap((edge) => [edge.from, edge.to])),
+    ]);
+    return relatedServices.has(node) || item.title.includes(node) || item.body.includes(node);
+  });
+  const focusedNodeIncomingEdges = focusedGraphNode
+    ? displayGraphEdges.filter((edge) => edge.to === focusedGraphNode)
+    : [];
+  const focusedNodeOutgoingEdges = focusedGraphNode
+    ? displayGraphEdges.filter((edge) => edge.from === focusedGraphNode)
+    : [];
 
   const extractNamedEntities = (texts: string[]) => {
     const matches = new Set<string>();
@@ -651,6 +876,29 @@ export default function App() {
   const downstreamSystem = suggestedSystems[2] ?? suggestedSystems[1] ?? '[downstream system]';
   const primaryEvidence = selectedEvidenceItems.find((item) => item.role === 'primary');
   const corroboratingEvidence = selectedEvidenceItems.find((item) => item.role === 'corroborating');
+
+  const renderRetrievalModePicker = () => (
+    <div className="flex flex-wrap gap-2">
+      {RETRIEVAL_MODE_OPTIONS.map((option) => {
+        const isActive = retrievalMode === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setRetrievalMode(option.value)}
+            className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+              isActive
+                ? 'border-[rgba(39,211,182,0.55)] bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)]'
+                : 'border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] text-[var(--text-1)] hover:border-[color:var(--line-strong)] hover:bg-[rgba(16,27,42,0.68)]'
+            }`}
+          >
+            <span className="block text-[11px] font-semibold uppercase tracking-wide">{option.label}</span>
+            <span className="block text-[10px] text-[var(--text-2)] mt-0.5">{option.description}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
   const beginnerDependencyTemplate = [
     `${upstreamSystem} -> ${focusSystem} (upstream)`,
     `${focusSystem} -> ${downstreamSystem} (downstream)`,
@@ -680,6 +928,13 @@ export default function App() {
         { label: 'Evidence Support', value: score.metrics.evidenceRelevance },
       ]
     : [];
+  const modeLabels = new Map(RETRIEVAL_MODE_OPTIONS.map((option) => [option.value, option.label]));
+  const comparisonForSelectedScenario = evaluationCompare?.scenarioId === selectedScenario.id ? evaluationCompare : null;
+  const vectorBaseline = comparisonForSelectedScenario?.results.find((result) => result.mode === 'vector') ?? null;
+  const scenarioNarrative = getScenarioNarrative(selectedScenario);
+  const currentDiagnostics = buildDiagnostics(score?.metrics, score?.gatingPass ?? false, score?.criticalErrors ?? []);
+  const bestCompareResult = comparisonForSelectedScenario?.results.find((result) => result.mode === comparisonForSelectedScenario.bestMode) ?? null;
+  const bestModeDiagnostics = buildDiagnostics(bestCompareResult?.metrics, bestCompareResult?.gatingPass ?? false, bestCompareResult?.criticalErrors ?? []);
 
   const fillBeginnerDraft = () => {
     const ownerGuess = keyFacts.owners[0] ?? '';
@@ -855,6 +1110,7 @@ export default function App() {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
+                    data-testid={`advanced-tab-${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                       activeTab === tab
                         ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
@@ -879,6 +1135,30 @@ export default function App() {
                     <h2 className="text-2xl font-bold text-[var(--text-0)]">{selectedScenario.title}</h2>
                     <p className="text-base text-[var(--text-1)] mt-3 leading-relaxed">{selectedScenario.prompt}</p>
                   </div>
+                  <div className="mt-5 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-[rgba(240,180,90,0.32)] bg-[rgba(240,180,90,0.08)] p-5">
+                      <p className="text-[11px] uppercase tracking-wider text-[#ffd9a0]">Why this scenario matters</p>
+                      <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.problem}</p>
+                      <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.motivation}</p>
+                    </div>
+                    <div className="rounded-2xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-5">
+                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">What exists now and what is still missing</p>
+                      <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.partialSolutions}</p>
+                      <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.proofTarget}</p>
+                    </div>
+                  </div>
+                  {scenarioNarrative.clueTitles.length > 0 && (
+                    <div className="mt-4 rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Available clues in this scenario</p>
+                      <div className="flex flex-wrap gap-2">
+                        {scenarioNarrative.clueTitles.map((title) => (
+                          <span key={title} className="rounded-full border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] px-2.5 py-1 text-[10px] text-[var(--text-1)]">
+                            {title}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
                       <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Step 1 Goal</p>
@@ -968,6 +1248,12 @@ export default function App() {
                         <li>Support your answer with main and supporting evidence.</li>
                       </ul>
                     </div>
+                    <div className="card p-5">
+                      <p className="label">Presentation Hook</p>
+                      <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">
+                        This scenario is useful in a milestone demo because it shows how OmniMentor turns partial operational artifacts into one defendable TPM decision instead of a flat documentation lookup.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </>
@@ -1042,6 +1328,28 @@ export default function App() {
                   <button onClick={() => setActiveTab('Scenario Workspace')} className="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6] transition-colors shadow-sm">Resume Practice</button>
                   <button onClick={() => setActiveTab('Evaluation')} className="text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-[rgba(240,180,90,0.45)] bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.22)] transition-colors">Review Feedback</button>
                 </div>
+              </div>
+            </div>}
+
+            {viewMode === 'advanced' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="card p-5 border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)]">
+                <p className="label">Problem Framing</p>
+                <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.problem}</p>
+                <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.motivation}</p>
+              </div>
+              <div className="card p-5">
+                <p className="label">Review Framing</p>
+                <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.partialSolutions}</p>
+                <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.proofTarget}</p>
+                {scenarioNarrative.clueTitles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {scenarioNarrative.clueTitles.map((title) => (
+                      <span key={`advanced-${title}`} className="rounded-full border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
+                        {title}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>}
 
@@ -1280,7 +1588,7 @@ export default function App() {
                     <p className="text-sm text-[var(--text-2)]">No evidence retrieved for this scenario yet.</p>
                     <p className="text-xs text-[var(--text-2)] mt-1">Try another scenario or check back after evidence is refreshed.</p>
                     <button
-                      onClick={() => fetchEvidence(selectedScenario.id)}
+                      onClick={() => fetchEvidence(selectedScenario.id, retrievalMode)}
                       className="mt-3 text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.3)] transition-colors"
                     >
                       Refresh evidence
@@ -1641,34 +1949,174 @@ export default function App() {
         {showSystemGraph && (
           <div className="space-y-4 reveal-up">
             <div className="card p-6">
-              <h3 className="text-sm font-semibold text-[var(--text-1)] mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                </svg>
-                Dependency Graph — {selectedScenario.title}
-              </h3>
-              {formData.dependencyTrace.length === 0 ? (
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2">
+                    <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                    </svg>
+                    Dependency Graph — {selectedScenario.title}
+                  </h3>
+                  <span className="text-xs font-semibold text-[var(--text-2)] mono-kicker">mode: {retrievalMode}</span>
+                </div>
+                {renderRetrievalModePicker()}
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex-1 max-w-xl">
+                    <label className="text-[10px] uppercase tracking-wider text-[var(--text-2)] block mb-1">Filter services or paths</label>
+                    <input
+                      value={graphFilter}
+                      onChange={(event) => setGraphFilter(event.target.value)}
+                      placeholder="Search by service name"
+                      data-testid="graph-filter-input"
+                      className="form-input h-10 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowOnlyFocusedGraphEdges((value) => !value)}
+                      className={`text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
+                        showOnlyFocusedGraphEdges
+                          ? 'border-[rgba(39,211,182,0.45)] bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)]'
+                          : 'border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]'
+                      }`}
+                    >
+                      {showOnlyFocusedGraphEdges ? 'Showing focused edges' : 'Focus selected node path'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGraphFilter('');
+                        setFocusedGraphNode(null);
+                        setShowOnlyFocusedGraphEdges(false);
+                      }}
+                      className="text-xs font-semibold px-3 py-2 rounded-lg border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                    >
+                      Reset graph review
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {graphConnectedServices.length > 0 && (
+                <div className="mb-4 rounded-xl border border-[rgba(39,211,182,0.28)] bg-[rgba(39,211,182,0.08)] p-4">
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--accent-2)] mb-2">Retrieved graph context</p>
+                  {graphSeedServices.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-[10px] text-[var(--text-2)] mb-1">Seed services from the current scenario prompt</p>
+                      <div className="flex flex-wrap gap-2">
+                        {graphSeedServices.map((service) => (
+                          <span key={service} className="rounded-full border border-[rgba(39,211,182,0.45)] bg-[rgba(39,211,182,0.14)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent-2)]">
+                            {service}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] text-[var(--text-2)] mb-1">Connected services surfaced by graph traversal</p>
+                    <div className="flex flex-wrap gap-2">
+                      {graphConnectedServices.map((service) => (
+                        <span key={service} className="rounded-full border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] px-2.5 py-1 text-[11px] text-[var(--text-1)]">
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {graphMatchedServices.length > 0 && (
+                    <p className="text-[11px] text-[var(--text-1)] mt-3">Selected evidence currently matches: {graphMatchedServices.join(', ')}</p>
+                  )}
+                </div>
+              )}
+              {displayGraphEdges.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-sm text-[var(--text-2)] mb-2">No dependency edges captured yet.</p>
+                  <p className="text-sm text-[var(--text-2)] mb-2">
+                    {graphConnectedServices.length > 0 ? 'Graph context is available. Add explicit edges in the workspace when you are ready to commit your answer.' : 'No dependency edges captured yet.'}
+                  </p>
                   <button onClick={() => setActiveTab('Scenario Workspace')} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
                     Add edges in Scenario Workspace
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {/* Unique nodes */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {Array.from(
-                      new Set(formData.dependencyTrace.flatMap((e) => [e.from, e.to]))
-                    ).map((node) => (
-                      <span key={node} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.3)]">
-                        {node}
-                      </span>
-                    ))}
-                  </div>
-                  {/* Edges */}
-                  {formData.dependencyTrace.map((edge, idx) => (
-                    <div key={`${edge.from}-${edge.to}-${idx}`} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] p-3">
+                <div className="grid grid-cols-1 xl:grid-cols-[1.2fr,0.8fr] gap-4">
+                  <div className="space-y-3">
+                  {retrievedGraphEdges.length > 0 && formData.dependencyTrace.length === 0 && (
+                    <div className="rounded-xl border border-[rgba(39,211,182,0.24)] bg-[rgba(39,211,182,0.06)] p-4">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <p className="text-xs font-semibold text-[var(--accent-2)]">Retrieved graph edges</p>
+                        <span className="text-[10px] text-[var(--text-2)]">review mode only</span>
+                      </div>
+                      <p className="text-[11px] text-[var(--text-1)] mb-3">These edges come from graph-aware retrieval context. Add the final edges you want to defend in the Scenario Workspace form.</p>
+                      <div className="space-y-2">
+                        {retrievedGraphEdges.map((edge, idx) => (
+                          <div key={`${edge.from}-${edge.to}-${edge.type}-${idx}`} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3">
+                            <span className="text-sm font-medium text-[var(--text-0)] bg-[rgba(15,26,40,0.85)] px-2 py-1 rounded">{edge.from}</span>
+                            <div className="flex items-center gap-1">
+                              <div className={`w-8 h-px ${edge.type === 'downstream' ? 'bg-[var(--accent)]' : 'bg-[var(--warn)]'}`} />
+                              <svg className={`w-3 h-3 ${edge.type === 'downstream' ? 'text-[var(--accent)]' : 'text-[var(--warn)]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </div>
+                            <span className="text-sm font-medium text-[var(--text-0)] bg-[rgba(15,26,40,0.85)] px-2 py-1 rounded">{edge.to}</span>
+                            <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              edge.type === 'downstream'
+                                ? 'bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)] border-[rgba(39,211,182,0.35)]'
+                                : 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
+                            }`}>
+                              {edge.type}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <p className="text-xs font-semibold text-[var(--text-1)]">Interactive node review</p>
+                        <span className="text-[10px] text-[var(--text-2)]">click a node to inspect incoming and outgoing paths</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {visibleGraphNodes.map((node) => {
+                          const isFocused = focusedGraphNode === node;
+                          const incomingCount = displayGraphEdges.filter((edge) => edge.to === node).length;
+                          const outgoingCount = displayGraphEdges.filter((edge) => edge.from === node).length;
+                          const relatedEvidenceCount = graphEvidenceForNode(node).length;
+                          return (
+                            <button
+                              key={node}
+                              type="button"
+                              onClick={() => setFocusedGraphNode((current) => current === node ? null : node)}
+                              className={`text-left rounded-xl border px-3 py-2 transition-colors ${
+                                isFocused
+                                  ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.12)]'
+                                  : 'border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] hover:border-[color:var(--line-strong)]'
+                              }`}
+                            >
+                              <span className="block text-xs font-semibold text-[var(--text-0)]">{node}</span>
+                              <span className="block text-[10px] text-[var(--text-2)] mt-1">{incomingCount} in · {outgoingCount} out · {relatedEvidenceCount} evidence</span>
+                            </button>
+                          );
+                        })}
+                        {visibleGraphNodes.length === 0 && (
+                          <p className="text-xs text-[var(--text-2)]">No graph nodes match the current filter.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <p className="text-xs font-semibold text-[var(--text-1)]">Path review</p>
+                        <span className="text-[10px] text-[var(--text-2)]">{filteredGraphEdges.length} visible edges</span>
+                      </div>
+                      <div className="space-y-2">
+                  {filteredGraphEdges.map((edge, idx) => {
+                    const isFocusedEdge = focusedGraphNode ? edge.from === focusedGraphNode || edge.to === focusedGraphNode : false;
+                    return (
+                    <div key={`${edge.from}-${edge.to}-${idx}`} className={`flex items-center gap-3 rounded-lg border p-3 ${
+                      isFocusedEdge
+                        ? 'border-[rgba(39,211,182,0.4)] bg-[rgba(39,211,182,0.08)]'
+                        : 'border-[color:var(--line)]'
+                    }`}>
                       <span className="text-sm font-medium text-[var(--text-0)] bg-[rgba(15,26,40,0.85)] px-2 py-1 rounded">{edge.from}</span>
                       <div className="flex items-center gap-1">
                         <div className={`w-8 h-px ${edge.type === 'downstream' ? 'bg-[var(--accent)]' : 'bg-[var(--warn)]'}`} />
@@ -1685,7 +2133,75 @@ export default function App() {
                         {edge.type}
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
+                      </div>
+                      {filteredGraphEdges.length === 0 && (
+                        <p className="text-xs text-[var(--text-2)] mt-3">No graph edges match the current review filter.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <p className="text-xs font-semibold text-[var(--text-1)]">Node detail</p>
+                        <span className="text-[10px] text-[var(--text-2)]">{focusedGraphNode ? 'focused' : 'select a node'}</span>
+                      </div>
+                      {focusedGraphNode ? (
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--text-0)]">{focusedGraphNode}</p>
+                            <p className="text-[11px] text-[var(--text-2)] mt-1">Use this panel to inspect how one service participates in the current reasoning path.</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                              <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)]">Incoming edges</p>
+                              <p className="text-lg font-semibold text-[var(--text-0)] mt-1">{focusedNodeIncomingEdges.length}</p>
+                            </div>
+                            <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                              <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)]">Outgoing edges</p>
+                              <p className="text-lg font-semibold text-[var(--text-0)] mt-1">{focusedNodeOutgoingEdges.length}</p>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Incoming from</p>
+                            <div className="flex flex-wrap gap-2">
+                              {focusedNodeIncomingEdges.map((edge, idx) => (
+                                <span key={`${edge.from}-${idx}`} className="rounded-full border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.12)] px-2 py-0.5 text-[10px] text-[#ffd9a0]">{edge.from}</span>
+                              ))}
+                              {focusedNodeIncomingEdges.length === 0 && <span className="text-[11px] text-[var(--text-2)]">No incoming edges in the current view.</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Outgoing to</p>
+                            <div className="flex flex-wrap gap-2">
+                              {focusedNodeOutgoingEdges.map((edge, idx) => (
+                                <span key={`${edge.to}-${idx}`} className="rounded-full border border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.12)] px-2 py-0.5 text-[10px] text-[var(--accent-2)]">{edge.to}</span>
+                              ))}
+                              {focusedNodeOutgoingEdges.length === 0 && <span className="text-[11px] text-[var(--text-2)]">No outgoing edges in the current view.</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Related evidence</p>
+                            <div className="space-y-2">
+                              {graphEvidenceForNode(focusedGraphNode).slice(0, 4).map((item) => (
+                                <div key={item.id} className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                                  <p className="text-xs font-semibold text-[var(--text-0)]">{item.title}</p>
+                                  <p className="text-[11px] text-[var(--text-2)] mt-1">{item.id} · {item.role}</p>
+                                </div>
+                              ))}
+                              {graphEvidenceForNode(focusedGraphNode).length === 0 && (
+                                <p className="text-[11px] text-[var(--text-2)]">No directly linked evidence was found for this node in the current evidence set.</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-[var(--text-2)]">Select a node from the interactive node review panel to inspect incoming paths, outgoing paths, and related evidence.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1696,14 +2212,18 @@ export default function App() {
           <div className="space-y-4 reveal-up">
             <div className="card p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2">
-                  <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
-                  Evidence Artifacts — {selectedScenario.title}
-                </h3>
-                <span className="text-xs font-semibold text-[var(--text-2)] mono-kicker">{evidenceItems.length} retrieved</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2">
+                    <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                    Evidence Artifacts — {selectedScenario.title}
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-2)] mt-1">Switch retrieval modes to compare plain ranking against graph-aware evidence context.</p>
+                </div>
+                <span className="text-xs font-semibold text-[var(--text-2)] mono-kicker">{evidenceItems.length} retrieved · {retrievalMode}</span>
               </div>
+              <div className="mb-4">{renderRetrievalModePicker()}</div>
               <div className="space-y-3">
                 {evidenceItems.map((ev) => {
                   const isSelected = selectedEvidence.includes(ev.id);
@@ -1740,9 +2260,28 @@ export default function App() {
                       </div>
                       <p className="text-xs text-[var(--text-1)] leading-relaxed">{ev.body}</p>
                       {ev.metadata && (
-                        <div className="flex gap-3 mt-2">
+                        <div className="flex flex-wrap gap-3 mt-2">
                           {ev.metadata.source && <span className="text-[10px] font-mono text-[var(--text-2)]">source: {ev.metadata.source}</span>}
                           {ev.metadata.type && <span className="text-[10px] font-mono text-[var(--text-2)]">type: {ev.metadata.type}</span>}
+                          {ev.metadata.selectionPolicy && <span className="text-[10px] font-mono text-[#ffd9a0]">policy: {ev.metadata.selectionPolicy}</span>}
+                          {ev.metadata.graphMatchedServices && ev.metadata.graphMatchedServices.length > 0 && (
+                            <span className="text-[10px] font-mono text-[var(--accent-2)]">matched: {ev.metadata.graphMatchedServices.join(', ')}</span>
+                          )}
+                        </div>
+                      )}
+                      {ev.metadata?.graphConnectedServices && ev.metadata.graphConnectedServices.length > 0 && (
+                        <div className="mt-3 rounded-lg border border-[rgba(39,211,182,0.22)] bg-[rgba(39,211,182,0.06)] p-3">
+                          <p className="text-[10px] uppercase tracking-wide text-[var(--accent-2)] mb-2">Graph provenance</p>
+                          {ev.metadata.graphSeedServices && ev.metadata.graphSeedServices.length > 0 && (
+                            <p className="text-[11px] text-[var(--text-1)] mb-2">Seed services: {ev.metadata.graphSeedServices.join(', ')}</p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {ev.metadata.graphConnectedServices.map((service) => (
+                              <span key={`${ev.id}-${service}`} className="rounded-full border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
+                                {service}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1820,6 +2359,191 @@ export default function App() {
                   )}
                 </div>
 
+                <div className="card p-6">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between mb-4">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-1)]">Mode Comparison</p>
+                      <p className="text-xs text-[var(--text-2)] mt-1">This compares the current scenario across vector, graph, GraphRAG, and GraphRAG plus gating so the evaluation story is easier to explain during review.</p>
+                    </div>
+                    {comparisonForSelectedScenario && (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)] border-[rgba(39,211,182,0.35)]">
+                        Best current mode: {modeLabels.get(comparisonForSelectedScenario.bestMode) ?? comparisonForSelectedScenario.bestMode}
+                      </span>
+                    )}
+                  </div>
+
+                  {evaluationCompareLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-[var(--text-2)]">
+                      <Spinner />
+                      Comparing modes for this scenario...
+                    </div>
+                  ) : evaluationCompareError ? (
+                    <p className="text-sm text-[#ff9f9f]">{evaluationCompareError}</p>
+                  ) : comparisonForSelectedScenario ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                        {comparisonForSelectedScenario.results.map((result) => {
+                          const scorePct = Math.round(result.overallScore * 100);
+                          const deltaVsVector = vectorBaseline
+                            ? Math.round((result.overallScore - vectorBaseline.overallScore) * 100)
+                            : 0;
+                          const isBest = result.mode === comparisonForSelectedScenario.bestMode;
+                          return (
+                            <div key={result.mode} className={`rounded-xl border p-4 ${
+                              isBest
+                                ? 'border-[rgba(39,211,182,0.45)] bg-[rgba(39,211,182,0.08)]'
+                                : 'border-[color:var(--line)] bg-[rgba(12,20,32,0.44)]'
+                            }`}>
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-[var(--text-0)]">{modeLabels.get(result.mode) ?? result.mode}</p>
+                                  <p className="text-[11px] text-[var(--text-2)] mt-1">{result.evidenceCount} evidence selected</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className={`text-lg font-bold ${result.overallScore >= 0.8 ? 'text-[var(--ok)]' : result.overallScore >= 0.6 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'}`}>{scorePct}%</p>
+                                  <p className="text-[10px] text-[var(--text-2)]">{result.mode === 'vector' ? 'baseline' : `${deltaVsVector >= 0 ? '+' : ''}${deltaVsVector} vs vector`}</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                  result.gatingPass
+                                    ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
+                                    : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.4)]'
+                                }`}>
+                                  {result.gatingPass ? 'gating passed' : 'gating failed'}
+                                </span>
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[color:var(--line)] text-[var(--text-2)]">
+                                  unsupported claims: {result.metrics.unsupportedClaimCount}
+                                </span>
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[color:var(--line)] text-[var(--text-2)]">
+                                  critical errors: {result.metrics.criticalErrorCount}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-[11px] mb-3">
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                  <p className="text-[var(--text-2)]">Owner</p>
+                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.ownerAccuracy * 100)}%</p>
+                                </div>
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                  <p className="text-[var(--text-2)]">Dependencies</p>
+                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.dependencyAccuracy * 100)}%</p>
+                                </div>
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                  <p className="text-[var(--text-2)]">Blast radius</p>
+                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.blastRadiusCompleteness * 100)}%</p>
+                                </div>
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                  <p className="text-[var(--text-2)]">Evidence relevance</p>
+                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.evidenceRelevance * 100)}%</p>
+                                </div>
+                              </div>
+                              <p className="text-[11px] text-[var(--text-1)]">
+                                {result.gatingPass
+                                  ? 'This mode currently produces a defensible evidence mix for the scenario.'
+                                  : result.metrics.unsupportedClaimCount > 0
+                                    ? 'This mode still leaves unsupported reasoning in the generated submission path.'
+                                    : 'This mode still misses at least one hard submission requirement.'}
+                              </p>
+                              {result.selectedEvidenceTitles.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Selected evidence mix</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {result.selectedEvidenceTitles.slice(0, 3).map((title) => (
+                                      <span key={`${result.mode}-${title}`} className="rounded-full border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">{title}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {vectorBaseline && (() => {
+                        const bestModeResult = comparisonForSelectedScenario.results.find((result) => result.mode === comparisonForSelectedScenario.bestMode) ?? vectorBaseline;
+                        const scoreDelta = Math.round((bestModeResult.overallScore - vectorBaseline.overallScore) * 100);
+                        return (
+                          <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4">
+                            <p className="text-xs font-semibold text-[#ffd9a0] mb-2">How to explain this result</p>
+                            <p className="text-sm text-[var(--text-1)] leading-relaxed">
+                              Compared with the vector baseline, <span className="font-semibold text-[var(--text-0)]">{modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode}</span>
+                              {' '}currently changes the scenario outcome by <span className="font-semibold text-[var(--text-0)]">{scoreDelta >= 0 ? '+' : ''}{scoreDelta} points</span>.
+                              {' '}The most important review signal is whether the mode improves evidence relevance and reduces unsupported claims without hurting gating.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--text-2)]">Mode comparison will appear here when scenario comparison data is available.</p>
+                  )}
+                </div>
+
+                <div className="card p-6">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between mb-4">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-1)]">Diagnostics Panel</p>
+                      <p className="text-xs text-[var(--text-2)] mt-1">This breaks the evaluation into error categories so it is clearer where the current answer is weak and where the strongest retrieval mode helps.</p>
+                    </div>
+                    {bestCompareResult && (
+                      <span className="text-[10px] font-semibold px-2 py-1 rounded-full border border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)]">
+                        Retrieval benchmark: {modeLabels.get(bestCompareResult.mode) ?? bestCompareResult.mode}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2)] mb-3">Current answer diagnostics</p>
+                      <div className="space-y-3">
+                        {currentDiagnostics.map((item) => (
+                          <div key={`current-${item.label}`} className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                            <div className="flex items-center justify-between gap-3 mb-1">
+                              <p className="text-sm font-semibold text-[var(--text-0)]">{item.label}</p>
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                item.status === 'strong'
+                                  ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
+                                  : item.status === 'warning'
+                                    ? 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
+                                    : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.4)]'
+                              }`}>
+                                {item.status}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[var(--text-2)] leading-relaxed">{item.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-[rgba(39,211,182,0.24)] bg-[rgba(39,211,182,0.06)] p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-2)] mb-3">Best-mode diagnostics</p>
+                      {bestCompareResult ? (
+                        <div className="space-y-3">
+                          {bestModeDiagnostics.map((item) => (
+                            <div key={`best-${item.label}`} className="rounded-lg border border-[rgba(39,211,182,0.22)] bg-[rgba(15,26,40,0.72)] p-3">
+                              <div className="flex items-center justify-between gap-3 mb-1">
+                                <p className="text-sm font-semibold text-[var(--text-0)]">{item.label}</p>
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                  item.status === 'strong'
+                                    ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
+                                    : item.status === 'warning'
+                                      ? 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
+                                      : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.4)]'
+                                }`}>
+                                  {item.status}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-[var(--text-2)] leading-relaxed">{item.detail}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-[var(--text-2)]">Best-mode diagnostics will appear here when comparison data is available.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Rubric scores */}
                 {score.rubricScores && score.rubricScores.length > 0 && (
                   <div className="card p-6">
@@ -1857,23 +2581,94 @@ export default function App() {
           const avgScore = completedArr.length > 0
             ? completedArr.reduce((s, [, r]) => s + r.overallScore, 0) / completedArr.length
             : 0;
+          const gatingPassCount = completedArr.filter(([, result]) => result.gatingPass).length;
+          const bestModeResult = comparisonForSelectedScenario
+            ? comparisonForSelectedScenario.results.find((result) => result.mode === comparisonForSelectedScenario.bestMode) ?? null
+            : null;
+          const comparisonDelta = bestModeResult && vectorBaseline
+            ? Math.round((bestModeResult.overallScore - vectorBaseline.overallScore) * 100)
+            : null;
+          const selectedEvidenceTitles = selectedEvidenceItems.map((item) => item.title);
+          const selectedPrimaryTitles = selectedEvidenceItems.filter((item) => item.role === 'primary').map((item) => item.title);
+          const selectedCorroboratingTitles = selectedEvidenceItems.filter((item) => item.role === 'corroborating').map((item) => item.title);
+          const metricSummary = score?.metrics
+            ? [
+                { label: 'Owner match', value: score.metrics.ownerAccuracy },
+                { label: 'System connections', value: score.metrics.dependencyAccuracy },
+                { label: 'Blast radius', value: score.metrics.blastRadiusCompleteness },
+                { label: 'Evidence support', value: score.metrics.evidenceRelevance },
+              ]
+            : [];
+          const strongestMetric = metricSummary.length > 0
+            ? [...metricSummary].sort((left, right) => right.value - left.value)[0]
+            : null;
+          const weakestMetric = metricSummary.length > 0
+            ? [...metricSummary].sort((left, right) => left.value - right.value)[0]
+            : null;
+          const currentActionHeadline = formData.actionPlan
+            .split('\n')
+            .map((line) => line.trim())
+            .find(Boolean);
+          const nextReviewFocus = !score
+            ? 'Score the current scenario so the export can capture concrete feedback.'
+            : !score.gatingPass
+              ? 'Tighten unsupported claims and make sure every decision point is backed by named evidence.'
+              : weakestMetric && weakestMetric.value < 0.8
+                ? `Strengthen ${weakestMetric.label.toLowerCase()} before presenting this scenario as complete.`
+                : 'This scenario is in a presentable state; use the comparison summary to explain why the current evidence strategy is defensible.';
+          const downloadExport = () => {
+            const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            const safeTitle = selectedScenario.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            anchor.href = url;
+            anchor.download = `omnimentor-checkin-${safeTitle || 'scenario'}.txt`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(url);
+          };
           const exportText = [
-            `OmniMentor — Check-in Export`,
+            `OmniMentor — Mentor Check-in Snapshot`,
             `Generated: ${new Date().toISOString()}`,
             ``,
-            `## Summary`,
+            `## Progress Summary`,
             `Scenarios completed: ${completedScenarios.size} / ${scenarios.length}`,
             `Average decision quality: ${completedArr.length > 0 ? `${Math.round(avgScore * 100)}%` : 'N/A'}`,
+            `Gating passes across completed scenarios: ${completedArr.length > 0 ? `${gatingPassCount} / ${completedArr.length}` : 'N/A'}`,
             ``,
             `## Current Scenario`,
             `Title: ${selectedScenario.title}`,
+            `Domain: ${selectedScenario.domain}`,
             `Owner routing: ${formData.ownerRouting || 'N/A'}`,
             `Dependency edges: ${formData.dependencyTrace.length}`,
             `Blast-radius items: ${formData.blastRadius.length}`,
             `Selected evidence: ${selectedEvidence.length}`,
+            `Primary evidence selected: ${selectedPrimaryTitles.length > 0 ? selectedPrimaryTitles.join('; ') : 'None yet'}`,
+            `Corroborating evidence selected: ${selectedCorroboratingTitles.length > 0 ? selectedCorroboratingTitles.join('; ') : 'None yet'}`,
+            `Action headline: ${currentActionHeadline || 'N/A'}`,
             `Score: ${score ? `${Math.round(score.overallScore * 100)}%` : 'Not scored yet'}`,
             `Gating: ${score ? (score.gatingPass ? 'Passed' : 'Not Passed') : 'N/A'}`,
             `Critical errors: ${score?.criticalErrors.length ?? 0}`,
+            ``,
+            `## Evaluation Readout`,
+            `Status summary: ${scoreSummary ?? 'No score summary yet.'}`,
+            `Strongest signal: ${strongestMetric ? `${strongestMetric.label} at ${Math.round(strongestMetric.value * 100)}%` : 'N/A'}`,
+            `Weakest signal: ${weakestMetric ? `${weakestMetric.label} at ${Math.round(weakestMetric.value * 100)}%` : 'N/A'}`,
+            `Unsupported claims: ${score?.metrics?.unsupportedClaimCount ?? 'N/A'}`,
+            `Direction correctness: ${score?.metrics ? (score.metrics.directionCorrect ? 'Clear' : 'Needs fixing') : 'N/A'}`,
+            ``,
+            `## Retrieval Comparison`,
+            `Best current mode: ${bestModeResult ? (modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode) : 'Not available yet'}`,
+            `Best-mode score: ${bestModeResult ? `${Math.round(bestModeResult.overallScore * 100)}%` : 'N/A'}`,
+            `Best-mode gating: ${bestModeResult ? (bestModeResult.gatingPass ? 'Passed' : 'Not Passed') : 'N/A'}`,
+            `Delta vs vector baseline: ${comparisonDelta !== null ? `${comparisonDelta >= 0 ? '+' : ''}${comparisonDelta} points` : 'N/A'}`,
+            `Comparison takeaway: ${bestModeResult
+              ? bestModeResult.gatingPass
+                ? `${modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode} currently provides the most defensible evidence mix for this scenario.`
+                : `${modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode} is the highest-scoring mode right now, but the scenario still needs stronger support to clear gating.`
+              : 'Mode comparison is not available yet.'}`,
+            `Evidence mix driving the current write-up: ${selectedEvidenceTitles.length > 0 ? selectedEvidenceTitles.join('; ') : 'None selected yet'}`,
             ``,
             `## Completed Scenarios`,
             ...completedArr.map(([id, r]) => {
@@ -1881,6 +2676,9 @@ export default function App() {
               return `- ${s?.title ?? id}: ${Math.round(r.overallScore * 100)}% (gating: ${r.gatingPass ? 'pass' : 'fail'})`;
             }),
             completedArr.length === 0 ? '(none yet)' : '',
+            ``,
+            `## Next Review Focus`,
+            nextReviewFocus,
           ].join('\n');
 
           return (
@@ -1893,18 +2691,55 @@ export default function App() {
                     </svg>
                     Check-in Export
                   </h3>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(exportText);
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.3)] transition-colors"
-                  >
-                    Copy to Clipboard
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(exportText);
+                      }}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.3)] transition-colors"
+                    >
+                      Copy to Clipboard
+                    </button>
+                    <button
+                      onClick={downloadExport}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.22)] transition-colors"
+                    >
+                      Download .txt
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Progress</p>
+                    <p className="text-xl font-bold text-[var(--text-0)] mt-2">{completedScenarios.size} / {scenarios.length}</p>
+                    <p className="text-[11px] text-[var(--text-2)] mt-1">completed scenarios</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Current score</p>
+                    <p className="text-xl font-bold text-[var(--text-0)] mt-2">{score ? `${Math.round(score.overallScore * 100)}%` : 'N/A'}</p>
+                    <p className="text-[11px] text-[var(--text-2)] mt-1">{score ? (score.gatingPass ? 'gating passed' : 'gating not passed') : 'not scored yet'}</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Best mode</p>
+                    <p className="text-base font-bold text-[var(--text-0)] mt-2">{bestModeResult ? (modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode) : 'N/A'}</p>
+                    <p className="text-[11px] text-[var(--text-2)] mt-1">{comparisonDelta !== null ? `${comparisonDelta >= 0 ? '+' : ''}${comparisonDelta} vs vector` : 'comparison pending'}</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Evidence mix</p>
+                    <p className="text-xl font-bold text-[var(--text-0)] mt-2">{selectedEvidence.length}</p>
+                    <p className="text-[11px] text-[var(--text-2)] mt-1">{hasPrimary && hasCorroborating ? 'primary + corroborating covered' : 'needs both evidence roles'}</p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4 mb-4">
+                  <p className="text-xs font-semibold text-[#ffd9a0] mb-2">Export guidance</p>
+                  <p className="text-sm text-[var(--text-1)] leading-relaxed">
+                    Use this as a mentor-facing snapshot. It is structured to explain current progress, what evidence supports the scenario write-up, and what retrieval mode currently gives the strongest result.
+                  </p>
                 </div>
                 <textarea
                   readOnly
                   value={exportText}
+                  data-testid="checkin-export-text"
                   className="form-input h-64 resize-none font-mono text-xs"
                 />
               </div>

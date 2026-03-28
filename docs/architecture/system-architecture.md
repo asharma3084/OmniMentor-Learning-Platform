@@ -1,6 +1,4 @@
-# OmniMentor Architecture
-
-[![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](README.md) [![Overview](https://img.shields.io/badge/Overview-14b8a6?style=for-the-badge&labelColor=042f2e)](00-overview.md) [![Requirements](https://img.shields.io/badge/Requirements-6366f1?style=for-the-badge&labelColor=1e1b4b)](01-requirements.md) [![Architecture](https://img.shields.io/badge/Architecture-a855f7?style=for-the-badge&labelColor=3b0764)](architecture.md) [![Quality Gates](https://img.shields.io/badge/Quality%20Gates-22c55e?style=for-the-badge&labelColor=052e16)](07-verification-and-quality-gates.md) [![Security](https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a)](10-security-and-compliance.md)
+# System Architecture
 
 
 Version: 2.9
@@ -8,7 +6,7 @@ Last Updated: 2026-03-15
 
 ## 1. Architecture Objectives
 
-Per the approved project proposal and requirements docs, OmniMentor targets **Architecture Blindness**: the onboarding challenge where new engineers and TPMs struggle to navigate ownership, dependency direction, and governance constraints in complex systems.
+OmniMentor targets **Architecture Blindness**: the onboarding challenge where new engineers and TPMs struggle to navigate ownership, dependency direction, and governance constraints in complex systems.
 
 The platform supports deliberate technical practice through:
 - Scenario-based problem solving grounded in the synthetic Omni-Mart corpus.
@@ -18,9 +16,8 @@ The platform supports deliberate technical practice through:
 - Reproducible evaluation across four retrieval modes (ablation study design).
 
 Source-of-truth references for this section:
-- `docs/00-overview.md` (Problem and RQ framing)
-- `docs/01-requirements.md` (functional/non-functional requirements)
-- approved qualifier-question and proposal submissions (kept outside the check-in set)
+- `../start-here/overview.md` (problem and research-question framing)
+- `requirements.md` (functional and non-functional requirements)
 
 ## 2. High-Level System Architecture
 
@@ -36,7 +33,7 @@ Proposal-target stack for later milestones:
 - Graph retrieval: GraphRAG
 - Local LLM: Ollama
 
-The architecture below is proposal-aligned and consistent with `docs/detailed-ui-design.md`.
+The architecture below is proposal-aligned and consistent with `../reference/detailed-ui-design.md`.
 
 ```mermaid
 flowchart TB
@@ -112,7 +109,7 @@ flowchart TB
   class REP output;
 ```
 
-## 3. Flow A Runtime (Proposal Spine)
+## 3. Flow A Runtime
 
 Flow A is the primary learning workflow.
 
@@ -188,7 +185,7 @@ sequenceDiagram
 
 ## 4. Evaluation And Ablation Pipeline
 
-This aligns to proposal requirement for mode comparison:
+This aligns to the current mode-comparison design:
 - `vector`
 - `graph`
 - `graphrag`
@@ -269,11 +266,11 @@ flowchart LR
 - System Graph remains an advanced review surface rather than the first interaction for a new TPM.
 
 ### 5.1c Freeze-Scope Enhancements
-- `System Graph` must provide interactive graph operations: zoom, pan, node/edge filtering, path tracing, and impact highlighting.
+- `System Graph` must provide interactive review operations: node/edge filtering, node focus, path tracing, and provenance-linked node detail.
 - `System Graph` node panel must show provenance-linked evidence and ownership/dependency metadata for selected graph entities.
 - `Evaluation` must provide deeper mode analytics: per-mode metric table, deltas across modes, unsupported-claim trend, and critical-error category breakdown.
 - `Evaluation` must expose mode diagnostics that explain retrieval behavior differences (`vector`, `graph`, `graphrag`, `graphrag_gating`).
-- `Check-in Export` must generate review-ready summary output with scenario context, score/gating snapshot, evidence links, and copy/download actions.
+- `Check-in Export` must generate review-ready summary output with scenario context, score/gating snapshot, selected-evidence references, and copy/download actions.
 
 ### 5.2 API Service (`services/api`)
 - Exposes REST contracts for scenario/evidence/submission/score/eval.
@@ -380,7 +377,7 @@ pnpm --dir workspace audit
 ```
 
 Traceability:
-- Session notes kept locally (outside GitHub check-in)
+- Session notes kept locally outside the public repository narrative
 - Reproducible command artifacts under `reports/` and `services/api/reports/`
 
 Runtime artifact evidence:
@@ -406,16 +403,17 @@ Architecture scope:
 
 ## 11. Detailed UI Alignment
 
-This architecture is aligned with `docs/detailed-ui-design.md`:
+This architecture is aligned with `../reference/detailed-ui-design.md`:
 - same tab model
 - same structured submission contract
 - same graph/evidence/evaluation surfaces
 - same Ollama assistant and evidence-gating boundaries
 - same freeze-scope enhancements for graph interaction and evaluation/export depth
 
-## 12. Proposal Alignment Statement
+## 12. Evolution Policy
 
-This architecture is intentionally proposal-first. If implementation diverges from proposal assumptions, the change process is:
-1. Record rationale and impact in local session notes.
+This architecture is intentionally documented as both a current-state reference and a forward-looking design.
+If implementation diverges from architectural assumptions, the change process is:
+1. Update the architecture and requirements documents.
 2. Preserve verification evidence in generated report artifacts.
-3. Disclose deviation in weekly check-in.
+3. Record important trade-offs in the decisions log or ADRs.

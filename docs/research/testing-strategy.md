@@ -1,6 +1,4 @@
-# 06. Testing Strategy
-
-[![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](README.md) [![Overview](https://img.shields.io/badge/Overview-14b8a6?style=for-the-badge&labelColor=042f2e)](00-overview.md) [![Requirements](https://img.shields.io/badge/Requirements-6366f1?style=for-the-badge&labelColor=1e1b4b)](01-requirements.md) [![Architecture](https://img.shields.io/badge/Architecture-a855f7?style=for-the-badge&labelColor=3b0764)](architecture.md) [![Quality Gates](https://img.shields.io/badge/Quality%20Gates-22c55e?style=for-the-badge&labelColor=052e16)](07-verification-and-quality-gates.md) [![Security](https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a)](10-security-and-compliance.md)
+# Testing Strategy
 
 
 ## Development Methodology
@@ -43,7 +41,7 @@ Reproducible ablation study design provides quantitative evidence:
 - Chi, M. T. H., Bassok, M., Lewis, M. W., Reimann, P., & Glaser, R. (1989). Self-Explanations. *Cognitive Science*, 13(2), 145–182.
 - Sweller, J. (1988). Cognitive Load During Problem Solving. *Cognitive Science*, 12(2), 257–285.
 
-Weekly work cycles map directly to DBR phases: each development week constitutes one analyze-design-implement-evaluate-reflect cycle, with artifacts preserved in `reports/` and `docs/decisions/` for continuity and review.
+Weekly work cycles map directly to DBR phases: each development week constitutes one analyze-design-implement-evaluate-reflect cycle, with artifacts preserved in `reports/` and `../architecture/decisions/` for continuity and review.
 
 ---
 

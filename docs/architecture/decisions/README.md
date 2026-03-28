@@ -1,6 +1,4 @@
-# ADR (Architecture Decision Records)
-
-[![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](../README.md) [![OmniMentor](https://img.shields.io/badge/OmniMentor-6366f1?style=for-the-badge&labelColor=1e1b4b)](../../README.md) [![Decisions Log](https://img.shields.io/badge/Decisions%20Log-a855f7?style=for-the-badge&labelColor=3b0764)](../11-decisions-log.md)
+# Architecture Decision Records
 
 
 Use this directory for decision records that matter to long-term architecture and delivery.

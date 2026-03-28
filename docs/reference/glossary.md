@@ -1,6 +1,4 @@
-# 13. Glossary
-
-[![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](README.md) [![Overview](https://img.shields.io/badge/Overview-14b8a6?style=for-the-badge&labelColor=042f2e)](00-overview.md) [![Requirements](https://img.shields.io/badge/Requirements-6366f1?style=for-the-badge&labelColor=1e1b4b)](01-requirements.md) [![Architecture](https://img.shields.io/badge/Architecture-a855f7?style=for-the-badge&labelColor=3b0764)](architecture.md) [![Quality Gates](https://img.shields.io/badge/Quality%20Gates-22c55e?style=for-the-badge&labelColor=052e16)](07-verification-and-quality-gates.md) [![Security](https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a)](10-security-and-compliance.md)
+# Glossary
 
 
 ## Core Concepts
@@ -79,7 +77,7 @@ The duration (in seconds) between session start and first evidence selection. Us
 A psychometric scale commonly used in survey research, where respondents rate agreement on a symmetric agree/disagree scale (e.g., 1 = Strongly Disagree to 5 = Strongly Agree). Used in OmniMentor pre/post surveys.
 
 **KPI (Key Performance Indicator)**
-A quantifiable measure used to evaluate success against research objectives. OmniMentor defines 9 KPIs across 3 research questions; see `docs/16-evaluation-and-kpis.md`.
+A quantifiable measure used to evaluate success against research objectives. OmniMentor defines 9 KPIs across 3 research questions; see `../research/evaluation-and-kpis.md`.
 
 **Time-to-Competent-Submission**
 The duration from session start to the first submission that passes evidence gating. Used as a primary metric for RQ1 (orientation time reduction).

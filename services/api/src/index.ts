@@ -27,8 +27,10 @@ import {
   GraphRetriever,
   GraphRAGRetriever,
   InMemoryCorpusStore,
+  InMemoryGraphStore,
+  GraphServiceNode,
 } from '@omnimentor/retrieval';
-import { AblationMode, scoreAblationScenario } from './ablation';
+import { AblationMode, scoreAblationScenario, selectEvidenceForAblation } from './ablation';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -57,6 +59,11 @@ type ScenarioArtifact = {
   title: string;
   content: string;
   type: string;
+};
+
+type DomainGraphFile = {
+  domain: string;
+  services?: GraphServiceNode[];
 };
 
 type SqlSubmissionRow = {
@@ -127,6 +134,10 @@ const ablationSchema = z.object({
   modes: z
     .array(z.enum(['vector', 'graph', 'graphrag', 'graphrag_gating']))
     .optional(),
+});
+
+const evaluationCompareSchema = z.object({
+  scenarioId: z.string().min(1),
 });
 
 const sessionStartSchema = z.object({
@@ -280,12 +291,42 @@ function buildCorpusFromDb(): InMemoryCorpusStore {
   return new InMemoryCorpusStore(store);
 }
 
+function buildGraphStoreFromDatasets(): InMemoryGraphStore {
+  const datasetDir = path.join(PROJECT_ROOT, 'datasets', 'synth-corpus');
+  const domainGraphs = new Map<string, GraphServiceNode[]>();
+
+  if (fs.existsSync(datasetDir)) {
+    const files = fs.readdirSync(datasetDir).filter((file) => file.endsWith('.json'));
+    for (const file of files) {
+      const raw = fs.readFileSync(path.join(datasetDir, file), 'utf-8');
+      const parsed = JSON.parse(raw) as DomainGraphFile;
+      if (parsed.domain && parsed.services && parsed.services.length > 0) {
+        domainGraphs.set(parsed.domain, parsed.services);
+      }
+    }
+  }
+
+  const scenarios = db.prepare('SELECT id, domain FROM scenarios').all() as Array<{
+    id: string;
+    domain: string;
+  }>;
+
+  const scenarioGraphs = new Map<string, GraphServiceNode[]>();
+  for (const scenario of scenarios) {
+    const services = domainGraphs.get(scenario.domain) ?? [];
+    scenarioGraphs.set(scenario.id, services);
+  }
+
+  return new InMemoryGraphStore(scenarioGraphs);
+}
+
 const corpusStore = buildCorpusFromDb();
+const graphStore = buildGraphStoreFromDatasets();
 const retrievers: Record<string, VectorRetriever | GraphRetriever | GraphRAGRetriever> = {
   vector: new VectorRetriever(corpusStore),
-  graph: new GraphRetriever(corpusStore),
-  graphrag: new GraphRAGRetriever(corpusStore),
-  graphrag_gating: new GraphRAGRetriever(corpusStore),
+  graph: new GraphRetriever(corpusStore, graphStore),
+  graphrag: new GraphRAGRetriever(corpusStore, graphStore),
+  graphrag_gating: new GraphRAGRetriever(corpusStore, graphStore),
 };
 
 // Middleware
@@ -450,11 +491,21 @@ app.get('/evidence', async (req: Request, res: Response, next: NextFunction) => 
 
     const topK = parseInt(req.query.topK as string) || 10;
     const retriever = retrievers[mode];
-    const evidence = await retriever.retrieve({
+    const retrievedEvidence = await retriever.retrieve({
       scenarioId,
       query: scenario.prompt,
       topK,
     });
+
+    const evidence = mode === 'graphrag_gating'
+      ? selectEvidenceForAblation(retrievedEvidence, 'graphrag_gating').map((item) => ({
+          ...item,
+          metadata: {
+            ...item.metadata,
+            selectionPolicy: 'role-diverse gating support',
+          },
+        }))
+      : retrievedEvidence;
 
     res.json(evidence);
   } catch (err) {
@@ -750,6 +801,113 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       rubricScores,
       metrics,
       createdAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/evaluation/compare', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = evaluationCompareSchema.safeParse(req.query);
+    if (!parsed.success) {
+      next(
+        new AppError(
+          'Validation failed',
+          400,
+          'VALIDATION_ERROR',
+          parsed.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+            code: i.code,
+          }))
+        )
+      );
+      return;
+    }
+
+    const { scenarioId } = parsed.data;
+    const scenario = db
+      .prepare('SELECT id, title, prompt FROM scenarios WHERE id = ?')
+      .get(scenarioId) as Pick<SqlScenarioRow, 'id' | 'title' | 'prompt'> | undefined;
+
+    if (!scenario) {
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
+      return;
+    }
+
+    const goldRow = db
+      .prepare('SELECT * FROM gold_labels WHERE scenario_id = ?')
+      .get(scenario.id) as SqlGoldRow | undefined;
+
+    if (!goldRow) {
+      next(new AppError('Gold labels not found for scenario', 400, 'GOLD_LABELS_NOT_FOUND'));
+      return;
+    }
+
+    const benchmark: ScenarioBenchmark = {
+      id: goldRow.id,
+      prompt: scenario.prompt,
+      goldOwner: goldRow.gold_owner,
+      goldDependencyTrace: parseJson<ScenarioBenchmark['goldDependencyTrace']>(goldRow.gold_dependency_trace),
+      goldSafeActions: parseJson<string[]>(goldRow.gold_safe_actions),
+      goldBlastRadius: parseJson<string[]>(goldRow.gold_blast_radius ?? goldRow.gold_safe_actions),
+      goldRequiredEvidenceIds: parseJson<string[]>(goldRow.gold_required_evidence_ids),
+      rubricExplanations: goldRow.rubric_explanations ?? '',
+    };
+
+    const modes: AblationMode[] = ['vector', 'graph', 'graphrag', 'graphrag_gating'];
+    const results = [] as Array<{
+      mode: AblationMode;
+      overallScore: number;
+      gatingPass: boolean;
+      criticalErrors: string[];
+      evidenceCount: number;
+      selectedEvidenceIds: string[];
+      selectedEvidenceTitles: string[];
+      metrics: MetricsResult;
+    }>;
+
+    for (const mode of modes) {
+      const retriever = retrievers[mode];
+      const evidence = await retriever.retrieve({
+        scenarioId: scenario.id,
+        query: scenario.prompt,
+        topK: 10,
+      });
+
+      const scored = scoreAblationScenario({
+        scenarioId: scenario.id,
+        mode,
+        retrievedEvidence: evidence,
+        benchmark,
+      });
+
+      results.push({
+        mode,
+        overallScore: scored.overallScore,
+        gatingPass: scored.gatingPass,
+        criticalErrors: scored.criticalErrors,
+        evidenceCount: scored.selectedEvidence.length,
+        selectedEvidenceIds: scored.selectedEvidence.map((item) => item.id),
+        selectedEvidenceTitles: scored.selectedEvidence.map((item) => item.title),
+        metrics: scored.metrics,
+      });
+    }
+
+    const bestMode = [...results].sort((left, right) => {
+      const gatingDelta = Number(right.gatingPass) - Number(left.gatingPass);
+      if (gatingDelta !== 0) {
+        return gatingDelta;
+      }
+      return right.overallScore - left.overallScore;
+    })[0];
+
+    res.json({
+      scenarioId: scenario.id,
+      scenarioTitle: scenario.title,
+      bestMode: bestMode?.mode ?? 'vector',
+      results,
     });
   } catch (err) {
     next(err);

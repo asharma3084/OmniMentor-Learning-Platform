@@ -1,10 +1,8 @@
-# 11. Decisions Log
-
-[![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](README.md) [![Overview](https://img.shields.io/badge/Overview-14b8a6?style=for-the-badge&labelColor=042f2e)](00-overview.md) [![Requirements](https://img.shields.io/badge/Requirements-6366f1?style=for-the-badge&labelColor=1e1b4b)](01-requirements.md) [![Architecture](https://img.shields.io/badge/Architecture-a855f7?style=for-the-badge&labelColor=3b0764)](architecture.md) [![Quality Gates](https://img.shields.io/badge/Quality%20Gates-22c55e?style=for-the-badge&labelColor=052e16)](07-verification-and-quality-gates.md) [![Security](https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a)](10-security-and-compliance.md)
+# Decisions Log
 
 
 Use this file to record key technical and process decisions.
-For new decisions, prefer creating ADR files in `docs/decisions/`.
+For new decisions, prefer creating ADR files in `decisions/`.
 
 ## Entry Template
 
@@ -58,5 +56,5 @@ For new decisions, prefer creating ADR files in `docs/decisions/`.
 - **Status:** Accepted
 - **Context:** The KPI gap analysis revealed that RQ1 (orientation time), RQ2 (anxiety reduction), and RQ3 (participation transition) had no quantitative instrumentation built into the system. Without session timing, surveys, and behavioral proxy data, there is no way to evaluate whether the tool achieves its research objectives.
 - **Decision:** Add three instrumentation layers: (1) Learning session tracking with per-scenario timing (start, first_evidence, first_submit, completed, duration_sec, attempt_number) stored in a `learning_sessions` table; (2) Pre/post 5-item Likert survey (`survey_responses` table) administered before the first scenario and after all scenarios are completed; (3) Behavioral proxy logging (hesitation time, first evidence selection) as part of the session event stream.
-- **Consequences:** 9 KPIs can now be measured quantitatively. RQ1 has time-to-competent-submission and duration-per-attempt data. RQ2 has matched pre/post survey delta data. RQ3 has hesitation time and attempt count data. Six new API endpoints added. Two new database tables added. Survey is anonymous and contains no PII. See `docs/16-evaluation-and-kpis.md` for full KPI framework.
+- **Consequences:** 9 KPIs can now be measured quantitatively. RQ1 has time-to-competent-submission and duration-per-attempt data. RQ2 has matched pre/post survey delta data. RQ3 has hesitation time and attempt count data. Six new API endpoints added. Two new database tables added. Survey is anonymous and contains no PII. See `../research/evaluation-and-kpis.md` for full KPI framework.
 

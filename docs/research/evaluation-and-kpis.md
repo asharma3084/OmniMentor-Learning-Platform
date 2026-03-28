@@ -1,4 +1,4 @@
-# 16 — Evaluation Framework & KPIs
+# Evaluation Framework And KPIs
 
 > Maps every Key Performance Indicator to a Research Question, defines success
 > thresholds, and describes how the platform instruments each measurement.

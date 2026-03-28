@@ -3,7 +3,7 @@
 Version: 3.2
 Last Updated: 2026-03-15
 
-This GUI is based on the Assignment (QQ) and Project Proposal.
+This document captures the product's UI design rationale and detailed interaction model.
 
 ## 1. Product UI Objective
 
@@ -144,7 +144,7 @@ The Investigate step emphasizes evidence and extracted clues first. The Decide s
 │ Q2 Challenges: [auto draft + edit]                                                           │
 │ Q3 Scope/Expectations: [auto draft + edit]                                                   │
 │ Q4 Team Responsibilities: [single-user template]                                             │
-│ Evidence Links: smoke report, eval report, metrics table                                     │
+│ Evidence References: selected evidence, retrieval comparison, current score snapshot         │
 │ [Copy for Review Thread]                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -220,12 +220,17 @@ Graph requirements:
 - Direction arrows always visible
 - Path trace from selected source to downstream impact
 
-Freeze-scope requirements:
-- Interactive canvas controls: zoom, pan, fit-to-graph, and reset view.
-- Visual filtering by team/domain/risk/edge type with immediate graph updates.
-- Node and edge highlighting for selected dependency path and blast-radius impact path.
-- Side panel with node metadata, ownership, linked evidence, and provenance chips.
-- Click-through from graph node to Evidence tab pre-filtered on selected entity.
+Current shipped Week 4 state:
+- Filtering by service text
+- Clickable node focus
+- Focused path review
+- Node detail panel with provenance-linked evidence context
+
+Future-depth target beyond current Week 4 shipped state:
+- Canvas controls such as zoom, pan, fit-to-graph, and reset view
+- Richer visual filtering by team/domain/risk/edge type with immediate graph updates
+- Stronger node and edge highlighting for selected dependency path and blast-radius impact path
+- Click-through from graph node to Evidence tab pre-filtered on selected entity
 
 Backend alignment:
 - Graph data source aligns with Neo4j structures.
@@ -259,7 +264,7 @@ Freeze-scope requirements:
 - Critical error breakdown by category (`wrong owner`, `wrong directionality`, `unsafe action`).
 - Trend row for unsupported-claim reduction and gating-pass consistency.
 - Mode diagnostics panel explaining retrieval behavior and trade-offs.
-- Download and copy actions for evaluation summary (review-thread ready text + machine-readable artifact links).
+- Download and copy actions for evaluation summary when a review-thread-ready export path requires them.
 
 ## 8.6 Check-in Export
 
@@ -267,13 +272,20 @@ Required sections:
 - Progress summary
 - Challenges summary
 - Scope/deviation statement
-- Evidence links (reports/metrics)
+- Selected-evidence references plus current evaluation summary
 
 Freeze-scope requirements:
 - Auto-generated review-ready narrative block with concise, evidence-backed language.
 - Explicit references to latest score, gating status, and critical-error snapshot.
 - One-click copy action and downloadable markdown/text export.
-- Included links to latest smoke report and ablation summary artifacts.
+
+Current shipped Week 4 state:
+- Structured mentor-facing narrative snapshot
+- Copy action and downloadable text export
+- Selected-evidence references, retrieval comparison summary, and next-review focus
+
+Future-depth target beyond current Week 4 shipped state:
+- Included links to latest smoke report and ablation summary artifacts
 
 ## 8.7 Freeze Scope
 

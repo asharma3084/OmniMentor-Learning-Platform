@@ -1,6 +1,4 @@
-# 01. Requirements
-
-[![Docs Index](https://img.shields.io/badge/Docs%20Index-0ea5e9?style=for-the-badge&labelColor=082f49)](README.md) [![Overview](https://img.shields.io/badge/Overview-14b8a6?style=for-the-badge&labelColor=042f2e)](00-overview.md) [![Requirements](https://img.shields.io/badge/Requirements-6366f1?style=for-the-badge&labelColor=1e1b4b)](01-requirements.md) [![Architecture](https://img.shields.io/badge/Architecture-a855f7?style=for-the-badge&labelColor=3b0764)](architecture.md) [![Quality Gates](https://img.shields.io/badge/Quality%20Gates-22c55e?style=for-the-badge&labelColor=052e16)](07-verification-and-quality-gates.md) [![Security](https://img.shields.io/badge/Security-ef4444?style=for-the-badge&labelColor=450a0a)](10-security-and-compliance.md)
+# Requirements
 
 
 ## Research Questions (Driving Requirements)
@@ -28,9 +26,9 @@ These research questions define the functional and evaluative scope of OmniMento
 - The system must log behavioral proxy events (first evidence selection, hesitation time) per session for RQ3 evaluation.
 - The system must display evidence provenance alongside retrieved context (RQ2 trust design requirement).
 - The system must signal uncertainty explicitly — never assert with false confidence (active validation design requirement).
-- The system must provide an interactive `System Graph` surface with zoom, pan, filtering, and path highlighting.
+- The system must provide an interactive `System Graph` review surface with filtering, node focus, path review, and provenance-linked node detail.
 - The system must provide deeper `Evaluation` analytics (mode deltas, diagnostics, and critical-error category breakdown).
-- The system must provide review-ready `Check-in Export` output with copy/download actions and linked evidence artifacts.
+- The system must provide review-ready `Check-in Export` output with copy/download actions and selected-evidence references.
 
 ## Non-Functional Requirements
 
@@ -79,7 +77,7 @@ These research questions define the functional and evaluative scope of OmniMento
 - All benchmark scenarios score across all 4 modes with reproducible results.
 - UI `System Graph` supports interactive path exploration for ownership and downstream impact reasoning.
 - UI `Evaluation` supports comparative interpretation across all four retrieval modes.
-- UI `Check-in Export` produces review-thread-ready summary content with evidence links.
+- UI `Check-in Export` produces review-thread-ready summary content with selected-evidence references.
 - Session tracking endpoints (`POST /sessions/start`, `POST /sessions/event`, `GET /analytics/sessions`) return valid responses.
 - Survey endpoints (`POST /surveys`, `GET /surveys`, `GET /surveys/status`) correctly store and retrieve pre/post responses.
 - Pre-survey modal displays on first visit; post-survey displays after all scenarios are completed.

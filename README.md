@@ -9,7 +9,6 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript)](apps/web/tsconfig.json)
 [![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Node%20%2B%20SQLite-0ea5e9?style=flat-square)](docs/architecture/system-architecture.md)
 [![Platform](https://img.shields.io/badge/Platform-macOS-000000?style=flat-square&logo=apple)](docs/start-here/quickstart.md)
-[![License](https://img.shields.io/badge/License-MIT-a855f7?style=flat-square)](LICENSE)
 
 <p>
   <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs%20Hub-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Docs Hub" /></a>
@@ -173,6 +172,16 @@ Freeze-scope enhancements (design/architecture baseline before coding completion
 - `System Graph`: interactive review surface with filters, node focus, path review, and provenance-linked node detail.
 - `Evaluation`: richer per-mode analytics (table + trend deltas + error-category breakdown) with clear mode diagnostics.
 - `Check-in Export`: structured review-ready export with selected-evidence references, score/gating snapshot, and copy/download actions.
+
+Current verified state:
+- Guided mode is the default learner path.
+- Advanced `Overview`, `System Graph`, `Evaluation`, and `Check-in Export` are implemented and browser-verified.
+- Retrieval comparison is available across `vector`, `graph`, `graphrag`, and `graphrag_gating`.
+
+Near-term roadmap beyond the current verified state:
+- deepen graph review interactions and evidence-linked inspection flows
+- package the product story and review surfaces for Intermediate Milestone 2
+- expand evaluation evidence and reviewer-facing reporting toward final-project readiness
 
 ---
 

@@ -58,6 +58,18 @@ The focus is not to answer questions. It is to build the capacity to ask them â€
 - Behavioral proxy instrumentation (hesitation time, attempt tracking) for RQ3 participation measurement.
 - KPI framework with 9 indicators mapped to 3 research questions (see `../research/evaluation-and-kpis.md`).
 
+## Current Verified State And Forward Path
+
+Current verified state:
+- Guided-first learning flow is the baseline user experience.
+- Advanced `Overview`, `System Graph`, `Evaluation`, and `Check-in Export` surfaces are implemented.
+- Runtime verification includes clean builds plus focused browser coverage for the advanced review path.
+
+Forward path beyond the current verified state:
+- strengthen graph review interactions and evidence-linked inspection depth
+- package the product narrative, advanced review surfaces, and demo flow for Intermediate Milestone 2
+- expand evaluation evidence and reviewer-ready reporting toward final-project readiness
+
 ## Technology Stack
 
 | Layer | Technology |

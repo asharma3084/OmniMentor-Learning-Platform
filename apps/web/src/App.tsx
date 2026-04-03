@@ -1003,7 +1003,7 @@ export default function App() {
               <p className="text-sm text-[var(--text-1)] mt-1">
                 {viewMode === 'guided'
                   ? 'Guided mode teaches one onboarding decision at a time.'
-                  : 'Advanced mode exposes graph, evidence, evaluation, and export surfaces for deeper review.'}
+                    : 'Advanced mode provides reviewer-focused views (System Graph, Evaluation, Check-in Export) for quick assessment.'}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1036,7 +1036,7 @@ export default function App() {
         {viewMode === 'advanced' && (
           <div className="mb-5 reveal-up" style={{ animationDelay: '55ms' }}>
             <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] px-4 py-3 text-sm text-[var(--text-1)]">
-              Advanced mode is for deeper graph, evidence, evaluation, and export review. Guided mode is still the recommended path for a new TPM.
+              Advanced mode supports reviewer-focused inspection: verify retrieved evidence, compare retrieval modes, and export a mentor snapshot. Guided mode remains the recommended path for new TPMs.
             </div>
           </div>
         )}
@@ -2363,7 +2363,7 @@ export default function App() {
                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between mb-4">
                     <div>
                       <p className="text-sm font-semibold text-[var(--text-1)]">Mode Comparison</p>
-                      <p className="text-xs text-[var(--text-2)] mt-1">This compares the current scenario across vector, graph, GraphRAG, and GraphRAG plus gating so the evaluation story is easier to explain during review.</p>
+                      <p className="text-xs text-[var(--text-2)] mt-1">Compares retrieval modes (vector, graph, GraphRAG, GraphRAG+gating) and surfaces the best mode, evidence counts, and differences to help reviewers verify claims quickly.</p>
                     </div>
                     {comparisonForSelectedScenario && (
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)] border-[rgba(39,211,182,0.35)]">

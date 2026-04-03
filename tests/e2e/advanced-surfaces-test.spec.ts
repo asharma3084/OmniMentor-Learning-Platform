@@ -1,5 +1,5 @@
 /**
- * WSC4 closeout browser verification for advanced review surfaces.
+ * Browser verification for the advanced surfaces.
  */
 import { expect, test, type Page } from '@playwright/test';
 
@@ -38,14 +38,14 @@ async function reachEvaluationWithExampleAnswer(page: Page) {
   await expect(page.getByTestId('evaluation-overall-score')).toBeVisible();
 }
 
-test.describe('WSC4 advanced review surfaces', () => {
-  test('covers overview framing, graph review, evaluation comparison, and check-in export', async ({ page }) => {
+test.describe('advanced surfaces', () => {
+  test('covers overview framing, graph inspection, evaluation comparison, and check-in export', async ({ page }) => {
     await reachEvaluationWithExampleAnswer(page);
 
     const firstScenarioLabel = await page.getByTestId('scenario-select').locator('option:checked').textContent();
 
     await page.getByTestId('advanced-mode-toggle').click();
-    await expect(page.getByText('Advanced mode is for deeper graph, evidence, evaluation, and export review.')).toBeVisible();
+    await expect(page.getByText('Advanced mode supports reviewer-focused inspection')).toBeVisible();
 
     await page.getByTestId('advanced-tab-overview').click();
     await expect(page.getByText('Problem Framing')).toBeVisible();

@@ -44,8 +44,8 @@ test.describe('New TPM guided GUI automation', () => {
     await primaryEvidenceCard.click();
 
     await page.getByTestId('build-starter-draft').click();
-    await page.getByTestId('continue-to-decision').click();
 
+    // Build My Starter Draft auto-transitions to Decide step
     await expect(page.getByTestId('submit-and-score')).toBeDisabled();
     await expect(page.getByText('Select at least one primary artifact and one corroborating artifact.')).toBeVisible();
   });

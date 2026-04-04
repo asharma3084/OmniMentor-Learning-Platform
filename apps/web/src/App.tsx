@@ -165,7 +165,7 @@ function ScoreRing({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold text-white">{pct}%</span>
+        <span className="text-2xl font-bold text-[var(--text-0)]">{pct}%</span>
         <span className="text-xs text-[var(--text-2)] mono-kicker">score</span>
       </div>
     </div>
@@ -334,6 +334,8 @@ export default function App() {
   const [surveyStatus, setSurveyStatus] = useState({ preCompleted: false, postCompleted: false });
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, number>>({});
   const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('omnimentor.theme') as 'light' | 'dark') || 'dark');
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('omnimentor.theme', theme); }, [theme]);
   const [exampleAnswer, setExampleAnswer] = useState<ExampleAnswerResponse | null>(null);
   const [showExampleModal, setShowExampleModal] = useState(false);
   const [exampleLoading, setExampleLoading] = useState(false);
@@ -742,13 +744,9 @@ export default function App() {
 
   const validationMsg = validateSubmission();
   const canSubmit = !loading && !validationMsg;
-  const hasEvidence = selectedEvidence.length > 0;
   const { hasPrimary, hasCorroborating } = getSelectedEvidenceRoleState();
-  const hasOwner = formData.ownerRouting.trim().length > 0;
-  const hasAction = formData.actionPlan.trim().length > 0;
   const hasTrace = formData.dependencyTrace.length > 0;
   const hasBlast = formData.blastRadius.length > 0;
-  const hasNotes = formData.evidenceNotes.trim().length > 0;
 
   const selectedEvidenceItems = evidenceItems.filter((ev) => selectedEvidence.includes(ev.id));
   const graphSeedServices = Array.from(new Set(
@@ -889,7 +887,7 @@ export default function App() {
             className={`rounded-xl border px-3 py-2 text-left transition-colors ${
               isActive
                 ? 'border-[rgba(39,211,182,0.55)] bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)]'
-                : 'border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] text-[var(--text-1)] hover:border-[color:var(--line-strong)] hover:bg-[rgba(16,27,42,0.68)]'
+                : 'border-[color:var(--line)] bg-[var(--chip-bg)] text-[var(--text-1)] hover:border-[color:var(--line-strong)] hover:bg-[var(--hover-bg)]'
             }`}
           >
             <span className="block text-[11px] font-semibold uppercase tracking-wide">{option.label}</span>
@@ -936,6 +934,11 @@ export default function App() {
   const bestCompareResult = comparisonForSelectedScenario?.results.find((result) => result.mode === comparisonForSelectedScenario.bestMode) ?? null;
   const bestModeDiagnostics = buildDiagnostics(bestCompareResult?.metrics, bestCompareResult?.gatingPass ?? false, bestCompareResult?.criticalErrors ?? []);
 
+  const currentScoreLabel = score ? `${Math.round(score.overallScore * 100)}%` : '--';
+  const bestModeLabel = comparisonForSelectedScenario
+    ? modeLabels.get(comparisonForSelectedScenario.bestMode) ?? comparisonForSelectedScenario.bestMode
+    : 'Pending';
+
   const fillBeginnerDraft = () => {
     const ownerGuess = keyFacts.owners[0] ?? '';
     const ownerLine = ownerGuess || suggestedTeams[0] || '[owner team]';
@@ -959,23 +962,38 @@ export default function App() {
 
     setDependencyTraceInput(beginnerDependencyTemplate);
     setBlastRadiusInput(beginnerBlastTemplate);
+
+    if (viewMode === 'guided' && guidedStep !== 'Decide') {
+      setGuidedStep('Decide');
+    }
   };
 
   return (
     <div className="min-h-screen text-[var(--text-0)] font-sans" data-testid="app-root">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-[color:var(--line)] bg-[rgba(7,11,20,0.78)] backdrop-blur-md reveal-up">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-20 border-b border-[color:var(--line)] bg-[var(--header-bg)] shadow-[0_18px_46px_rgba(2,6,23,0.12)] backdrop-blur-xl reveal-up">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1db8a2] to-[#f0b45a] flex items-center justify-center shadow-lg ring-1 ring-white/20 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1db8a2] via-[#83ebd6] to-[#f0b45a] flex items-center justify-center shadow-[0_12px_28px_rgba(0,0,0,0.32)] ring-1 ring-white/20 shrink-0">
               <span className="text-base select-none leading-none">🎓</span>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-base font-bold text-[var(--text-0)]">OmniMentor</span>
-              <span className="text-[11px] tracking-wide text-[var(--text-2)] font-medium">From Architecture Blindness to Fluency</span>
+              <span className="text-lg font-bold text-[var(--text-0)] tracking-tight">OmniMentor</span>
+              <span className="text-[11px] tracking-[0.18em] uppercase text-[var(--text-2)] font-medium">From Architecture Blindness to Fluency</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label="Toggle theme"
+              className="p-1.5 rounded-lg border border-[var(--line)] hover:bg-[var(--surface-1)] transition-colors text-[var(--text-1)]"
+            >
+              {theme === 'dark' ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="5" /><path strokeLinecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75 9.75 9.75 0 0 1 8.25 6c0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25 9.75 9.75 0 0 0 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /></svg>
+              )}
+            </button>
             <button
               onClick={() => setShowWalkthrough(true)}
               data-testid="open-walkthrough"
@@ -995,81 +1013,120 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
-        <div className="mb-5 reveal-up" style={{ animationDelay: '40ms' }}>
-          <div className="card p-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">Learning Mode</p>
-              <p className="text-sm text-[var(--text-1)] mt-1">
-                {viewMode === 'guided'
-                  ? 'Guided mode teaches one onboarding decision at a time.'
-                    : 'Advanced mode provides reviewer-focused views (System Graph, Evaluation, Check-in Export) for quick assessment.'}
-              </p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        {/* ── Compact scenario bar ── */}
+        <div className="mb-3 reveal-up" style={{ animationDelay: '20ms' }}>
+          <div className="card px-4 py-3">
+            {/* Row 1: scenario selector + mode + status chips */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <DomainBadge domain={selectedScenario.domain} />
+              <div className="relative flex-1 min-w-[180px] max-w-sm">
+                <select
+                  value={selectedScenario.id}
+                  aria-label="Active Scenario"
+                  data-testid="scenario-select"
+                  onChange={(e) => {
+                    const next = scenarios.find((s) => s.id === e.target.value) ?? null;
+                    selectScenario(next, { tab: viewMode === 'advanced' ? activeTab : 'Overview', step: 'Brief' });
+                  }}
+                  className="form-input py-1.5 pr-8 text-sm appearance-none cursor-pointer"
+                >
+                  {scenarios.map((s) => (
+                    <option key={s.id} value={s.id}>{s.domain ? `[${s.domain}] ` : ''}{s.title}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-2)]">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setViewMode('guided')}
+                  data-testid="guided-mode-toggle"
+                  className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors ${
+                    viewMode === 'guided'
+                      ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
+                      : 'border border-[color:var(--line)] text-[var(--text-2)] hover:bg-[var(--hover-bg)]'
+                  }`}
+                >
+                  Guided
+                </button>
+                <button
+                  onClick={() => setViewMode('advanced')}
+                  data-testid="advanced-mode-toggle"
+                  className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors ${
+                    viewMode === 'advanced'
+                      ? 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border border-[rgba(240,180,90,0.35)]'
+                      : 'border border-[color:var(--line)] text-[var(--text-2)] hover:bg-[var(--hover-bg)]'
+                  }`}
+                >
+                  Advanced
+                </button>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setViewMode('guided')}
-                data-testid="guided-mode-toggle"
-                className={`text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors ${
-                  viewMode === 'guided'
-                    ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
-                    : 'border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]'
-                }`}
-              >
-                Guided Mode
-              </button>
-              <button
-                onClick={() => setViewMode('advanced')}
-                data-testid="advanced-mode-toggle"
-                className={`text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors ${
-                  viewMode === 'advanced'
-                    ? 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border border-[rgba(240,180,90,0.35)]'
-                    : 'border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]'
-                }`}
-              >
-                Advanced Mode
-              </button>
+            {/* Row 2: step/tab nav + compact status */}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {viewMode === 'guided' ? (
+                <>
+                  {(['Brief', 'Investigate', 'Decide', 'Feedback'] as const).map((step, index) => (
+                    <button
+                      key={step}
+                      onClick={() => setGuidedStep(step)}
+                      data-testid={`guided-step-${step.toLowerCase()}`}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                        guidedStep === step
+                          ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
+                          : 'text-[var(--text-2)] border border-transparent hover:bg-[var(--hover-bg)]'
+                      }`}
+                    >
+                      {index + 1}. {step}
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {(['Overview', 'Scenario Workspace', 'System Graph', 'Evidence', 'Evaluation', 'Check-in Export'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      data-testid={`advanced-tab-${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                        activeTab === tab
+                          ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
+                          : 'text-[var(--text-2)] border border-transparent hover:bg-[var(--hover-bg)]'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </>
+              )}
+              <div className="ml-auto flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-2)]">
+                <span><span className="text-[var(--text-1)] font-semibold">{completedScenarios.size}/{scenarios.length}</span> done</span>
+                <span className="opacity-30">|</span>
+                <span><span className="text-[var(--text-1)] font-semibold">{selectedEvidence.length}</span> evidence</span>
+                <span className="opacity-30">|</span>
+                <span className={score ? getPerformanceTone(score.overallScore) : ''}>{currentScoreLabel}</span>
+                <span className="opacity-30">|</span>
+                <span>{bestModeLabel}</span>
+              </div>
             </div>
           </div>
         </div>
 
         {viewMode === 'advanced' && (
-          <div className="mb-5 reveal-up" style={{ animationDelay: '55ms' }}>
-            <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] px-4 py-3 text-sm text-[var(--text-1)]">
+          <div className="mb-3 reveal-up" style={{ animationDelay: '30ms' }}>
+            <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[var(--chip-bg)] px-4 py-2.5 text-xs text-[var(--text-1)]">
               Advanced mode supports reviewer-focused inspection: verify retrieved evidence, compare retrieval modes, and export a mentor snapshot. Guided mode remains the recommended path for new TPMs.
             </div>
           </div>
         )}
 
-        {/* Scenario selector */}
-        <div className="mb-5 reveal-up" style={{ animationDelay: '80ms' }}>
-          <label className="label">Active Scenario</label>
-          <div className="relative max-w-xl">
-            <select
-              value={selectedScenario.id}
-              aria-label="Active Scenario"
-              data-testid="scenario-select"
-              onChange={(e) => {
-                const next = scenarios.find((s) => s.id === e.target.value) ?? null;
-                selectScenario(next, { tab: viewMode === 'advanced' ? activeTab : 'Overview', step: 'Brief' });
-              }}
-              className="form-input pr-10 appearance-none cursor-pointer"
-            >
-              {scenarios.map((s) => (
-                <option key={s.id} value={s.id}>{s.domain ? `[${s.domain}] ` : ''}{s.title}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-2)]">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
         {/* Submit error */}
         {submitError && (
-          <div className="flex items-start gap-2.5 bg-red-950/40 border border-red-800/50 text-red-300 rounded-xl px-4 py-3 mb-6 text-sm max-w-xl reveal-up">
+          <div className="flex items-start gap-2.5 bg-red-950/40 border border-red-800/50 text-red-300 rounded-xl px-4 py-3 mb-4 text-sm max-w-xl reveal-up">
             <svg className="w-4 h-4 mt-0.5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zm0-10.5a9 9 0 100 18 9 9 0 000-18z" />
             </svg>
@@ -1077,330 +1134,191 @@ export default function App() {
           </div>
         )}
 
-        <div className="mb-6 reveal-up" style={{ animationDelay: '160ms' }}>
-          {viewMode === 'guided' ? (
-            <div className="card p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-2)]">Guided Practice Flow</p>
-                  <p className="text-sm text-[var(--text-1)] mt-1">Move through the scenario in order: understand it, inspect evidence, make the call, then learn from feedback.</p>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {(['Brief', 'Investigate', 'Decide', 'Feedback'] as const).map((step, index) => (
-                    <button
-                      key={step}
-                      onClick={() => setGuidedStep(step)}
-                      data-testid={`guided-step-${step.toLowerCase()}`}
-                      className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                        guidedStep === step
-                          ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
-                          : 'text-[var(--text-1)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.74)]'
-                      }`}
-                    >
-                      {index + 1}. {step}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="card p-2">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                {(['Overview', 'Scenario Workspace', 'System Graph', 'Evidence', 'Evaluation', 'Check-in Export'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    data-testid={`advanced-tab-${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                      activeTab === tab
-                        ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
-                        : 'text-[var(--text-1)] border border-transparent hover:bg-[rgba(18,30,47,0.74)]'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
         {showOverview && (
-          <div className="space-y-6 reveal-up">
+          <div className="space-y-3 reveal-up">
             {viewMode === 'guided' && (
               <>
-                <div className="card p-6 border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.06)]">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">Mission Brief</p>
-                  <div className="mt-3 max-w-4xl">
-                    <h2 className="text-2xl font-bold text-[var(--text-0)]">{selectedScenario.title}</h2>
-                    <p className="text-base text-[var(--text-1)] mt-3 leading-relaxed">{selectedScenario.prompt}</p>
-                  </div>
-                  <div className="mt-5 grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <div className="rounded-2xl border border-[rgba(240,180,90,0.32)] bg-[rgba(240,180,90,0.08)] p-5">
-                      <p className="text-[11px] uppercase tracking-wider text-[#ffd9a0]">Why this scenario matters</p>
-                      <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.problem}</p>
-                      <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.motivation}</p>
+                {/* Compact mission brief */}
+                <div className="card p-4 border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.06)]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 max-w-3xl">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent-2)]">Mission Brief</p>
+                      <h2 className="text-xl font-bold text-[var(--text-0)] mt-1">{selectedScenario.title}</h2>
+                      <p className="text-sm text-[var(--text-1)] mt-2 leading-relaxed">{selectedScenario.prompt}</p>
                     </div>
-                    <div className="rounded-2xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-5">
-                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">What exists now and what is still missing</p>
-                      <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.partialSolutions}</p>
-                      <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.proofTarget}</p>
-                    </div>
-                  </div>
-                  {scenarioNarrative.clueTitles.length > 0 && (
-                    <div className="mt-4 rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
-                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Available clues in this scenario</p>
-                      <div className="flex flex-wrap gap-2">
-                        {scenarioNarrative.clueTitles.map((title) => (
-                          <span key={title} className="rounded-full border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] px-2.5 py-1 text-[10px] text-[var(--text-1)]">
-                            {title}
-                          </span>
-                        ))}
+                    <div className="shrink-0 text-right">
+                      <p className="text-2xl font-bold text-[var(--text-0)]">{completedScenarios.size}/{scenarios.length}</p>
+                      <p className="text-[10px] text-[var(--text-2)]">complete</p>
+                      <div className="mt-1 w-20 bg-[var(--track-bg)] rounded-full h-1.5 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
                       </div>
                     </div>
-                  )}
-                  <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
-                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Step 1 Goal</p>
-                      <p className="text-sm text-[var(--text-0)] mt-2">Find the likely owner and the source of truth.</p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-[rgba(240,180,90,0.28)] bg-[rgba(240,180,90,0.06)] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--warn-text)]">Why this scenario matters</p>
+                      <p className="text-xs text-[var(--text-0)] mt-1.5 leading-relaxed">{scenarioNarrative.problem}</p>
+                      <p className="text-xs text-[var(--text-1)] mt-1.5 leading-relaxed">{scenarioNarrative.motivation}</p>
                     </div>
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
-                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Step 2 Goal</p>
-                      <p className="text-sm text-[var(--text-0)] mt-2">Trace one 1-3 hop path of affected systems.</p>
-                    </div>
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
-                      <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Step 3 Goal</p>
-                      <p className="text-sm text-[var(--text-0)] mt-2">Write one safe next-step plan with a clear blast radius.</p>
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">What a strong answer proves</p>
+                      <p className="text-xs text-[var(--text-0)] mt-1.5 leading-relaxed">{scenarioNarrative.proofTarget}</p>
+                      {scenarioNarrative.clueTitles.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {scenarioNarrative.clueTitles.map((title) => (
+                            <span key={title} className="rounded-full border border-[color:var(--line)] bg-[var(--tag-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
+                              {title}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => setGuidedStep('Investigate')}
                       data-testid="start-with-evidence"
-                      className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
                     >
                       Start With Evidence
                     </button>
                     <button
                       onClick={() => setShowWalkthrough(true)}
                       data-testid="replay-walkthrough"
-                      className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                      className="px-3 py-2 rounded-lg text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
                     >
                       Replay Walkthrough
                     </button>
+                    <span className="ml-auto text-[10px] text-[var(--text-2)]">
+                      {['Name the right owner', 'Show one system path', 'State what could break', 'Support with evidence'].join(' · ')}
+                    </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1.3fr,0.7fr] gap-4">
-                  <div className="card p-5">
-                    <p className="label mb-3">Scenario Queue</p>
-                    <div className="space-y-2">
-                      {scenarios.map((s) => {
-                        const result = completedScenarios.get(s.id);
-                        const isActive = selectedScenario?.id === s.id;
-                        return (
-                          <div
-                            key={s.id}
-                            onClick={() => {
-                              selectScenario(s, {
-                                reuseScore: result ?? null,
-                                tab: 'Overview',
-                                step: 'Brief',
-                              });
-                            }}
-                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-150 ${
-                              isActive
-                                ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.06)]'
-                                : 'border-[color:var(--line)] hover:bg-[rgba(16,27,42,0.68)] hover:border-[color:var(--line-strong)]'
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-[var(--text-0)] truncate">{s.title}</p>
-                              <div className="mt-1 flex items-center gap-2">
-                                {s.domain && <DomainBadge domain={s.domain} size="xs" />}
-                                <span className="text-[10px] text-[var(--text-2)]">{result ? `${Math.round(result.overallScore * 100)}% complete` : 'Not started'}</span>
-                              </div>
-                            </div>
-                            <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[color:var(--line)] text-[var(--text-1)]">
-                              Open
-                            </button>
+                {/* Compact scenario queue */}
+                <div className="card p-4">
+                  <p className="label mb-2">Scenario Queue</p>
+                  <div className="space-y-1.5">
+                    {scenarios.map((s) => {
+                      const result = completedScenarios.get(s.id);
+                      const isActive = selectedScenario?.id === s.id;
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => {
+                            selectScenario(s, { reuseScore: result ?? null, tab: 'Overview', step: 'Brief' });
+                          }}
+                          className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all duration-150 ${
+                            isActive
+                              ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.06)]'
+                              : 'border-[color:var(--line)] hover:bg-[var(--hover-bg)]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {s.domain && <DomainBadge domain={s.domain} size="xs" />}
+                            <p className="text-xs font-medium text-[var(--text-0)] truncate">{s.title}</p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="card p-5">
-                      <p className="label">Progress Snapshot</p>
-                      <p className="text-2xl font-bold mt-2">{completedScenarios.size} / {scenarios.length}</p>
-                      <p className="text-xs text-[var(--text-2)] mt-1">scenarios complete</p>
-                      <div className="mt-3 w-full bg-[rgba(10,18,30,0.8)] rounded-full h-2.5 overflow-hidden">
-                        <div className="h-2.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
-                      </div>
-                    </div>
-                    <div className="card p-5">
-                      <p className="label">What Success Looks Like</p>
-                      <ul className="mt-3 space-y-2 text-sm text-[var(--text-1)]">
-                        <li>Name the right owner.</li>
-                        <li>Show one clear upstream/downstream path.</li>
-                        <li>State what could break and what to verify.</li>
-                        <li>Support your answer with main and supporting evidence.</li>
-                      </ul>
-                    </div>
-                    <div className="card p-5">
-                      <p className="label">Presentation Hook</p>
-                      <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">
-                        This scenario is useful in a milestone demo because it shows how OmniMentor turns partial operational artifacts into one defendable TPM decision instead of a flat documentation lookup.
-                      </p>
-                    </div>
+                          <span className="text-[10px] text-[var(--text-2)] shrink-0 ml-2">{result ? `${Math.round(result.overallScore * 100)}%` : 'Not started'}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </>
             )}
-            {viewMode === 'advanced' && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="card p-5">
-                <p className="label">Progress Snapshot</p>
-                <p className="text-2xl font-bold">{completedScenarios.size} <span className="text-base font-normal text-[var(--text-2)]">/</span> <span className="text-base font-normal text-[var(--text-2)]">{scenarios.length}</span></p>
-                <p className="text-xs text-[var(--text-2)] mt-1">scenarios complete</p>
-                <div className="mt-3 w-full bg-[rgba(10,18,30,0.8)] rounded-full h-2.5 overflow-hidden">
-                  <div className="h-2.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
+            {viewMode === 'advanced' && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="card p-4">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Progress</p>
+                <p className="text-xl font-bold mt-1">{completedScenarios.size}/{scenarios.length}</p>
+                <div className="mt-2 w-full bg-[var(--track-bg)] rounded-full h-1.5 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
                 </div>
-                <div className="mt-3">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => {
-                        const nextSurvey = !surveyStatus.preCompleted ? 'pre' : (!surveyStatus.postCompleted ? 'post' : null);
-                        if (nextSurvey) setShowSurvey(nextSurvey);
-                      }}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] transition-colors"
-                      disabled={surveyStatus.preCompleted && surveyStatus.postCompleted}
-                    >
-                      Measure my progress
-                    </button>
-                    <button
-                      onClick={() => setShowWalkthrough(true)}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)] transition-colors"
-                    >
-                      Show walkthrough
-                    </button>
-                  </div>
-                  {surveyStatus.preCompleted && surveyStatus.postCompleted && (
-                    <p className="text-[10px] text-[var(--text-2)] mt-1">Progress survey completed</p>
-                  )}
-                </div>
-                <div className="flex gap-1.5 mt-3 flex-wrap">
+                <div className="flex gap-1 mt-2 flex-wrap">
                   {scenarios.map((s) => (
-                    <div key={s.id} className={`w-2.5 h-2.5 rounded-sm transition-colors ${
-                      completedScenarios.has(s.id)
-                        ? 'bg-[var(--ok)]'
-                        : selectedScenario?.id === s.id
-                          ? 'bg-[var(--accent)] opacity-50'
-                          : 'bg-[rgba(124,152,182,0.25)]'
+                    <div key={s.id} className={`w-2 h-2 rounded-sm transition-colors ${
+                      completedScenarios.has(s.id) ? 'bg-[var(--ok)]' : selectedScenario?.id === s.id ? 'bg-[var(--accent)] opacity-50' : 'bg-[rgba(124,152,182,0.25)]'
                     }`} title={s.title} />
                   ))}
                 </div>
               </div>
-              <div className="card p-5">
-                <p className="label">Decision Quality</p>
+              <div className="card p-4">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Quality</p>
                 {completedScenarios.size > 0 ? (() => {
                   const scores = Array.from(completedScenarios.values()).map((s) => s.overallScore);
                   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
                   const pct = Math.round(avg * 100);
-                  return (
-                    <>
-                      <p className={`text-2xl font-bold ${pct >= 80 ? 'text-[var(--ok)]' : pct >= 60 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'}`}>{pct}%</p>
-                      <p className="text-xs text-[var(--text-2)] mt-1">avg across {scores.length} scored</p>
-                    </>
-                  );
-                })() : (
-                  <>
-                    <p className="text-2xl font-bold text-[var(--text-2)]">--</p>
-                    <p className="text-xs text-[var(--text-2)] mt-1">Submit to see quality score</p>
-                  </>
-                )}
+                  return <p className={`text-xl font-bold mt-1 ${pct >= 80 ? 'text-[var(--ok)]' : pct >= 60 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'}`}>{pct}%</p>;
+                })() : <p className="text-xl font-bold mt-1 text-[var(--text-2)]">--</p>}
               </div>
-              <div className="card p-5">
-                <p className="label">Readiness</p>
-                <p className="text-2xl font-bold">{selectedEvidence.length}</p>
-                <p className="text-xs text-[var(--text-2)] mt-1">evidence selected</p>
-                <div className="mt-3 flex gap-2">
-                  <button onClick={() => setActiveTab('Scenario Workspace')} className="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6] transition-colors shadow-sm">Resume Practice</button>
-                  <button onClick={() => setActiveTab('Evaluation')} className="text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-[rgba(240,180,90,0.45)] bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.22)] transition-colors">Review Feedback</button>
+              <div className="card p-4">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Evidence</p>
+                <p className="text-xl font-bold mt-1">{selectedEvidence.length}</p>
+                <div className="mt-2 flex gap-1.5">
+                  <button onClick={() => setActiveTab('Scenario Workspace')} className="text-[10px] font-semibold px-2 py-1 rounded-md bg-[var(--accent)] text-slate-950">Practice</button>
+                  <button onClick={() => setActiveTab('Evaluation')} className="text-[10px] font-semibold px-2 py-1 rounded-md border border-[rgba(240,180,90,0.45)] text-[var(--warn-text)]">Feedback</button>
+                </div>
+              </div>
+              <div className="card p-4">
+                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Actions</p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  <button
+                    onClick={() => { const next = !surveyStatus.preCompleted ? 'pre' as const : (!surveyStatus.postCompleted ? 'post' as const : null); if (next) setShowSurvey(next); }}
+                    className="text-[10px] font-semibold px-2 py-1 rounded-md border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] disabled:text-[var(--text-2)]"
+                    disabled={surveyStatus.preCompleted && surveyStatus.postCompleted}
+                  >
+                    Self-assess
+                  </button>
+                  <button onClick={() => setShowWalkthrough(true)} className="text-[10px] font-semibold px-2 py-1 rounded-md border border-[color:var(--line)] text-[var(--text-1)]">Walkthrough</button>
                 </div>
               </div>
             </div>}
 
-            {viewMode === 'advanced' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="card p-5 border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)]">
+            {viewMode === 'advanced' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              <div className="card p-4 border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)]">
                 <p className="label">Problem Framing</p>
-                <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.problem}</p>
-                <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.motivation}</p>
+                <p className="text-xs text-[var(--text-0)] mt-2 leading-relaxed">{scenarioNarrative.problem}</p>
+                <p className="text-xs text-[var(--text-1)] mt-2 leading-relaxed">{scenarioNarrative.motivation}</p>
               </div>
-              <div className="card p-5">
+              <div className="card p-4">
                 <p className="label">Review Framing</p>
-                <p className="text-sm text-[var(--text-1)] mt-3 leading-relaxed">{scenarioNarrative.partialSolutions}</p>
-                <p className="text-sm text-[var(--text-0)] mt-3 leading-relaxed">{scenarioNarrative.proofTarget}</p>
+                <p className="text-xs text-[var(--text-1)] mt-2 leading-relaxed">{scenarioNarrative.partialSolutions}</p>
+                <p className="text-xs text-[var(--text-0)] mt-2 leading-relaxed">{scenarioNarrative.proofTarget}</p>
                 {scenarioNarrative.clueTitles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
+                  <div className="flex flex-wrap gap-1.5 mt-2">
                     {scenarioNarrative.clueTitles.map((title) => (
-                      <span key={`advanced-${title}`} className="rounded-full border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
-                        {title}
-                      </span>
+                      <span key={`advanced-${title}`} className="rounded-full border border-[color:var(--line)] bg-[var(--tag-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">{title}</span>
                     ))}
                   </div>
                 )}
               </div>
             </div>}
 
-            {viewMode === 'advanced' && <div className="card p-5">
-              <p className="label mb-3">All Scenarios</p>
-              <div className="space-y-2">
+            {viewMode === 'advanced' && <div className="card p-4">
+              <p className="label mb-2">All Scenarios</p>
+              <div className="space-y-1.5">
                 {scenarios.map((s) => {
                   const result = completedScenarios.get(s.id);
                   const isActive = selectedScenario?.id === s.id;
                   return (
                     <div
                       key={s.id}
-                      onClick={() => {
-                        selectScenario(s, {
-                          reuseScore: result ?? null,
-                          tab: 'Scenario Workspace',
-                          step: 'Decide',
-                        });
-                      }}
-                      className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-150 ${
+                      onClick={() => { selectScenario(s, { reuseScore: result ?? null, tab: 'Scenario Workspace', step: 'Decide' }); }}
+                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all duration-150 ${
                         isActive
                           ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.06)]'
-                          : 'border-[color:var(--line)] hover:bg-[rgba(16,27,42,0.68)] hover:border-[color:var(--line-strong)]'
+                          : 'border-[color:var(--line)] hover:bg-[var(--hover-bg)]'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-3 h-3 rounded-full shrink-0 flex items-center justify-center ${
-                          result
-                            ? 'bg-[var(--ok)]'
-                            : isActive
-                              ? 'bg-transparent border-2 border-[var(--accent)]'
-                              : 'bg-transparent border-2 border-[rgba(124,152,182,0.35)]'
-                        }`}>
-                          {result && (
-                            <svg className="w-2 h-2 text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                            </svg>
-                          )}
-                        </div>
-                        <span className={`text-sm truncate ${result ? 'text-[var(--text-0)]' : 'text-[var(--text-1)]'}`}>{s.title}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${result ? 'bg-[var(--ok)]' : isActive ? 'border border-[var(--accent)]' : 'border border-[rgba(124,152,182,0.35)]'}`} />
+                        <span className="text-xs truncate text-[var(--text-1)]">{s.title}</span>
                         {s.domain && <DomainBadge domain={s.domain} size="xs" />}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {result ? (
-                          <span className={`text-xs font-bold mono-kicker ${
-                            Math.round(result.overallScore * 100) >= 80 ? 'text-[var(--ok)]' : Math.round(result.overallScore * 100) >= 60 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'
-                          }`}>{Math.round(result.overallScore * 100)}%</span>
-                        ) : (
-                          <span className="text-[10px] text-[var(--text-2)] mono-kicker">not started</span>
-                        )}
-                      </div>
+                      {result ? (
+                        <span className={`text-[10px] font-bold mono-kicker ${Math.round(result.overallScore * 100) >= 80 ? 'text-[var(--ok)]' : 'text-[var(--warn)]'}`}>{Math.round(result.overallScore * 100)}%</span>
+                      ) : (
+                        <span className="text-[10px] text-[var(--text-2)]">—</span>
+                      )}
                     </div>
                   );
                 })}
@@ -1410,100 +1328,49 @@ export default function App() {
         )}
 
         {showScenarioWorkspace && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {/* Left: Scenario + Evidence */}
-          <div className="space-y-5 reveal-up" style={{ animationDelay: '180ms' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(340px,420px)] gap-4 items-start">
+          {/* Left: Evidence + inline guidance */}
+          <div className="space-y-3 reveal-up" style={{ animationDelay: '60ms' }}>
+            {/* Compact guidance strip */}
             {viewMode === 'guided' && (
-              <div className="card p-4 border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">Current Step</p>
-                <h2 className="text-lg font-bold text-[var(--text-0)] mt-2">
-                  {guidedStep === 'Investigate' ? 'Investigate the situation first.' : 'Make your call and justify it.'}
-                </h2>
-                <p className="text-sm text-[var(--text-1)] mt-2 leading-relaxed">
-                  {guidedStep === 'Investigate'
-                    ? 'Open evidence, identify the likely owner, and note the systems and risks that keep appearing. Do not rush to fill every field yet.'
-                    : 'Use the evidence you selected to write one clear owner, one critical path, one safe plan, and one explicit blast radius.'}
-                </p>
+              <div className="rounded-xl border-l-[3px] border-l-[var(--accent)] border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.06)] px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-[var(--text-0)]">
+                      {guidedStep === 'Investigate' ? 'Investigate the situation first.' : 'Make your call and justify it.'}
+                    </h2>
+                    <p className="text-xs text-[var(--text-1)] mt-1 leading-relaxed">
+                      {guidedStep === 'Investigate'
+                        ? 'Open evidence, identify the likely owner, and note the systems and risks that keep appearing. Do not rush to fill every field yet.'
+                        : 'Use the evidence you selected to write one clear owner, one critical path, one safe plan, and one explicit blast radius.'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0 text-[10px] text-[var(--text-2)]">
+                    <span className={hasPrimary ? 'text-[var(--ok)]' : ''}>Primary</span>
+                    <span className={hasCorroborating ? 'text-[var(--ok)]' : ''}>Corroborating</span>
+                    <span className={hasTrace ? 'text-[var(--ok)]' : ''}>Trace</span>
+                    <span className={hasBlast ? 'text-[var(--ok)]' : ''}>Blast</span>
+                  </div>
+                </div>
                 {guidedStep === 'Investigate' && (
-                  <div className="mt-4 flex flex-wrap gap-3">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       onClick={() => {
                         setViewMode('advanced');
                         setActiveTab('System Graph');
                       }}
-                      className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                      className="px-2.5 py-1 rounded-md text-[11px] font-semibold border border-[color:var(--line)] text-[var(--text-2)] hover:bg-[var(--hover-bg)]"
                     >
-                      Open Advanced Graph If Needed
+                      Open Graph View
                     </button>
                   </div>
                 )}
               </div>
             )}
-            {/* Guided flow */}
-            <div className="card p-4 border-[rgba(39,211,182,0.35)]">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-2)]">Guided Flow</p>
-              <p className="mt-2 text-xs text-[var(--text-1)] leading-relaxed">
-                New TPM shortcut: pick evidence, answer who owns it, list 2-5 connected systems, then write what could break and what safe step comes first.
-              </p>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div className="rounded-lg border border-[color:var(--line)] p-3 bg-[rgba(12,20,32,0.44)]">
-                  <p className="text-[11px] text-[var(--text-2)]">Step 1</p>
-                  <p className="text-xs font-semibold text-[var(--text-0)]">Pick evidence</p>
-                  <p className={`text-[10px] mt-1 ${hasEvidence ? 'text-[var(--ok)]' : 'text-[var(--text-2)]'}`}>
-                    {hasEvidence ? 'Ready' : 'Select 1+ artifact'}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[color:var(--line)] p-3 bg-[rgba(12,20,32,0.44)]">
-                  <p className="text-[11px] text-[var(--text-2)]">Step 2</p>
-                  <p className="text-xs font-semibold text-[var(--text-0)]">Draft response</p>
-                  <p className={`text-[10px] mt-1 ${hasOwner && hasAction ? 'text-[var(--ok)]' : 'text-[var(--text-2)]'}`}>
-                    {hasOwner && hasAction ? 'Owner + plan done' : 'Add owner + action plan'}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[color:var(--line)] p-3 bg-[rgba(12,20,32,0.44)]">
-                  <p className="text-[11px] text-[var(--text-2)]">Step 3</p>
-                  <p className="text-xs font-semibold text-[var(--text-0)]">Submit & score</p>
-                  <p className={`text-[10px] mt-1 ${canSubmit ? 'text-[var(--ok)]' : 'text-[var(--text-2)]'}`}>
-                    {canSubmit ? 'Ready to submit' : 'Complete required fields'}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-[var(--text-2)]">
-                <span className={hasPrimary ? 'text-[var(--ok)]' : ''}>Primary evidence</span>
-                <span className={hasCorroborating ? 'text-[var(--ok)]' : ''}>Corroborating evidence</span>
-                <span className={hasTrace ? 'text-[var(--ok)]' : ''}>Dependency trace</span>
-                <span className={hasBlast ? 'text-[var(--ok)]' : ''}>Blast radius</span>
-                <span className={hasNotes ? 'text-[var(--ok)]' : ''}>Evidence notes</span>
-              </div>
-              <div className="mt-3 rounded-lg border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3">
-                <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Answer These Questions</p>
-                <div className="mt-2 grid gap-2 text-xs text-[var(--text-1)] md:grid-cols-2">
-                  <p>Who is on the hook if this breaks?</p>
-                  <p>What system is changing first?</p>
-                  <p>What other systems depend on it?</p>
-                  <p>What customer or operational risk shows up if the change goes wrong?</p>
-                </div>
-              </div>
-            </div>
-            {/* Scenario card */}
-            <div className="card p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-[rgba(39,211,182,0.14)] border border-[rgba(39,211,182,0.34)] flex items-center justify-center shrink-0">
-                  <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-white">{selectedScenario.title}</h2>
-                  {selectedScenario.domain && <DomainBadge domain={selectedScenario.domain} size="sm" />}
-                </div>
-              </div>
-              <p className="text-sm text-[var(--text-1)] leading-relaxed">{selectedScenario.prompt}</p>
-            </div>
 
-            {/* Evidence card */}
-            <div className="card p-6">
-              <div className="flex items-center justify-between mb-4">
+            {/* Evidence card — primary workspace surface */}
+            <div className="card card-primary p-4">
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2">
                   <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -1511,30 +1378,30 @@ export default function App() {
                   Evidence Artifacts
                 </h3>
                 {selectedEvidence.length > 0 && (
-                  <span className="text-xs font-semibold bg-[rgba(39,211,182,0.16)] border border-[rgba(39,211,182,0.36)] text-[var(--accent-2)] px-2 py-0.5 rounded-full mono-kicker">
+                  <span className="text-[10px] font-semibold bg-[rgba(39,211,182,0.16)] border border-[rgba(39,211,182,0.36)] text-[var(--accent-2)] px-2 py-0.5 rounded-full mono-kicker">
                     {selectedEvidence.length} selected
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[var(--text-2)] mb-3">Pick at least one primary artifact and one corroborating artifact before you submit.</p>
-              <div className="space-y-2">
+              <p className="text-[11px] text-[var(--text-2)] mb-2">Pick at least one primary artifact and one corroborating artifact before you submit.</p>
+              <div className="space-y-1.5">
                 {evidenceItems.map((ev) => {
                   const checked = selectedEvidence.includes(ev.id);
                   return (
                     <label
                       key={ev.id}
                       data-testid={`evidence-card-${ev.id}`}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all duration-150 ${
+                      className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all duration-150 ${
                         checked
                           ? 'bg-[rgba(39,211,182,0.12)] border-[rgba(39,211,182,0.5)]'
-                          : 'bg-[rgba(12,20,32,0.44)] border-[color:var(--line)] hover:bg-[rgba(16,27,42,0.68)] hover:border-[color:var(--line-strong)]'
+                          : 'bg-[var(--chip-bg)] border-[color:var(--line)] hover:bg-[var(--hover-bg)] hover:border-[color:var(--line-strong)]'
                       }`}
                     >
                       <div
                         className={`mt-0.5 rounded flex items-center justify-center shrink-0 border transition-colors ${
-                          checked ? 'bg-[#1db8a2] border-[#1db8a2]' : 'border-[color:var(--line)] bg-[rgba(10,18,30,0.92)]'
+                          checked ? 'bg-[#1db8a2] border-[#1db8a2]' : 'border-[color:var(--line)] bg-[var(--input-bg)]'
                         }`}
-                        style={{ width: '1.125rem', height: '1.125rem' }}
+                        style={{ width: '1rem', height: '1rem' }}
                       >
                         {checked && (
                           <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -1560,21 +1427,21 @@ export default function App() {
                         className="sr-only"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-[var(--text-0)]">{ev.title}</p>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-medium text-[var(--text-0)] truncate">{ev.title}</p>
+                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${
                             ev.role === 'primary'
-                              ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
-                              : 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
+                              ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
+                              : 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
                           }`}>
                             {ev.role}
                           </span>
                         </div>
-                        <p className="text-xs text-[var(--text-2)] mt-0.5 line-clamp-2">
-                          {ev.body.substring(0, 150)}…
+                        <p className="text-[11px] text-[var(--text-2)] mt-0.5 line-clamp-1">
+                          {ev.body.substring(0, 80)}…
                         </p>
                         {viewMode === 'advanced' && ev.metadata?.retrievalScore !== undefined && (
-                          <p className="text-[10px] text-[var(--text-2)] mt-1 font-mono">
+                          <p className="text-[10px] text-[var(--text-2)] mt-0.5 font-mono">
                             relevance: {(ev.metadata.retrievalScore * 100).toFixed(0)}%
                             {ev.metadata.source && <> · {ev.metadata.source}</>}
                           </p>
@@ -1584,12 +1451,11 @@ export default function App() {
                   );
                 })}
                 {evidenceItems.length === 0 && (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-[var(--text-2)]">No evidence retrieved for this scenario yet.</p>
-                    <p className="text-xs text-[var(--text-2)] mt-1">Try another scenario or check back after evidence is refreshed.</p>
+                  <div className="text-center py-4">
+                    <p className="text-xs text-[var(--text-2)]">No evidence retrieved for this scenario yet.</p>
                     <button
                       onClick={() => fetchEvidence(selectedScenario.id, retrievalMode)}
-                      className="mt-3 text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.3)] transition-colors"
+                      className="mt-2 text-[11px] px-3 py-1 rounded-md bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.3)] transition-colors"
                     >
                       Refresh evidence
                     </button>
@@ -1598,159 +1464,113 @@ export default function App() {
               </div>
             </div>
 
-            {/* Key facts */}
-            <div className="card p-6">
-              <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 mb-3">
-                <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Key Facts (from selected evidence)
-              </h3>
-              {selectedEvidenceItems.length === 0 ? (
-                <p className="text-xs text-[var(--text-2)]">Select evidence above to see key facts.</p>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Owner / Escalation</p>
-                    {keyFacts.owners.length > 0 ? (
-                      <ul className="text-xs text-[var(--text-1)] space-y-1">
-                        {keyFacts.owners.map((item) => (
-                          <li key={item}>• {item}</li>
+            {/* Collapsible: Key Facts + Hints */}
+            {selectedEvidenceItems.length > 0 && (
+              <details className="group">
+                <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-[var(--text-2)] hover:text-[var(--text-1)] py-1 flex items-center gap-1.5">
+                  <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                  Extracted hints from {selectedEvidenceItems.length} evidence
+                </summary>
+                <div className="mt-1.5 rounded-lg bg-[var(--chip-bg)] border border-[color:var(--line)] p-3 space-y-2 text-xs text-[var(--text-1)]">
+                  {keyFacts.owners.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-0.5">Owner / Escalation</p>
+                      {keyFacts.owners.map((item) => <p key={item}>• {item}</p>)}
+                    </div>
+                  )}
+                  {keyFacts.dependencies.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-0.5">Dependencies</p>
+                      {keyFacts.dependencies.map((item) => <p key={item}>• {item}</p>)}
+                    </div>
+                  )}
+                  {keyFacts.impacts.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-0.5">Impacts / Risks</p>
+                      {keyFacts.impacts.map((item) => <p key={item}>• {item}</p>)}
+                    </div>
+                  )}
+                  {suggestedSystems.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-0.5">Systems</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestedSystems.slice(0, 6).map((item) => (
+                          <span key={item} className="rounded-full border border-[color:var(--line)] bg-[var(--tag-bg)] px-2 py-0.5 text-[10px]">{item}</span>
                         ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-[var(--text-2)]">No owner hints found yet.</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Dependencies</p>
-                    {keyFacts.dependencies.length > 0 ? (
-                      <ul className="text-xs text-[var(--text-1)] space-y-1">
-                        {keyFacts.dependencies.map((item) => (
-                          <li key={item}>• {item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-[var(--text-2)]">No dependency hints found yet.</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Impacts / Risks</p>
-                    {keyFacts.impacts.length > 0 ? (
-                      <ul className="text-xs text-[var(--text-1)] space-y-1">
-                        {keyFacts.impacts.map((item) => (
-                          <li key={item}>• {item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-[var(--text-2)]">No impact hints found yet.</p>
-                    )}
-                  </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <div className="card p-6">
-              <h3 className="text-sm font-semibold text-[var(--text-1)] mb-3">Beginner Hints</h3>
-              <div className="space-y-3 text-xs text-[var(--text-1)]">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Likely Owner</p>
-                  <p>{keyFacts.owners[0] ?? suggestedTeams[0] ?? 'Look for "owned by" or the on-call / escalation line in the evidence.'}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Systems To Reuse In Your Answer</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(suggestedSystems.length > 0 ? suggestedSystems.slice(0, 6) : ['Select evidence to surface system names']).map((item) => (
-                      <span key={item} className="rounded-full border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] px-2.5 py-1 text-[11px]">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Starter Dependency Format</p>
-                  <pre className="whitespace-pre-wrap rounded-lg border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3 font-mono text-[11px] text-[var(--text-1)]">{beginnerDependencyTemplate}</pre>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-1">Suggested Next Move</p>
-                  <p>{hasEvidence ? 'You have enough evidence selected to start writing your answer.' : 'Select one main artifact and one supporting artifact before writing your answer.'}</p>
-                </div>
-              </div>
-            </div>
+              </details>
+            )}
           </div>
 
-          {/* Right: Form + Score */}
-          <div className="space-y-5 reveal-up" style={{ animationDelay: '230ms' }}>
+          {/* Right: Form + Score — sticky */}
+          <div className="space-y-3 reveal-up lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" style={{ animationDelay: '80ms' }}>
             {viewMode === 'guided' && guidedStep === 'Investigate' ? (
-              <div className="card p-6">
-                <h3 className="text-sm font-semibold text-[var(--text-1)] mb-4">What to extract before answering</h3>
-                <div className="space-y-4 text-sm text-[var(--text-1)]">
-                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">1. Likely Owner</p>
+              <div className="card card-primary p-4">
+                <h3 className="text-sm font-semibold text-[var(--text-1)] mb-3">What to extract before answering</h3>
+                <div className="space-y-2.5 text-xs text-[var(--text-1)]">
+                  <div className="rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-1">1. Likely Owner</p>
                     <p>{keyFacts.owners[0] ?? suggestedTeams[0] ?? 'Find the team or escalation path in the ownership or runbook artifact.'}</p>
                   </div>
-                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">2. Connected Systems</p>
+                  <div className="rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-1">2. Connected Systems</p>
                     <p>{suggestedSystems.length > 0 ? suggestedSystems.slice(0, 4).join(', ') : 'Look for service names repeated across the selected artifacts.'}</p>
                   </div>
-                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">3. Risk To Watch</p>
+                  <div className="rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-1">3. Risk To Watch</p>
                     <p>{keyFacts.impacts[0] ?? 'Look for impact, failure mode, rollback trigger, or stale-result wording in the evidence.'}</p>
                   </div>
                 </div>
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={fillBeginnerDraft}
                     disabled={selectedEvidenceItems.length === 0}
                     data-testid="build-starter-draft"
-                    className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6] disabled:bg-[rgba(18,29,45,0.85)] disabled:text-[var(--text-2)]"
+                    className="px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6] disabled:bg-[var(--disabled-bg)] disabled:text-[var(--text-2)]"
                   >
                     Build My Starter Draft
                   </button>
                   <button
                     onClick={() => setGuidedStep('Decide')}
                     data-testid="continue-to-decision"
-                    className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
                   >
                     Continue To Decision
                   </button>
                 </div>
               </div>
             ) : (
-            <div className="card p-6">
-              <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 mb-5">
-                <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <div className="card card-primary p-4">
+              <h3 className="text-xs font-semibold text-[var(--text-1)] flex items-center gap-2 mb-3">
+                <svg className="w-3.5 h-3.5 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </svg>
                 Your Submission
               </h3>
-              <div className="mb-4 rounded-xl border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.08)] p-3">
-                <p className="text-xs font-semibold text-[var(--accent-2)]">How to use evidence</p>
-                <p className="text-[11px] text-[var(--text-1)] mt-1">Pull the owner, dependencies, and action steps directly from the evidence artifacts you opened.</p>
-              </div>
-              <div className="mb-4">
+              <div className="mb-3 flex gap-2">
                 <button
                   onClick={fillBeginnerDraft}
                   disabled={selectedEvidenceItems.length === 0}
                   data-testid="fill-beginner-template"
-                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
                 >
-                  Fill Beginner Template
+                  Fill Template
                 </button>
-                <p className="text-[10px] text-[var(--text-2)] mt-1">Creates a clean starter draft with simple TPM-friendly prompts. Replace any bracketed text before submit.</p>
-              </div>
-              <div className="mb-4">
                 <button
                   onClick={fetchExampleAnswer}
                   disabled={exampleLoading}
                   data-testid="show-example-answer"
-                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-[rgba(240,180,90,0.35)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.12)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-[rgba(240,180,90,0.35)] text-[var(--warn-text)] hover:bg-[rgba(240,180,90,0.12)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
                 >
-                  {exampleLoading ? 'Loading example...' : 'Show Me A Good Answer'}
+                  {exampleLoading ? 'Loading…' : 'Show Good Answer'}
                 </button>
-                <p className="text-[10px] text-[var(--text-2)] mt-1">Preview a strong scenario-specific answer and optionally copy it into the form.</p>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="label">Who Should Own This?</label>
                   <input
@@ -1765,7 +1585,6 @@ export default function App() {
                     }}
                     className="form-input"
                   />
-                  <p className="text-[11px] text-[var(--text-2)] mt-1">Use the evidence to name the owning team or escalation path. A good answer is usually one team name, not a sentence.</p>
                 </div>
 
                 <div>
@@ -1779,9 +1598,8 @@ export default function App() {
                       setSubmitError(null);
                       setFormData({ ...formData, actionPlan: e.target.value });
                     }}
-                    className="form-input resize-none h-28"
+                    className="form-input resize-none h-20"
                   />
-                  <p className="text-[11px] text-[var(--text-2)] mt-1">Write 3-4 short steps. Start with verify, notify, coordinate, monitor, or rollback.</p>
                 </div>
 
                 <div>
@@ -1797,9 +1615,8 @@ export default function App() {
                       setDependencyTraceInput(value);
                       setFormData({ ...formData, dependencyTrace: parseDependencyTrace(value) });
                     }}
-                    className="form-input resize-none h-24"
+                    className="form-input resize-none h-16"
                   />
-                  <p className="text-[11px] text-[var(--text-2)] mt-1">Use real system names from the evidence. Avoid placeholders like "Service A". One line means one connection.</p>
                 </div>
 
                 <div>
@@ -1815,9 +1632,8 @@ export default function App() {
                       setBlastRadiusInput(value);
                       setFormData({ ...formData, blastRadius: parseBlastRadius(value) });
                     }}
-                    className="form-input resize-none h-24"
+                    className="form-input resize-none h-16"
                   />
-                  <p className="text-[11px] text-[var(--text-2)] mt-1">List customer-facing impact, downstream-system impact, and one operational risk to monitor.</p>
                 </div>
 
                 <div>
@@ -1831,16 +1647,15 @@ export default function App() {
                       setSubmitError(null);
                       setFormData({ ...formData, evidenceNotes: e.target.value });
                     }}
-                    className="form-input resize-none h-28"
+                    className="form-input resize-none h-20"
                   />
-                  <p className="text-[11px] text-[var(--text-2)] mt-1">Name the artifact IDs you used and what each one proves.</p>
                 </div>
 
                 <button
                   onClick={handleSubmit}
                   disabled={!canSubmit}
                   data-testid="submit-and-score"
-                  className="w-full flex items-center justify-center gap-2 bg-[#1db8a2] hover:bg-[#27d3b6] active:bg-[#17a08d] disabled:bg-[rgba(18,29,45,0.85)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm mt-1"
+                  className="w-full flex items-center justify-center gap-2 bg-[#1db8a2] hover:bg-[#27d3b6] active:bg-[#17a08d] disabled:bg-[var(--disabled-bg)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm mt-1"
                 >
                   {loading ? (
                     <>
@@ -1872,14 +1687,14 @@ export default function App() {
                   </svg>
                   Evaluation Result
                 </h3>
-                <div className="mb-5 rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <div className="mb-5 rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                   <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)]">Quick Read</p>
                   <div className="flex items-center gap-3 mt-2">
                     <span data-testid="score-status-label" className={`text-lg font-bold ${scoreStatusTone}`}>{scoreStatusLabel}</span>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
                       score.gatingPass
-                        ? 'bg-[rgba(75,215,158,0.14)] text-[#7ee8b5] border-[rgba(75,215,158,0.45)]'
-                        : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.5)]'
+                        ? 'bg-[rgba(75,215,158,0.14)] text-[var(--ok-text)] border-[rgba(75,215,158,0.45)]'
+                        : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.5)]'
                     }`}>
                       {score.gatingPass ? 'Evidence support passed' : 'Missing evidence support'}
                     </span>
@@ -1894,8 +1709,8 @@ export default function App() {
                       <span
                         className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
                           score.gatingPass
-                            ? 'bg-[rgba(75,215,158,0.14)] text-[#7ee8b5] border-[rgba(75,215,158,0.45)]'
-                            : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.5)]'
+                            ? 'bg-[rgba(75,215,158,0.14)] text-[var(--ok-text)] border-[rgba(75,215,158,0.45)]'
+                            : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.5)]'
                         }`}
                       >
                         {score.gatingPass ? (
@@ -1915,7 +1730,7 @@ export default function App() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2)] mb-1.5">Critical Issues</p>
                         <ul className="space-y-1">
                           {score.criticalErrors.map((err, idx) => (
-                            <li key={idx} className="text-xs text-[#ff9f9f] flex items-start gap-1.5">
+                            <li key={idx} className="text-xs text-[var(--danger-text)] flex items-start gap-1.5">
                               <span className="mt-0.5 text-red-500 shrink-0">•</span>
                               <span>{err}</span>
                             </li>
@@ -1923,14 +1738,14 @@ export default function App() {
                         </ul>
                       </div>
                     ) : (
-                      <p className="text-xs text-[#7ee8b5]">No critical issues detected.</p>
+                      <p className="text-xs text-[var(--ok-text)]">No critical issues detected.</p>
                     )}
                   </div>
                 </div>
                 {beginnerMetrics.length > 0 && (
                   <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                     {beginnerMetrics.map((metric) => (
-                      <div key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3">
+                      <div key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-xs font-semibold text-[var(--text-0)]">{metric.label}</span>
                           <span className={`text-xs font-semibold ${getPerformanceTone(metric.value)}`}>{getPerformanceLabel(metric.value)}</span>
@@ -1978,7 +1793,7 @@ export default function App() {
                       className={`text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
                         showOnlyFocusedGraphEdges
                           ? 'border-[rgba(39,211,182,0.45)] bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)]'
-                          : 'border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]'
+                          : 'border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]'
                       }`}
                     >
                       {showOnlyFocusedGraphEdges ? 'Showing focused edges' : 'Focus selected node path'}
@@ -1990,7 +1805,7 @@ export default function App() {
                         setFocusedGraphNode(null);
                         setShowOnlyFocusedGraphEdges(false);
                       }}
-                      className="text-xs font-semibold px-3 py-2 rounded-lg border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                      className="text-xs font-semibold px-3 py-2 rounded-lg border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
                     >
                       Reset graph review
                     </button>
@@ -2016,7 +1831,7 @@ export default function App() {
                     <p className="text-[10px] text-[var(--text-2)] mb-1">Connected services surfaced by graph traversal</p>
                     <div className="flex flex-wrap gap-2">
                       {graphConnectedServices.map((service) => (
-                        <span key={service} className="rounded-full border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] px-2.5 py-1 text-[11px] text-[var(--text-1)]">
+                        <span key={service} className="rounded-full border border-[color:var(--line)] bg-[var(--chip-bg)] px-2.5 py-1 text-[11px] text-[var(--text-1)]">
                           {service}
                         </span>
                       ))}
@@ -2048,19 +1863,19 @@ export default function App() {
                       <p className="text-[11px] text-[var(--text-1)] mb-3">These edges come from graph-aware retrieval context. Add the final edges you want to defend in the Scenario Workspace form.</p>
                       <div className="space-y-2">
                         {retrievedGraphEdges.map((edge, idx) => (
-                          <div key={`${edge.from}-${edge.to}-${edge.type}-${idx}`} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-3">
-                            <span className="text-sm font-medium text-[var(--text-0)] bg-[rgba(15,26,40,0.85)] px-2 py-1 rounded">{edge.from}</span>
+                          <div key={`${edge.from}-${edge.to}-${edge.type}-${idx}`} className="flex items-center gap-3 rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
+                            <span className="text-sm font-medium text-[var(--text-0)] bg-[var(--node-bg)] px-2 py-1 rounded">{edge.from}</span>
                             <div className="flex items-center gap-1">
                               <div className={`w-8 h-px ${edge.type === 'downstream' ? 'bg-[var(--accent)]' : 'bg-[var(--warn)]'}`} />
                               <svg className={`w-3 h-3 ${edge.type === 'downstream' ? 'text-[var(--accent)]' : 'text-[var(--warn)]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                               </svg>
                             </div>
-                            <span className="text-sm font-medium text-[var(--text-0)] bg-[rgba(15,26,40,0.85)] px-2 py-1 rounded">{edge.to}</span>
+                            <span className="text-sm font-medium text-[var(--text-0)] bg-[var(--node-bg)] px-2 py-1 rounded">{edge.to}</span>
                             <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                               edge.type === 'downstream'
                                 ? 'bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)] border-[rgba(39,211,182,0.35)]'
-                                : 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
+                                : 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
                             }`}>
                               {edge.type}
                             </span>
@@ -2070,7 +1885,7 @@ export default function App() {
                     </div>
                   )}
 
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-xs font-semibold text-[var(--text-1)]">Interactive node review</p>
                         <span className="text-[10px] text-[var(--text-2)]">click a node to inspect incoming and outgoing paths</span>
@@ -2089,7 +1904,7 @@ export default function App() {
                               className={`text-left rounded-xl border px-3 py-2 transition-colors ${
                                 isFocused
                                   ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.12)]'
-                                  : 'border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] hover:border-[color:var(--line-strong)]'
+                                  : 'border-[color:var(--line)] bg-[var(--tag-bg)] hover:border-[color:var(--line-strong)]'
                               }`}
                             >
                               <span className="block text-xs font-semibold text-[var(--text-0)]">{node}</span>
@@ -2103,7 +1918,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-xs font-semibold text-[var(--text-1)]">Path review</p>
                         <span className="text-[10px] text-[var(--text-2)]">{filteredGraphEdges.length} visible edges</span>
@@ -2117,18 +1932,18 @@ export default function App() {
                         ? 'border-[rgba(39,211,182,0.4)] bg-[rgba(39,211,182,0.08)]'
                         : 'border-[color:var(--line)]'
                     }`}>
-                      <span className="text-sm font-medium text-[var(--text-0)] bg-[rgba(15,26,40,0.85)] px-2 py-1 rounded">{edge.from}</span>
+                      <span className="text-sm font-medium text-[var(--text-0)] bg-[var(--node-bg)] px-2 py-1 rounded">{edge.from}</span>
                       <div className="flex items-center gap-1">
                         <div className={`w-8 h-px ${edge.type === 'downstream' ? 'bg-[var(--accent)]' : 'bg-[var(--warn)]'}`} />
                         <svg className={`w-3 h-3 ${edge.type === 'downstream' ? 'text-[var(--accent)]' : 'text-[var(--warn)]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                         </svg>
                       </div>
-                      <span className="text-sm font-medium text-[var(--text-0)] bg-[rgba(15,26,40,0.85)] px-2 py-1 rounded">{edge.to}</span>
+                      <span className="text-sm font-medium text-[var(--text-0)] bg-[var(--node-bg)] px-2 py-1 rounded">{edge.to}</span>
                       <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                         edge.type === 'downstream'
                           ? 'bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)] border-[rgba(39,211,182,0.35)]'
-                          : 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
+                          : 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
                       }`}>
                         {edge.type}
                       </span>
@@ -2143,7 +1958,7 @@ export default function App() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-xs font-semibold text-[var(--text-1)]">Node detail</p>
                         <span className="text-[10px] text-[var(--text-2)]">{focusedGraphNode ? 'focused' : 'select a node'}</span>
@@ -2155,11 +1970,11 @@ export default function App() {
                             <p className="text-[11px] text-[var(--text-2)] mt-1">Use this panel to inspect how one service participates in the current reasoning path.</p>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                            <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
                               <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)]">Incoming edges</p>
                               <p className="text-lg font-semibold text-[var(--text-0)] mt-1">{focusedNodeIncomingEdges.length}</p>
                             </div>
-                            <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                            <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
                               <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)]">Outgoing edges</p>
                               <p className="text-lg font-semibold text-[var(--text-0)] mt-1">{focusedNodeOutgoingEdges.length}</p>
                             </div>
@@ -2168,7 +1983,7 @@ export default function App() {
                             <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Incoming from</p>
                             <div className="flex flex-wrap gap-2">
                               {focusedNodeIncomingEdges.map((edge, idx) => (
-                                <span key={`${edge.from}-${idx}`} className="rounded-full border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.12)] px-2 py-0.5 text-[10px] text-[#ffd9a0]">{edge.from}</span>
+                                <span key={`${edge.from}-${idx}`} className="rounded-full border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.12)] px-2 py-0.5 text-[10px] text-[var(--warn-text)]">{edge.from}</span>
                               ))}
                               {focusedNodeIncomingEdges.length === 0 && <span className="text-[11px] text-[var(--text-2)]">No incoming edges in the current view.</span>}
                             </div>
@@ -2186,7 +2001,7 @@ export default function App() {
                             <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Related evidence</p>
                             <div className="space-y-2">
                               {graphEvidenceForNode(focusedGraphNode).slice(0, 4).map((item) => (
-                                <div key={item.id} className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                                <div key={item.id} className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
                                   <p className="text-xs font-semibold text-[var(--text-0)]">{item.title}</p>
                                   <p className="text-[11px] text-[var(--text-2)] mt-1">{item.id} · {item.role}</p>
                                 </div>
@@ -2231,15 +2046,15 @@ export default function App() {
                     <div key={ev.id} className={`rounded-xl border p-4 transition-colors ${
                       isSelected
                         ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.06)]'
-                        : 'border-[color:var(--line)] bg-[rgba(12,20,32,0.44)]'
+                        : 'border-[color:var(--line)] bg-[var(--chip-bg)]'
                     }`}>
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold text-[var(--text-0)]">{ev.title}</p>
                           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
                             ev.role === 'primary'
-                              ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
-                              : 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
+                              ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
+                              : 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
                           }`}>
                             {ev.role}
                           </span>
@@ -2251,7 +2066,7 @@ export default function App() {
                         </div>
                         {ev.metadata?.retrievalScore !== undefined && (
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <div className="w-16 bg-[rgba(10,18,30,0.8)] rounded-full h-1.5">
+                            <div className="w-16 bg-[var(--track-bg)] rounded-full h-1.5">
                               <div className="h-1.5 rounded-full bg-[var(--accent)]" style={{ width: `${Math.round(ev.metadata.retrievalScore * 100)}%` }} />
                             </div>
                             <span className="text-[10px] font-mono text-[var(--text-2)]">{(ev.metadata.retrievalScore * 100).toFixed(0)}%</span>
@@ -2263,7 +2078,7 @@ export default function App() {
                         <div className="flex flex-wrap gap-3 mt-2">
                           {ev.metadata.source && <span className="text-[10px] font-mono text-[var(--text-2)]">source: {ev.metadata.source}</span>}
                           {ev.metadata.type && <span className="text-[10px] font-mono text-[var(--text-2)]">type: {ev.metadata.type}</span>}
-                          {ev.metadata.selectionPolicy && <span className="text-[10px] font-mono text-[#ffd9a0]">policy: {ev.metadata.selectionPolicy}</span>}
+                          {ev.metadata.selectionPolicy && <span className="text-[10px] font-mono text-[var(--warn-text)]">policy: {ev.metadata.selectionPolicy}</span>}
                           {ev.metadata.graphMatchedServices && ev.metadata.graphMatchedServices.length > 0 && (
                             <span className="text-[10px] font-mono text-[var(--accent-2)]">matched: {ev.metadata.graphMatchedServices.join(', ')}</span>
                           )}
@@ -2277,7 +2092,7 @@ export default function App() {
                           )}
                           <div className="flex flex-wrap gap-2">
                             {ev.metadata.graphConnectedServices.map((service) => (
-                              <span key={`${ev.id}-${service}`} className="rounded-full border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
+                              <span key={`${ev.id}-${service}`} className="rounded-full border border-[color:var(--line)] bg-[var(--chip-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
                                 {service}
                               </span>
                             ))}
@@ -2309,8 +2124,8 @@ export default function App() {
                       <p className="text-xs text-[var(--text-2)] mt-1 max-w-sm">{scoreSummary}</p>
                       <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
                         score.gatingPass
-                          ? 'bg-[rgba(75,215,158,0.14)] text-[#7ee8b5] border-[rgba(75,215,158,0.45)]'
-                          : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.5)]'
+                          ? 'bg-[rgba(75,215,158,0.14)] text-[var(--ok-text)] border-[rgba(75,215,158,0.45)]'
+                          : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.5)]'
                       }`}>
                         {score.gatingPass ? '✓ Gating Passed' : '✗ Gating Not Passed'}
                       </span>
@@ -2318,7 +2133,7 @@ export default function App() {
                         <div className="mt-2">
                           <p className="text-xs text-[var(--text-2)] mb-1">Critical Issues:</p>
                           {score.criticalErrors.map((err, i) => (
-                            <p key={i} className="text-xs text-[#ff9f9f]">• {err}</p>
+                            <p key={i} className="text-xs text-[var(--danger-text)]">• {err}</p>
                           ))}
                         </div>
                       )}
@@ -2342,7 +2157,7 @@ export default function App() {
                               <span className="text-[var(--text-2)]">{m.label}</span>
                               <span className="font-mono text-[var(--text-1)]">{(m.value * 100).toFixed(0)}%</span>
                             </div>
-                            <div className="w-full bg-[rgba(10,18,30,0.8)] rounded-full h-1.5">
+                            <div className="w-full bg-[var(--track-bg)] rounded-full h-1.5">
                               <div className={`h-1.5 rounded-full transition-all ${
                                 m.value >= 0.8 ? 'bg-[var(--ok)]' : m.value >= 0.6 ? 'bg-[var(--warn)]' : 'bg-[var(--danger)]'
                               }`} style={{ width: `${Math.round(m.value * 100)}%` }} />
@@ -2378,7 +2193,7 @@ export default function App() {
                       Comparing modes for this scenario...
                     </div>
                   ) : evaluationCompareError ? (
-                    <p className="text-sm text-[#ff9f9f]">{evaluationCompareError}</p>
+                    <p className="text-sm text-[var(--danger-text)]">{evaluationCompareError}</p>
                   ) : comparisonForSelectedScenario ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -2392,7 +2207,7 @@ export default function App() {
                             <div key={result.mode} className={`rounded-xl border p-4 ${
                               isBest
                                 ? 'border-[rgba(39,211,182,0.45)] bg-[rgba(39,211,182,0.08)]'
-                                : 'border-[color:var(--line)] bg-[rgba(12,20,32,0.44)]'
+                                : 'border-[color:var(--line)] bg-[var(--chip-bg)]'
                             }`}>
                               <div className="flex items-start justify-between gap-3 mb-3">
                                 <div>
@@ -2407,8 +2222,8 @@ export default function App() {
                               <div className="flex flex-wrap gap-2 mb-3">
                                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                                   result.gatingPass
-                                    ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
-                                    : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.4)]'
+                                    ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
+                                    : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.4)]'
                                 }`}>
                                   {result.gatingPass ? 'gating passed' : 'gating failed'}
                                 </span>
@@ -2420,19 +2235,19 @@ export default function App() {
                                 </span>
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-[11px] mb-3">
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
                                   <p className="text-[var(--text-2)]">Owner</p>
                                   <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.ownerAccuracy * 100)}%</p>
                                 </div>
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
                                   <p className="text-[var(--text-2)]">Dependencies</p>
                                   <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.dependencyAccuracy * 100)}%</p>
                                 </div>
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
                                   <p className="text-[var(--text-2)]">Blast radius</p>
                                   <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.blastRadiusCompleteness * 100)}%</p>
                                 </div>
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-2">
+                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
                                   <p className="text-[var(--text-2)]">Evidence relevance</p>
                                   <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.evidenceRelevance * 100)}%</p>
                                 </div>
@@ -2449,7 +2264,7 @@ export default function App() {
                                   <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Selected evidence mix</p>
                                   <div className="flex flex-wrap gap-2">
                                     {result.selectedEvidenceTitles.slice(0, 3).map((title) => (
-                                      <span key={`${result.mode}-${title}`} className="rounded-full border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">{title}</span>
+                                      <span key={`${result.mode}-${title}`} className="rounded-full border border-[color:var(--line)] bg-[var(--tag-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">{title}</span>
                                     ))}
                                   </div>
                                 </div>
@@ -2464,7 +2279,7 @@ export default function App() {
                         const scoreDelta = Math.round((bestModeResult.overallScore - vectorBaseline.overallScore) * 100);
                         return (
                           <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4">
-                            <p className="text-xs font-semibold text-[#ffd9a0] mb-2">How to explain this result</p>
+                            <p className="text-xs font-semibold text-[var(--warn-text)] mb-2">How to explain this result</p>
                             <p className="text-sm text-[var(--text-1)] leading-relaxed">
                               Compared with the vector baseline, <span className="font-semibold text-[var(--text-0)]">{modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode}</span>
                               {' '}currently changes the scenario outcome by <span className="font-semibold text-[var(--text-0)]">{scoreDelta >= 0 ? '+' : ''}{scoreDelta} points</span>.
@@ -2492,19 +2307,19 @@ export default function App() {
                     )}
                   </div>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2)] mb-3">Current answer diagnostics</p>
                       <div className="space-y-3">
                         {currentDiagnostics.map((item) => (
-                          <div key={`current-${item.label}`} className="rounded-lg border border-[color:var(--line)] bg-[rgba(15,26,40,0.72)] p-3">
+                          <div key={`current-${item.label}`} className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
                             <div className="flex items-center justify-between gap-3 mb-1">
                               <p className="text-sm font-semibold text-[var(--text-0)]">{item.label}</p>
                               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                                 item.status === 'strong'
-                                  ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
+                                  ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
                                   : item.status === 'warning'
-                                    ? 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
-                                    : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.4)]'
+                                    ? 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
+                                    : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.4)]'
                               }`}>
                                 {item.status}
                               </span>
@@ -2520,15 +2335,15 @@ export default function App() {
                       {bestCompareResult ? (
                         <div className="space-y-3">
                           {bestModeDiagnostics.map((item) => (
-                            <div key={`best-${item.label}`} className="rounded-lg border border-[rgba(39,211,182,0.22)] bg-[rgba(15,26,40,0.72)] p-3">
+                            <div key={`best-${item.label}`} className="rounded-lg border border-[rgba(39,211,182,0.22)] bg-[var(--tag-bg)] p-3">
                               <div className="flex items-center justify-between gap-3 mb-1">
                                 <p className="text-sm font-semibold text-[var(--text-0)]">{item.label}</p>
                                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                                   item.status === 'strong'
-                                    ? 'bg-[rgba(75,215,158,0.12)] text-[#7ee8b5] border-[rgba(75,215,158,0.35)]'
+                                    ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
                                     : item.status === 'warning'
-                                      ? 'bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] border-[rgba(240,180,90,0.35)]'
-                                      : 'bg-[rgba(255,124,124,0.16)] text-[#ff9f9f] border-[rgba(255,124,124,0.4)]'
+                                      ? 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
+                                      : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.4)]'
                                 }`}>
                                   {item.status}
                                 </span>
@@ -2550,7 +2365,7 @@ export default function App() {
                     <p className="text-sm font-semibold text-[var(--text-1)] mb-3">Rubric Breakdown</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {score.rubricScores.map((rs) => (
-                        <div key={rs.criterion} className="rounded-xl border border-[color:var(--line)] p-3 bg-[rgba(12,20,32,0.44)]">
+                        <div key={rs.criterion} className="rounded-xl border border-[color:var(--line)] p-3 bg-[var(--chip-bg)]">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-[var(--text-0)]">{rs.criterion}</span>
                             <span className={`text-xs font-mono font-semibold ${
@@ -2568,7 +2383,7 @@ export default function App() {
               <div className="card p-6 text-center py-12">
                 <p className="text-sm text-[var(--text-2)] mb-2">No evaluation results yet.</p>
                 <p className="text-xs text-[var(--text-2)] mb-4">Complete a submission to see rubric feedback and metrics.</p>
-                <button onClick={() => setActiveTab('Scenario Workspace')} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
+                <button onClick={() => { if (viewMode === 'guided') { setGuidedStep('Investigate'); } else { setActiveTab('Scenario Workspace'); } }} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
                   Go to Scenario Workspace
                 </button>
               </div>
@@ -2702,36 +2517,36 @@ export default function App() {
                     </button>
                     <button
                       onClick={downloadExport}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.12)] text-[#ffd9a0] hover:bg-[rgba(240,180,90,0.22)] transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-lg border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] hover:bg-[rgba(240,180,90,0.22)] transition-colors"
                     >
                       Download .txt
                     </button>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
-                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Progress</p>
                     <p className="text-xl font-bold text-[var(--text-0)] mt-2">{completedScenarios.size} / {scenarios.length}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">completed scenarios</p>
                   </div>
-                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Current score</p>
                     <p className="text-xl font-bold text-[var(--text-0)] mt-2">{score ? `${Math.round(score.overallScore * 100)}%` : 'N/A'}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">{score ? (score.gatingPass ? 'gating passed' : 'gating not passed') : 'not scored yet'}</p>
                   </div>
-                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Best mode</p>
                     <p className="text-base font-bold text-[var(--text-0)] mt-2">{bestModeResult ? (modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode) : 'N/A'}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">{comparisonDelta !== null ? `${comparisonDelta >= 0 ? '+' : ''}${comparisonDelta} vs vector` : 'comparison pending'}</p>
                   </div>
-                  <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                  <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Evidence mix</p>
                     <p className="text-xl font-bold text-[var(--text-0)] mt-2">{selectedEvidence.length}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">{hasPrimary && hasCorroborating ? 'primary + corroborating covered' : 'needs both evidence roles'}</p>
                   </div>
                 </div>
                 <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4 mb-4">
-                  <p className="text-xs font-semibold text-[#ffd9a0] mb-2">Export guidance</p>
+                  <p className="text-xs font-semibold text-[var(--warn-text)] mb-2">Export guidance</p>
                   <p className="text-sm text-[var(--text-1)] leading-relaxed">
                     Use this as a mentor-facing snapshot. It is structured to explain current progress, what evidence supports the scenario write-up, and what retrieval mode currently gives the strongest result.
                   </p>
@@ -2763,7 +2578,7 @@ export default function App() {
               <button
                 onClick={() => closeWalkthrough()}
                 data-testid="close-walkthrough"
-                className="px-3 py-2 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.68)]"
+                className="px-3 py-2 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[var(--hover-bg)]"
               >
                 Close
               </button>
@@ -2792,7 +2607,7 @@ export default function App() {
                   text: 'Submit once your answer is grounded in evidence. The score tells you where your reasoning is strong and where support is missing.',
                 },
               ].map((item) => (
-                <div key={item.step} className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+                <div key={item.step} className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                   <div className="w-8 h-8 rounded-full bg-[rgba(39,211,182,0.14)] border border-[rgba(39,211,182,0.34)] text-[var(--accent-2)] flex items-center justify-center text-sm font-bold">
                     {item.step}
                   </div>
@@ -2813,7 +2628,7 @@ export default function App() {
                 </ul>
               </div>
               <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#ffd9a0]">What To Avoid</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--warn-text)]">What To Avoid</p>
                 <ul className="mt-2 space-y-2 text-sm text-[var(--text-1)]">
                   <li>Do not use placeholders like Service A or Team X.</li>
                   <li>Do not invent systems, owners, or risks that are not supported by evidence.</li>
@@ -2827,7 +2642,7 @@ export default function App() {
               <button
                 onClick={() => closeWalkthrough('Overview', 'Brief')}
                 data-testid="walkthrough-start-overview"
-                className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
               >
                 Start In Overview
               </button>
@@ -2848,25 +2663,25 @@ export default function App() {
           <div className="card max-w-4xl w-full p-6 shadow-2xl reveal-up max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#ffd9a0]">Good Answer Example</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--warn-text)]">Good Answer Example</p>
                 <h2 className="text-xl font-bold text-[var(--text-0)] mt-1">{selectedScenario.title}</h2>
                 <p className="text-sm text-[var(--text-1)] mt-2 max-w-2xl leading-relaxed">{exampleAnswer.whyItWorks}</p>
               </div>
               <button
                 onClick={() => setShowExampleModal(false)}
-                className="px-3 py-2 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.68)]"
+                className="px-3 py-2 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[var(--hover-bg)]"
               >
                 Close
               </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+              <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Who Should Own This?</p>
                 <p className="text-sm text-[var(--text-0)]">{exampleAnswer.ownerRouting}</p>
                 <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.ownerRouting}</p>
               </div>
-              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+              <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Evidence Used</p>
                 <div className="flex flex-wrap gap-2">
                   {exampleAnswer.selectedEvidence.map((item) => (
@@ -2876,22 +2691,22 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+              <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">What Should Happen Next?</p>
                 <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.actionPlan}</pre>
                 <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.actionPlan}</p>
               </div>
-              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+              <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Why Do You Believe This?</p>
                 <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.evidenceNotes}</pre>
                 <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.evidenceNotes}</p>
               </div>
-              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+              <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Which Systems Are Connected?</p>
                 <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.dependencyTrace.map((edge) => `${edge.from} -> ${edge.to} (${edge.type})`).join('\n')}</pre>
                 <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.dependencyTrace}</p>
               </div>
-              <div className="rounded-xl border border-[color:var(--line)] bg-[rgba(12,20,32,0.44)] p-4">
+              <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">What Could Break?</p>
                 <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.blastRadius.join('\n')}</pre>
                 <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.blastRadius}</p>
@@ -2908,7 +2723,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setShowExampleModal(false)}
-                className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[rgba(18,30,47,0.68)]"
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
               >
                 Keep My Current Draft
               </button>
@@ -2970,14 +2785,14 @@ export default function App() {
                 onClick={submitSurvey}
                 disabled={Object.keys(surveyAnswers).length < 5}
                 data-testid="submit-survey"
-                className="flex-1 bg-[var(--accent)] hover:bg-[#27d3b6] disabled:bg-[rgba(18,29,45,0.85)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
+                className="flex-1 bg-[var(--accent)] hover:bg-[#27d3b6] disabled:bg-[var(--disabled-bg)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
               >
                 Submit Survey
               </button>
               <button
                 onClick={() => { setShowSurvey(null); setSurveyAnswers({}); }}
                 data-testid="skip-survey"
-                className="px-4 py-2.5 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[rgba(18,30,47,0.68)]"
+                className="px-4 py-2.5 rounded-lg text-sm text-[var(--text-2)] border border-[color:var(--line)] hover:bg-[var(--hover-bg)]"
               >
                 Skip
               </button>

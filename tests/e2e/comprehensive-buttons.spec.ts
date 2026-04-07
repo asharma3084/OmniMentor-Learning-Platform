@@ -442,6 +442,22 @@ test.describe('Advanced mode tabs', () => {
     await expect(page.getByTestId('graph-filter-input')).toBeVisible();
   });
 
+  test('System Graph tab renders SVG force-directed graph', async ({ page }) => {
+    await enterGuidedPractice(page);
+    await page.getByTestId('advanced-mode-toggle').click();
+    // Use graph or graphrag mode to ensure graph data is present
+    await page.getByTestId('advanced-tab-system-graph').click();
+    await page.getByRole('button', { name: /GraphRAG/i }).first().click();
+    await page.waitForTimeout(1200);
+    const svgContainer = page.getByTestId('force-graph-svg-container');
+    await expect(svgContainer).toBeVisible();
+    const svg = svgContainer.locator('svg');
+    await expect(svg).toBeVisible();
+    // Should have at least one circle (node) and one line (edge)
+    const circles = svg.locator('circle');
+    expect(await circles.count()).toBeGreaterThan(0);
+  });
+
   test('System Graph filter input filters nodes', async ({ page }) => {
     await enterGuidedPractice(page);
     await page.getByTestId('advanced-mode-toggle').click();

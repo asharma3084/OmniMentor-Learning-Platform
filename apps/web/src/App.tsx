@@ -1,7 +1,7 @@
 /**
  * Guided-first TPM practice UI with onboarding help, evidence-backed decisions, and feedback review.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 
 interface Artifact {
@@ -293,6 +293,165 @@ function buildDiagnostics(metrics: MetricsData | undefined, gatingPass: boolean,
   });
 
   return diagnostics;
+}
+
+interface ForceGraphProps {
+  nodes: string[];
+  edges: Array<{ from: string; to: string; type: string }>;
+  seedServices: string[];
+  focusedNode: string | null;
+  onNodeClick: (node: string) => void;
+}
+
+function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: ForceGraphProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const WIDTH = 720;
+  const HEIGHT = 420;
+
+  const layout = useMemo(() => {
+    if (nodes.length === 0) return { positions: new Map<string, { x: number; y: number }>() };
+
+    const pos = new Map<string, { x: number; y: number }>();
+    const cx = WIDTH / 2;
+    const cy = HEIGHT / 2;
+
+    nodes.forEach((n, i) => {
+      const angle = (2 * Math.PI * i) / nodes.length;
+      const r = Math.min(WIDTH, HEIGHT) * 0.32;
+      pos.set(n, { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+    });
+
+    for (let iter = 0; iter < 120; iter++) {
+      const forces = new Map<string, { fx: number; fy: number }>();
+      nodes.forEach((n) => forces.set(n, { fx: 0, fy: 0 }));
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = pos.get(nodes[i])!;
+          const b = pos.get(nodes[j])!;
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+          const repulsion = 12000 / (dist * dist);
+          dx = (dx / dist) * repulsion;
+          dy = (dy / dist) * repulsion;
+          forces.get(nodes[i])!.fx -= dx;
+          forces.get(nodes[i])!.fy -= dy;
+          forces.get(nodes[j])!.fx += dx;
+          forces.get(nodes[j])!.fy += dy;
+        }
+      }
+
+      edges.forEach((edge) => {
+        const a = pos.get(edge.from);
+        const b = pos.get(edge.to);
+        if (!a || !b) return;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+        const attraction = dist * 0.012;
+        const fx = (dx / dist) * attraction;
+        const fy = (dy / dist) * attraction;
+        forces.get(edge.from)!.fx += fx;
+        forces.get(edge.from)!.fy += fy;
+        forces.get(edge.to)!.fx -= fx;
+        forces.get(edge.to)!.fy -= fy;
+      });
+
+      nodes.forEach((n) => {
+        const p = pos.get(n)!;
+        const f = forces.get(n)!;
+        p.x += (cx - p.x) * 0.01;
+        p.y += (cy - p.y) * 0.01;
+        const damping = 0.4;
+        p.x += f.fx * damping;
+        p.y += f.fy * damping;
+        p.x = Math.max(60, Math.min(WIDTH - 60, p.x));
+        p.y = Math.max(30, Math.min(HEIGHT - 30, p.y));
+      });
+    }
+
+    return { positions: pos };
+  }, [nodes, edges]);
+
+  if (nodes.length === 0) {
+    return (
+      <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-6 text-center">
+        <p className="text-xs text-[var(--text-2)]">No graph nodes to visualize yet.</p>
+      </div>
+    );
+  }
+
+  const seedSet = new Set(seedServices);
+
+  return (
+    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] overflow-hidden" data-testid="force-graph-svg-container">
+      <svg ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ minHeight: 320 }}>
+        <defs>
+          <marker id="arrow-downstream" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill="var(--accent, #27d3b6)" />
+          </marker>
+          <marker id="arrow-upstream" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill="var(--warn, #f0b45a)" />
+          </marker>
+        </defs>
+
+        {edges.map((edge, idx) => {
+          const from = layout.positions.get(edge.from);
+          const to = layout.positions.get(edge.to);
+          if (!from || !to) return null;
+          const dx = to.x - from.x;
+          const dy = to.y - from.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 1) return null;
+          const nodeR = 22;
+          const sx = from.x + (dx / dist) * nodeR;
+          const sy = from.y + (dy / dist) * nodeR;
+          const ex = to.x - (dx / dist) * (nodeR + 10);
+          const ey = to.y - (dy / dist) * (nodeR + 10);
+          const isHighlighted = focusedNode === edge.from || focusedNode === edge.to;
+          const color = edge.type === 'downstream' ? 'var(--accent, #27d3b6)' : 'var(--warn, #f0b45a)';
+          return (
+            <line
+              key={`edge-${idx}`}
+              x1={sx} y1={sy} x2={ex} y2={ey}
+              stroke={color}
+              strokeWidth={isHighlighted ? 2.5 : 1.5}
+              strokeOpacity={isHighlighted ? 1 : 0.55}
+              markerEnd={edge.type === 'downstream' ? 'url(#arrow-downstream)' : 'url(#arrow-upstream)'}
+            />
+          );
+        })}
+
+        {nodes.map((node) => {
+          const p = layout.positions.get(node);
+          if (!p) return null;
+          const isSeed = seedSet.has(node);
+          const isFocused = focusedNode === node;
+          const r = isSeed ? 26 : 22;
+          return (
+            <g key={node} onClick={() => onNodeClick(node)} style={{ cursor: 'pointer' }}>
+              <circle
+                cx={p.x} cy={p.y} r={r}
+                fill={isFocused ? 'rgba(39,211,182,0.25)' : isSeed ? 'rgba(39,211,182,0.14)' : 'rgba(148,163,184,0.12)'}
+                stroke={isFocused ? 'var(--accent, #27d3b6)' : isSeed ? 'rgba(39,211,182,0.55)' : 'rgba(148,163,184,0.35)'}
+                strokeWidth={isFocused ? 2.5 : 1.5}
+              />
+              <text
+                x={p.x} y={p.y + 1}
+                textAnchor="middle" dominantBaseline="central"
+                fontSize={node.length > 18 ? 8 : 10}
+                fill="var(--text-0, #e8edf3)"
+                fontWeight={isFocused || isSeed ? 600 : 400}
+              >
+                {node.length > 22 ? node.slice(0, 20) + '…' : node}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
 }
 
 export default function App() {
@@ -1440,6 +1599,15 @@ export default function App() {
                         <p className="text-[11px] text-[var(--text-2)] mt-0.5 line-clamp-1">
                           {ev.body.substring(0, 80)}…
                         </p>
+                        {ev.metadata?.graphTraversalEdges && ev.metadata.graphTraversalEdges.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {ev.metadata.graphTraversalEdges.slice(0, 3).map((ge, gi) => (
+                              <span key={gi} className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full border border-[rgba(39,211,182,0.3)] bg-[rgba(39,211,182,0.08)] text-[var(--accent-2)]">
+                                {ge.from} → {ge.to}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {viewMode === 'advanced' && ev.metadata?.retrievalScore !== undefined && (
                           <p className="text-[10px] text-[var(--text-2)] mt-0.5 font-mono">
                             relevance: {(ev.metadata.retrievalScore * 100).toFixed(0)}%
@@ -1842,6 +2010,24 @@ export default function App() {
                   )}
                 </div>
               )}
+
+              {/* Interactive SVG graph visualization */}
+              {visibleGraphNodes.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-[var(--text-1)]">Service dependency map</p>
+                    <span className="text-[10px] text-[var(--text-2)]">{visibleGraphNodes.length} nodes · {filteredGraphEdges.length} edges · click a node to focus</span>
+                  </div>
+                  <ForceGraph
+                    nodes={visibleGraphNodes}
+                    edges={filteredGraphEdges}
+                    seedServices={graphSeedServices}
+                    focusedNode={focusedGraphNode}
+                    onNodeClick={(node) => setFocusedGraphNode((cur) => cur === node ? null : node)}
+                  />
+                </div>
+              )}
+
               {displayGraphEdges.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-sm text-[var(--text-2)] mb-2">
@@ -2097,6 +2283,19 @@ export default function App() {
                               </span>
                             ))}
                           </div>
+                          {ev.metadata.graphTraversalEdges && ev.metadata.graphTraversalEdges.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {ev.metadata.graphTraversalEdges.map((ge, gi) => (
+                                <span key={gi} className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full border ${
+                                  ge.type === 'downstream'
+                                    ? 'border-[rgba(39,211,182,0.3)] bg-[rgba(39,211,182,0.08)] text-[var(--accent-2)]'
+                                    : 'border-[rgba(240,180,90,0.3)] bg-[rgba(240,180,90,0.08)] text-[var(--warn-text)]'
+                                }`}>
+                                  {ge.from} → {ge.to}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2277,7 +2476,16 @@ export default function App() {
                       {vectorBaseline && (() => {
                         const bestModeResult = comparisonForSelectedScenario.results.find((result) => result.mode === comparisonForSelectedScenario.bestMode) ?? vectorBaseline;
                         const scoreDelta = Math.round((bestModeResult.overallScore - vectorBaseline.overallScore) * 100);
+                        const criterionDeltas = [
+                          { label: 'Owner match', best: bestModeResult.metrics.ownerAccuracy, base: vectorBaseline.metrics.ownerAccuracy },
+                          { label: 'Dependencies', best: bestModeResult.metrics.dependencyAccuracy, base: vectorBaseline.metrics.dependencyAccuracy },
+                          { label: 'Blast radius', best: bestModeResult.metrics.blastRadiusCompleteness, base: vectorBaseline.metrics.blastRadiusCompleteness },
+                          { label: 'Evidence relevance', best: bestModeResult.metrics.evidenceRelevance, base: vectorBaseline.metrics.evidenceRelevance },
+                        ];
+                        const improved = criterionDeltas.filter((c) => c.best > c.base);
+                        const declined = criterionDeltas.filter((c) => c.best < c.base);
                         return (
+                          <>
                           <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4">
                             <p className="text-xs font-semibold text-[var(--warn-text)] mb-2">How to explain this result</p>
                             <p className="text-sm text-[var(--text-1)] leading-relaxed">
@@ -2286,6 +2494,49 @@ export default function App() {
                               {' '}The most important review signal is whether the mode improves evidence relevance and reduces unsupported claims without hurting gating.
                             </p>
                           </div>
+
+                          {/* Per-criterion forensics */}
+                          <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
+                            <p className="text-xs font-semibold text-[var(--text-1)] mb-3">Per-criterion breakdown: why {modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode} {scoreDelta >= 0 ? 'wins' : 'differs'}</p>
+                            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
+                              {criterionDeltas.map((c) => {
+                                const delta = Math.round((c.best - c.base) * 100);
+                                return (
+                                  <div key={c.label} className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
+                                    <p className="text-[10px] text-[var(--text-2)] mb-1">{c.label}</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="text-sm font-bold text-[var(--text-0)]">{Math.round(c.best * 100)}%</span>
+                                      <span className={`text-[11px] font-semibold ${delta > 0 ? 'text-[var(--ok)]' : delta < 0 ? 'text-[var(--danger)]' : 'text-[var(--text-2)]'}`}>
+                                        {delta > 0 ? '+' : ''}{delta} vs baseline
+                                      </span>
+                                    </div>
+                                    <div className="mt-1.5 flex gap-1 items-center">
+                                      <div className="flex-1 bg-[var(--track-bg)] rounded-full h-1">
+                                        <div className="h-1 rounded-full bg-[var(--text-2)] opacity-40" style={{ width: `${Math.round(c.base * 100)}%` }} />
+                                      </div>
+                                      <div className="flex-1 bg-[var(--track-bg)] rounded-full h-1.5">
+                                        <div className={`h-1.5 rounded-full ${c.best >= 0.8 ? 'bg-[var(--ok)]' : c.best >= 0.6 ? 'bg-[var(--warn)]' : 'bg-[var(--danger)]'}`} style={{ width: `${Math.round(c.best * 100)}%` }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {improved.length > 0 && (
+                              <p className="text-[11px] text-[var(--text-1)] leading-relaxed">
+                                <span className="text-[var(--ok)] font-semibold">Improved:</span> {improved.map((c) => `${c.label} (+${Math.round((c.best - c.base) * 100)})`).join(', ')}
+                              </p>
+                            )}
+                            {declined.length > 0 && (
+                              <p className="text-[11px] text-[var(--text-1)] leading-relaxed mt-1">
+                                <span className="text-[var(--danger)] font-semibold">Lower:</span> {declined.map((c) => `${c.label} (${Math.round((c.best - c.base) * 100)})`).join(', ')}
+                              </p>
+                            )}
+                            {improved.length === 0 && declined.length === 0 && (
+                              <p className="text-[11px] text-[var(--text-2)]">All criteria are identical between the baseline and the best mode for this scenario.</p>
+                            )}
+                          </div>
+                          </>
                         );
                       })()}
                     </div>

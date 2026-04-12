@@ -49,7 +49,7 @@ Feedback is not a single number — each dimension gets a score, a tone label, a
 
 | Metric | Result |
 |--------|--------|
-| E2E tests | 3/3 passing |
+| E2E tests | All passing |
 | Smoke tests | All scenarios pass |
 | Eval runs | Scoring pipeline verified against synthetic corpus |
 | Build | Clean TypeScript compilation, no warnings |

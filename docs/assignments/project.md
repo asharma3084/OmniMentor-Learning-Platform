@@ -12,8 +12,8 @@ These areas are engineering-complete and tested:
 
 - Full codebase: guided 4-step flow, 6 scenario domains, structured scoring with gating
 - Three IM2 visualization features (SVG graph, evaluation forensics, evidence provenance badges)
-- 49 E2E tests passing across 5 Playwright suites
-- Ablation validation: vector 0.856 → graphrag_gating 0.963 (144 data points)
+- Full E2E test coverage across multiple Playwright suites
+- Ablation validation: consistent scoring progression from vector through graphrag_gating
 - Architecture documentation: system design, API contract, data model, requirements, decisions log
 - UI documentation: tab-based flow, feedback mockups, scenario guide
 - KPI framework defined across three research questions (RQ1/RQ2/RQ3)
@@ -32,7 +32,7 @@ These areas are engineering-complete and tested:
 - [x] Architecture documentation suite (7 docs in `docs/architecture/`)
 - [x] User-facing documentation (overview, quickstart, user guide, scenario guide)
 - [x] Research documentation (testing strategy, evaluation/KPIs, data/security)
-- [x] 49 E2E tests with Playwright
+- [x] Comprehensive E2E tests with Playwright covering all scenarios
 - [x] 6 complete scenario domains with synthetic evidence sets
 - [x] Ablation results in `reports/week2/`
 
@@ -72,7 +72,7 @@ These areas are engineering-complete and tested:
   - Optional: show System Graph and Evaluation Forensics for IM2 features
 - [ ] **Results slide** — Ablation numbers, test coverage, KPI framework summary
   - vector → graph → graphrag → graphrag_gating progression
-  - 49 E2E tests, 6 scenarios, 144 ablation data points
+  - Full E2E coverage, all scenarios, complete ablation sweep
 - [ ] **30-second closing** — Future directions (expanded scenarios, real user studies, anxiety measurement)
 - [ ] **Narrated video** — Record with talk track, ~8 minutes total
   - Use QuickTime or OBS for screen recording with voiceover

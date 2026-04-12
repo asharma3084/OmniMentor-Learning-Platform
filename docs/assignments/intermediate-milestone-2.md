@@ -15,8 +15,8 @@ IM1 proved the guided flow works. IM2 added the surfaces that make the system's 
 | Visualization | None (placeholder tabs) | Interactive SVG force-directed graph |
 | Mode analysis | Single mode scoring | Four-mode forensic comparison with delta bars |
 | Evidence context | Flat artifact cards | Provenance badges linking evidence to graph topology |
-| E2E tests | 3 | 49 |
-| Ablation data | Not yet collected | 144 data points across 6 scenarios × 4 modes |
+| E2E tests | Initial suite | Comprehensive multi-suite coverage across all scenarios |
+| Ablation data | Not yet collected | Full sweep across all scenarios and retrieval modes |
 
 ## Three Engineering Features
 
@@ -63,17 +63,17 @@ Inline graph-connection pills on every evidence card showing how each piece of e
 
 | Metric | IM1 | IM2 |
 |--------|-----|-----|
-| E2E test count | 3 | 49 |
-| Playwright suites | 1 | 5 |
-| Scenario coverage | 1 representative | All 6 scenarios |
-| Comprehensive suite | — | 42-test suite covering buttons, tabs, forms, scoring, graph, forensics |
+| E2E test count | Initial suite | Comprehensive coverage |
+| Playwright suites | Single file | Multiple suites |
+| Scenario coverage | One representative | All six scenarios |
+| Comprehensive suite | — | Covers buttons, tabs, forms, scoring, graph, forensics |
 | Run time | ~10s | ~56s |
 
-All 49 tests pass consistently. The comprehensive suite (`comprehensive-buttons.spec.ts`) covers both guided and advanced surfaces across all six scenario domains.
+All tests pass consistently. The comprehensive suite (`comprehensive-buttons.spec.ts`) covers both guided and advanced surfaces across all six scenario domains.
 
 ## Ablation Results
 
-Four retrieval modes tested across all six scenarios, with six independent runs per configuration (144 total data points):
+Four retrieval modes tested across all six scenarios, with multiple independent runs per configuration:
 
 | Mode | Owner Accuracy | Dependency Accuracy | Blast Radius | Evidence Relevance | **Overall Score** |
 |------|---------------|--------------------|--------------|--------------------|-------------------|
@@ -84,7 +84,7 @@ Four retrieval modes tested across all six scenarios, with six independent runs 
 
 **Key finding:** Each retrieval enhancement adds ~3.5 percentage points. The progression is consistent across all six scenarios and all test runs. GraphRAG with gating achieves near-perfect owner accuracy (1.000) and the highest scores on every non-evidence dimension.
 
-Raw data: `reports/week2/ablation-summary.csv` (144 rows, 6 scenarios × 4 modes × 6 runs)
+Raw data: `reports/week2/ablation-summary.csv`
 
 ## Artifact Inventory
 
@@ -119,7 +119,7 @@ Raw data: `reports/week2/ablation-summary.csv` (144 rows, 6 scenarios × 4 modes
 |------|---------|
 | `build.log` | Clean production build output (zero warnings) |
 | `im2-demo-path-capture.webm` | Automated walkthrough video (supporting asset, not the narrated demo) |
-| Playwright HTML report | Full E2E test report with pass/fail details for all 49 tests |
+| Playwright HTML report | Full E2E test report with pass/fail details for the complete suite |
 
 ## Submission Status
 

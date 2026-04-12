@@ -33,3 +33,9 @@ This documentation is organized for three audiences:
 - [Detailed UI Design](reference/detailed-ui-design.md)
 - [Risks And Technical Debt](reference/risks-and-technical-debt.md)
 - [Glossary](reference/glossary.md)
+
+## Assignments
+
+- [Intermediate Milestone 1](assignments/intermediate-milestone-1.md)
+- [Intermediate Milestone 2](assignments/intermediate-milestone-2.md)
+- [Final Project](assignments/project.md)

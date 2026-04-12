@@ -15,6 +15,7 @@ import {
   ScenarioBenchmark,
   Submission,
   gateSubmission,
+  parseClaimUnits,
   scoreDependencyTrace,
   scoreOwnerRouting,
   scoreBlastRadius,
@@ -224,9 +225,8 @@ function buildScenarioExampleAnswer(input: {
   evidenceMap: Map<string, Evidence>;
   rubricExplanations?: string;
 }) {
-  const selectedEvidence = input.benchmark.goldRequiredEvidenceIds
-    .map((evidenceId) => input.evidenceMap.get(evidenceId))
-    .filter((item): item is Evidence => Boolean(item));
+  // Use all scenario artifacts — a perfect answer leverages all available evidence
+  const selectedEvidence = Array.from(input.evidenceMap.values());
 
   const blastRadius = input.benchmark.goldBlastRadius && input.benchmark.goldBlastRadius.length > 0
     ? input.benchmark.goldBlastRadius
@@ -247,10 +247,7 @@ function buildScenarioExampleAnswer(input: {
     actionPlan: input.benchmark.goldSafeActions.join('\n'),
     dependencyTrace: input.benchmark.goldDependencyTrace,
     blastRadius,
-    evidenceNotes: [
-      evidenceNotes,
-      'Each selected artifact supports the owner, dependency path, or impact assessment.',
-    ].join('\n'),
+    evidenceNotes: evidenceNotes,
     selectedEvidenceIds: selectedEvidence.map((item) => item.id),
     selectedEvidence,
     whyItWorks: input.rubricExplanations ?? 'This example uses the gold owner, supported dependencies, concrete blast radius, and required evidence.',
@@ -712,6 +709,7 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
     ].join('. ');
 
     // Run gating
+    const claims = parseClaimUnits(submissionText);
     const { gatingPass, gatingResults, criticalErrors } = gateSubmission(
       submissionText,
       selectedEvidenceIds,
@@ -800,6 +798,13 @@ app.post('/score', (req: Request, res: Response, next: NextFunction) => {
       criticalErrors,
       rubricScores,
       metrics,
+      gatingResults: gatingResults.map((r) => ({
+        claimId: r.claimId,
+        supported: r.supported,
+        citedEvidenceIds: r.citedEvidenceIds,
+        reason: r.reason,
+      })),
+      claims: claims.map((c) => ({ id: c.id, text: c.text })),
       createdAt,
     });
   } catch (err) {

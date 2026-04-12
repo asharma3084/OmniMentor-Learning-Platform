@@ -58,25 +58,21 @@ test('capture flow assets', async ({ page }) => {
   await expect(page.getByTestId('evaluation-overall-score')).toBeVisible();
   await capture(page, '05-feedback.png');
 
-  await page.getByTestId('advanced-mode-toggle').click();
-  await expect(page.getByText('Advanced mode supports reviewer-focused inspection')).toBeVisible();
-
-  await page.getByTestId('advanced-tab-overview').click();
-  await expect(page.getByText('Problem Framing')).toBeVisible();
-  await capture(page, '06-advanced-overview.png');
-
-  await page.getByTestId('advanced-tab-system-graph').click();
+  // Feedback sub-tabs — System Graph
+  await page.getByTestId('feedback-tab-graph').click();
   await expect(page.getByTestId('graph-filter-input')).toBeVisible();
   await page.getByTestId('graph-filter-input').fill('Catalog');
   await expect(page.getByText('Node detail')).toBeVisible();
   await capture(page, '07-system-graph.png');
 
-  await page.getByTestId('advanced-tab-evaluation').click();
+  // Feedback sub-tabs — Score (evaluation compare)
+  await page.getByTestId('feedback-tab-score').click();
   await expect(page.getByText('Mode Comparison')).toBeVisible();
   await expect(page.getByText('Best current mode:')).toBeVisible();
   await capture(page, '08-evaluation-compare.png');
 
-  await page.getByTestId('advanced-tab-check-in-export').click();
+  // Feedback sub-tabs — Check-in Export
+  await page.getByTestId('feedback-tab-export').click();
   await expect(page.getByRole('heading', { name: 'Check-in Export' })).toBeVisible();
   await expect(page.getByTestId('checkin-export-text')).toContainText('## Retrieval Comparison');
   await capture(page, '09-checkin-export.png');

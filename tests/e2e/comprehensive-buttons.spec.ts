@@ -190,27 +190,26 @@ test.describe('Guided step navigation', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   5. MODE TOGGLE BUTTONS
+   5. FEEDBACK SUB-TAB NAVIGATION
    ═══════════════════════════════════════════════════════════════════════════ */
 
-test.describe('Mode toggle', () => {
-  test('switching to advanced mode shows advanced banner and tabs', async ({ page }) => {
+test.describe('Feedback sub-tabs', () => {
+  test('Feedback step shows sub-tab buttons', async ({ page }) => {
     await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await expect(page.getByText('Advanced mode supports reviewer-focused inspection')).toBeVisible();
-    await expect(page.getByTestId('advanced-tab-overview')).toBeVisible();
-    await expect(page.getByTestId('advanced-tab-scenario-workspace')).toBeVisible();
-    await expect(page.getByTestId('advanced-tab-system-graph')).toBeVisible();
-    await expect(page.getByTestId('advanced-tab-evaluation')).toBeVisible();
-    await expect(page.getByTestId('advanced-tab-check-in-export')).toBeVisible();
+    await page.getByTestId('guided-step-feedback').click();
+    await expect(page.getByTestId('feedback-tab-score')).toBeVisible();
+    await expect(page.getByTestId('feedback-tab-graph')).toBeVisible();
+    await expect(page.getByTestId('feedback-tab-evidence')).toBeVisible();
+    await expect(page.getByTestId('feedback-tab-export')).toBeVisible();
   });
 
-  test('switching back to guided mode shows guided step buttons', async ({ page }) => {
+  test('sub-tab navigation switches content', async ({ page }) => {
     await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await expect(page.getByTestId('advanced-tab-overview')).toBeVisible();
-    await page.getByTestId('guided-mode-toggle').click();
-    await expect(page.getByTestId('guided-step-investigate')).toBeVisible();
+    await page.getByTestId('guided-step-feedback').click();
+    await page.getByTestId('feedback-tab-graph').click();
+    await expect(page.getByText('Dependency Graph').first()).toBeVisible();
+    await page.getByTestId('feedback-tab-score').click();
+    await expect(page.getByText('No evaluation results yet.')).toBeVisible();
   });
 });
 
@@ -414,73 +413,53 @@ test.describe('Scenario selector', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   11. ADVANCED MODE TABS
+   11. FEEDBACK SURFACES VIA SUB-TABS
    ═══════════════════════════════════════════════════════════════════════════ */
 
-test.describe('Advanced mode tabs', () => {
-  test('Overview tab shows problem framing', async ({ page }) => {
+test.describe('Feedback surfaces via sub-tabs', () => {
+  test('System Graph sub-tab shows dependency graph elements', async ({ page }) => {
     await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await page.getByTestId('advanced-tab-overview').click();
-    await expect(page.getByText('Problem Framing')).toBeVisible();
-    await expect(page.getByText('Review Framing')).toBeVisible();
-  });
-
-  test('Scenario Workspace tab shows evidence and form', async ({ page }) => {
-    await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await page.getByTestId('advanced-tab-scenario-workspace').click();
-    await waitForEvidence(page);
-    await expect(page.getByTestId('submit-and-score')).toBeVisible();
-  });
-
-  test('System Graph tab shows dependency graph elements', async ({ page }) => {
-    await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await page.getByTestId('advanced-tab-system-graph').click();
+    await page.getByTestId('guided-step-feedback').click();
+    await page.getByTestId('feedback-tab-graph').click();
     await expect(page.getByText('Dependency Graph').first()).toBeVisible();
     await expect(page.getByTestId('graph-filter-input')).toBeVisible();
   });
 
-  test('System Graph tab renders SVG force-directed graph', async ({ page }) => {
+  test('System Graph sub-tab renders SVG force-directed graph', async ({ page }) => {
     await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    // Use graph or graphrag mode to ensure graph data is present
-    await page.getByTestId('advanced-tab-system-graph').click();
+    await page.getByTestId('guided-step-feedback').click();
+    await page.getByTestId('feedback-tab-graph').click();
     await page.getByRole('button', { name: /GraphRAG/i }).first().click();
     await page.waitForTimeout(1200);
     const svgContainer = page.getByTestId('force-graph-svg-container');
     await expect(svgContainer).toBeVisible();
     const svg = svgContainer.locator('svg');
     await expect(svg).toBeVisible();
-    // Should have at least one circle (node) and one line (edge)
     const circles = svg.locator('circle');
     expect(await circles.count()).toBeGreaterThan(0);
   });
 
   test('System Graph filter input filters nodes', async ({ page }) => {
     await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await page.getByTestId('advanced-tab-system-graph').click();
+    await page.getByTestId('guided-step-feedback').click();
+    await page.getByTestId('feedback-tab-graph').click();
     await expect(page.getByTestId('graph-filter-input')).toBeVisible();
-
     await page.getByTestId('graph-filter-input').fill('Catalog');
     await expect(page.getByTestId('graph-filter-input')).toHaveValue('Catalog');
   });
 
-  test('Evaluation tab shows no results message before scoring', async ({ page }) => {
+  test('Score sub-tab shows no results message before scoring', async ({ page }) => {
     await enterGuidedPractice(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await page.getByTestId('advanced-tab-evaluation').click();
+    await page.getByTestId('guided-step-feedback').click();
+    await page.getByTestId('feedback-tab-score').click();
     await expect(page.getByText('No evaluation results yet.')).toBeVisible();
   });
 
-  test('Check-in Export tab shows export heading and content after scoring', async ({ page }) => {
+  test('Check-in Export sub-tab shows export content after scoring', async ({ page }) => {
     await enterGuidedPractice(page);
     await waitForEvidence(page);
     await submitExampleAnswerFromInvestigate(page);
-    await page.getByTestId('advanced-mode-toggle').click();
-    await page.getByTestId('advanced-tab-check-in-export').click();
+    await page.getByTestId('feedback-tab-export').click();
     await expect(page.getByRole('heading', { name: 'Check-in Export' })).toBeVisible();
     await expect(page.getByTestId('checkin-export-text')).toBeVisible();
     await expect(page.getByTestId('checkin-export-text')).toContainText('## Retrieval Comparison');
@@ -494,7 +473,7 @@ test.describe('Advanced mode tabs', () => {
 test.describe('Full guided flow per scenario', () => {
   const scenarios = [
     { index: 0, name: 'Deploy Catalog API Schema Migration' },
-    { index: 1, name: 'Pricing Engine Degradation During Flash Sale' },
+    { index: 1, name: 'Thanksgiving Sale — Pricing Engine Slowdown' },
     { index: 2, name: 'Deploy Checkout Orchestrator Saga Timeout Change' },
     { index: 3, name: 'Payment Gateway Security Patch Deployment' },
     { index: 4, name: 'Deploy Updated Fraud Detection Model' },
@@ -566,17 +545,16 @@ test.describe('Go to Scenario Workspace button', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   14. ADVANCED EVALUATION AFTER SCORING
+   14. EVALUATION AFTER SCORING
    ═══════════════════════════════════════════════════════════════════════════ */
 
-test.describe('Advanced evaluation after scoring', () => {
-  test('Evaluation tab shows Mode Comparison after submit', async ({ page }) => {
+test.describe('Evaluation after scoring', () => {
+  test('Score sub-tab shows Mode Comparison after submit', async ({ page }) => {
     await enterGuidedPractice(page);
     await waitForEvidence(page);
     await submitExampleAnswerFromInvestigate(page);
 
-    await page.getByTestId('advanced-mode-toggle').click();
-    await page.getByTestId('advanced-tab-evaluation').click();
+    await expect(page.getByTestId('feedback-tab-score')).toBeVisible();
     await expect(page.getByText('Mode Comparison')).toBeVisible();
     await expect(page.getByText('Best current mode:')).toBeVisible();
     await expect(page.getByText('How to explain this result')).toBeVisible();

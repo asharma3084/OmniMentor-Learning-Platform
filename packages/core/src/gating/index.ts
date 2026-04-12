@@ -13,15 +13,18 @@ import {
 export function parseClaimUnits(text: string): ClaimUnit[] {
   // Split by sentence-ending punctuation and keep trailing text if punctuation is omitted.
   const sentences = text.match(/[^.!?]+[.!?]?/g)?.filter((s) => s.trim().length > 0) || [];
-  return sentences.map((sentence, idx) => {
-    const trimmed = sentence.trim();
-    return {
-      id: `claim-${idx}`,
-      text: trimmed,
-      startIdx: text.indexOf(trimmed),
-      endIdx: text.indexOf(trimmed) + trimmed.length,
-    };
-  });
+  return sentences
+    .map((sentence, idx) => {
+      const trimmed = sentence.trim();
+      return {
+        id: `claim-${idx}`,
+        text: trimmed,
+        startIdx: text.indexOf(trimmed),
+        endIdx: text.indexOf(trimmed) + trimmed.length,
+      };
+    })
+    // Filter out tiny fragments (e.g. "1%." or lone numbers) that can't meaningfully be gated
+    .filter((claim) => extractKeywords(claim.text).length >= 2);
 }
 
 /**
@@ -47,12 +50,20 @@ export function checkClaimSupport(
     const combinedText = `${evidence.title} ${evidence.body}`.toLowerCase();
     const claimKeywords = extractKeywords(claim.text);
 
-    // Simple matching: check if any significant keyword appears in evidence
-    const matchScore = claimKeywords.filter((kw) =>
-      combinedText.includes(kw.toLowerCase())
-    ).length / Math.max(claimKeywords.length, 1);
+    // Matching with stem normalization so "authorizations" matches "authorize", etc.
+    const matchScore = claimKeywords.filter((kw) => {
+      const kwLower = kw.toLowerCase();
+      const kwStem = stemWord(kwLower);
+      // Direct substring match or stem match against evidence tokens
+      return combinedText.includes(kwLower) ||
+        (kwStem.length >= 4 && combinedText.split(/\s+/).some((tok) => stemWord(tok).startsWith(kwStem) || kwStem.startsWith(stemWord(tok))));
+    }).length / Math.max(claimKeywords.length, 1);
 
-    if (matchScore > 0.25) {
+    // Short claims (fragments, bullet points) need a lower threshold
+    // because they have fewer keywords to match against
+    const matchThreshold = claimKeywords.length <= 5 ? 0.15 : 0.25;
+
+    if (matchScore > matchThreshold) {
       citedIds.push(evidenceId);
       if (evidence.role === 'primary') {
         supportsInPrimary = true;
@@ -98,6 +109,15 @@ function extractKeywords(text: string): string[] {
     .toLowerCase()
     .split(/\s+/)
     .filter((word) => word.length > 2 && !commonWords.has(word));
+}
+
+/**
+ * Simple suffix-stripping stemmer for keyword matching
+ */
+function stemWord(word: string): string {
+  return word
+    .replace(/[^a-z]/g, '')
+    .replace(/(ations?|tions?|ments?|ings?|ness|ity|ies|ous|ive|ble|ful|less|ly|ed|er|est|en|al|ize|ise|ors?|ants?)$/i, '');
 }
 
 /**

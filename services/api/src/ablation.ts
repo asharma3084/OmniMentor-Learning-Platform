@@ -25,7 +25,7 @@ const MODE_CONFIG: Record<AblationMode, AblationModeConfig> = {
   vector: { topK: 2, ensureRoleDiversity: false },
   graph: { topK: 3, ensureRoleDiversity: false },
   graphrag: { topK: 4, ensureRoleDiversity: true },
-  graphrag_gating: { topK: 5, ensureRoleDiversity: true },
+  graphrag_gating: { topK: 6, ensureRoleDiversity: true },
 };
 
 const STOP_WORDS = new Set([

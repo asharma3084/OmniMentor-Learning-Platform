@@ -38,20 +38,20 @@ async function reachEvaluationWithExampleAnswer(page: Page) {
   await expect(page.getByTestId('evaluation-overall-score')).toBeVisible();
 }
 
-test.describe('advanced surfaces', () => {
-  test('covers overview framing, graph inspection, evaluation comparison, and check-in export', async ({ page }) => {
+test.describe('feedback surfaces', () => {
+  test('covers graph inspection, evaluation comparison, and check-in export via Feedback sub-tabs', async ({ page }) => {
     await reachEvaluationWithExampleAnswer(page);
 
     const firstScenarioLabel = await page.getByTestId('scenario-select').locator('option:checked').textContent();
 
-    await page.getByTestId('advanced-mode-toggle').click();
-    await expect(page.getByText('Advanced mode supports reviewer-focused inspection')).toBeVisible();
+    // Score sub-tab is active after submit — verify evaluation content
+    await expect(page.getByTestId('feedback-tab-score')).toBeVisible();
+    await expect(page.getByText('Mode Comparison')).toBeVisible();
+    await expect(page.getByText('Best current mode:')).toBeVisible();
+    await expect(page.getByText('How to explain this result')).toBeVisible();
 
-    await page.getByTestId('advanced-tab-overview').click();
-    await expect(page.getByText('Problem Framing')).toBeVisible();
-    await expect(page.getByText('Review Framing')).toBeVisible();
-
-    await page.getByTestId('advanced-tab-system-graph').click();
+    // System Graph sub-tab
+    await page.getByTestId('feedback-tab-graph').click();
     await expect(page.getByText('Dependency Graph').first()).toBeVisible();
     await expect(page.getByText('Interactive node review').first()).toBeVisible();
     await expect(page.getByText('Path review')).toBeVisible();
@@ -59,16 +59,14 @@ test.describe('advanced surfaces', () => {
     await page.getByTestId('graph-filter-input').fill('Catalog');
     await expect(page.getByText('Node detail')).toBeVisible();
 
-    await page.getByTestId('advanced-tab-evaluation').click();
-    await expect(page.getByText('Mode Comparison')).toBeVisible();
-    await expect(page.getByText('Best current mode:')).toBeVisible();
-    await expect(page.getByText('How to explain this result')).toBeVisible();
-
+    // Switch scenario
     await page.getByTestId('scenario-select').selectOption({ index: 1 });
     const secondScenarioLabel = await page.getByTestId('scenario-select').locator('option:checked').textContent();
     expect(secondScenarioLabel).not.toBe(firstScenarioLabel);
 
-    await page.getByTestId('advanced-tab-check-in-export').click();
+    // Check-in Export sub-tab
+    await page.getByTestId('guided-step-feedback').click();
+    await page.getByTestId('feedback-tab-export').click();
     await expect(page.getByRole('heading', { name: 'Check-in Export' })).toBeVisible();
     await expect(page.getByTestId('checkin-export-text')).toContainText('## Retrieval Comparison');
     await expect(page.getByTestId('checkin-export-text')).toContainText('## Next Review Focus');

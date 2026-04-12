@@ -1,7 +1,7 @@
 /**
  * Guided-first TPM practice UI with onboarding help, evidence-backed decisions, and feedback review.
  */
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 interface Artifact {
@@ -86,6 +86,8 @@ interface ScoreResponse {
   criticalErrors: string[];
   rubricScores?: RubricScoreItem[];
   metrics?: MetricsData;
+  gatingResults?: Array<{ claimId: string; supported: boolean; citedEvidenceIds: string[]; reason: string }>;
+  claims?: Array<{ id: string; text: string }>;
 }
 
 interface EvaluationCompareModeResult {
@@ -125,14 +127,14 @@ interface ExampleAnswerResponse {
   };
 }
 
-type WorkspaceTab = 'Overview' | 'Scenario Workspace' | 'System Graph' | 'Evidence' | 'Evaluation' | 'Check-in Export';
 type GuidedStep = 'Brief' | 'Investigate' | 'Decide' | 'Feedback';
+type FeedbackTab = 'score' | 'graph' | 'evidence' | 'export';
 
 const RETRIEVAL_MODE_OPTIONS: Array<{ value: RetrievalMode; label: string; description: string }> = [
-  { value: 'vector', label: 'Vector', description: 'Keyword-ranked baseline evidence.' },
-  { value: 'graph', label: 'Graph', description: 'Topology-aware retrieval from connected services.' },
-  { value: 'graphrag', label: 'GraphRAG', description: 'Graph-aware retrieval with provenance boosting.' },
-  { value: 'graphrag_gating', label: 'GraphRAG + Gating', description: 'GraphRAG evidence set tuned for stronger gating support.' },
+  { value: 'vector', label: 'Keyword Search', description: 'Finds documents that match your scenario by keyword.' },
+  { value: 'graph', label: 'Connected Systems', description: 'Also pulls in documents from upstream and downstream services.' },
+  { value: 'graphrag', label: 'Deep Search', description: 'Follows system connections and boosts documents with stronger provenance.' },
+  { value: 'graphrag_gating', label: 'Deep Search + Validation', description: 'Best coverage — also checks that every claim is backed by evidence.' },
 ];
 
 const SERVICE_NAME_PATTERN = /\b([A-Z][A-Za-z0-9&/-]+(?: [A-Z][A-Za-z0-9&/-]+){0,3} (?:API|Team|BFF|Indexer|Engine|Service|Gateway|Sync|Router|Provider|Portal|Hub|Control|Logger|Detection|Orchestrator))\b/g;
@@ -172,13 +174,18 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-function getPerformanceLabel(score: number) {
-  if (score >= 0.8) return 'Strong';
-  if (score >= 0.6) return 'Needs work';
-  return 'High risk';
+function getPerformanceLabel(score: number, gatingPass?: boolean) {
+  if (!gatingPass) return score >= 0.8 ? 'Almost there' : score >= 0.6 ? 'Needs work' : 'Significant gaps';
+  if (score >= 0.9) return 'Strong';
+  if (score >= 0.8) return 'Almost there';
+  if (score >= 0.6) return 'Solid start';
+  if (score >= 0.4) return 'Needs work';
+  return 'Significant gaps';
 }
 
-function getPerformanceTone(score: number) {
+function getPerformanceTone(score: number, gatingPass?: boolean) {
+  if (!gatingPass) return score >= 0.8 ? 'text-[var(--warn)]' : 'text-[var(--danger)]';
+  if (score >= 0.9) return 'text-[var(--ok)]';
   if (score >= 0.8) return 'text-[var(--ok)]';
   if (score >= 0.6) return 'text-[var(--warn)]';
   return 'text-[var(--danger)]';
@@ -186,113 +193,116 @@ function getPerformanceTone(score: number) {
 
 function getMetricCoaching(label: string, value: number) {
   if (value >= 0.8) {
-    return `${label}: strong`;
+    return `${label}: looks good — well supported by evidence.`;
   }
 
   if (value >= 0.6) {
-    return `${label}: partially supported`;
+    if (label === 'Owner Match') return 'Owner match: you identified a plausible owner, but the evidence doesn\'t fully confirm it yet.';
+    if (label === 'System Connections') return 'System connections: some dependencies are captured, but the path is incomplete — check for missing upstream or downstream hops.';
+    if (label === 'Evidence Support') return 'Evidence support: you have some backing, but at least one claim isn\'t tied to an artifact.';
+    return 'Blast radius: partially covered — think about which customers or teams are still unaccounted for.';
   }
 
   if (label === 'Evidence Support') {
-    return 'Evidence support: missing or weak support';
+    return 'Evidence support: key claims in your answer aren\'t backed by any selected artifact. Re-read your evidence and link each claim to a specific document.';
   }
-
   if (label === 'Owner Match') {
-    return 'Owner match: likely wrong team or unclear owner';
+    return 'Owner match: the identified owner doesn\'t match the evidence. Look at which team\'s artifacts describe the failing system.';
   }
-
   if (label === 'System Connections') {
-    return 'System connections: missing systems or wrong direction';
+    return 'System connections: the dependency path is missing critical systems or has the wrong direction. Trace the data flow from the evidence artifacts.';
   }
-
-  return 'Blast radius: missing impacts or too vague';
+  return 'Blast radius: too vague or missing — spell out the specific customer, revenue, or operational impacts from the evidence.';
 }
 
 function getScenarioNarrative(scenario: ScenarioData) {
   const cueTitles = scenario.artifacts.slice(0, 3).map((artifact) => artifact.title);
 
-  const problemByDomain: Record<string, string> = {
-    'Catalog': 'Schema and dependency changes can look safe in isolation while still breaking downstream product and search behavior.',
-    'Cart & Checkout': 'Checkout issues spread quickly across payment, order, and customer-facing flows, so a narrow fix can still create broad operational risk.',
-    'Risk & Compliance': 'Risk and compliance work often depends on cross-system ownership and auditability, so unclear routing can delay the right response.',
+  // Scenario-specific narratives first, then domain fallbacks
+  const problemByScenario: Record<string, string> = {
+    'scenario-1': 'Schema and dependency changes can look safe in isolation while still breaking downstream product and search behavior.',
+    'scenario-2': 'On the biggest shopping day of the year, a pricing slowdown doesn\'t just frustrate customers — it costs real revenue every minute it goes unresolved.',
+    'scenario-3': 'Checkout timeout changes seem straightforward, but they touch payment authorization, inventory reservation, and fulfillment in a single transaction flow.',
+    'scenario-4': 'Fraud model updates can block legitimate customers or leak actual fraud, so one wrong threshold ripples across the entire order pipeline.',
+    'scenario-5': 'Compliance controls involve multiple service owners and audit requirements, making it easy to miss a dependency that a regulator would catch.',
   };
 
-  const motivationByDomain: Record<string, string> = {
-    'Catalog': 'A TPM needs to route the change correctly, trace impact direction, and avoid a rollout that damages customer discovery or storefront behavior.',
-    'Cart & Checkout': 'A TPM needs to keep transaction flows safe under pressure and make sure mitigation actions do not create larger customer-facing failures.',
-    'Risk & Compliance': 'A TPM needs to coordinate the right owners quickly while preserving evidence-backed reasoning and governance discipline.',
+  const motivationByScenario: Record<string, string> = {
+    'scenario-1': 'A TPM needs to route the change correctly, trace impact direction, and avoid a rollout that damages customer discovery or storefront behavior.',
+    'scenario-2': 'A TPM on call during Thanksgiving needs to quickly identify who owns the Pricing Engine, understand which downstream systems are showing stale prices to customers, and recommend actions that protect revenue without causing a wider outage.',
+    'scenario-3': 'A TPM needs to keep transaction flows safe under pressure and make sure mitigation actions do not create larger customer-facing failures.',
+    'scenario-4': 'A TPM needs to balance fraud prevention with customer experience and coordinate across risk, payments, and product teams.',
+    'scenario-5': 'A TPM needs to coordinate the right owners quickly while preserving evidence-backed reasoning and governance discipline.',
   };
 
   const defaultProblem = 'Complex service ecosystems make it easy for a new TPM to miss owner, dependency, or blast-radius details even when documentation exists.';
   const defaultMotivation = 'The point of the scenario is to turn scattered evidence into one safe, defensible next step rather than a vague summary.';
 
+  const lessonByScenario: Record<string, string> = {
+    'scenario-1': 'Adding a "variants" field to the Catalog API changes the CDC event schema consumed by Search Indexer. If the indexer mapping isn\'t updated first, product search silently returns stale or missing results on the storefront — an invisible break that customers notice before dashboards do.',
+    'scenario-2': 'The Pricing Engine feeds real-time prices to Storefront BFF, Cart, and Checkout. A slowdown doesn\'t just show stale prices — it cascades into incorrect cart totals and failed checkouts at the exact moment traffic peaks on Thanksgiving.',
+    'scenario-3': 'Checkout timeout changes touch payment authorization, inventory hold, and fulfillment simultaneously. A timeout that\'s too short fails legitimate transactions; too long holds inventory away from other customers. The TPM must trace all three paths before changing any threshold.',
+    'scenario-4': 'Fraud model thresholds sit between the customer and the entire order pipeline. Tightening a threshold blocks real customers from purchasing; loosening it lets fraud through to payments and fulfillment. The TPM must understand both directions of the blast radius.',
+    'scenario-5': 'Compliance controls span multiple service owners with audit requirements. Missing one dependency means a regulator finds it for you — and that comes with remediation timelines, not just engineering tickets.',
+  };
+  const defaultLesson = 'Each scenario in this platform represents a real pattern where scattered documentation hides the critical path. The architectural lesson is to never deploy or respond based on a single artifact — always trace the full dependency chain.';
+
+  const actionsByScenario: Record<string, string[]> = {
+    'scenario-1': [
+      'Notify the Search Platform Team that a CDC schema change is incoming — they need to update their Elasticsearch mapping before you deploy.',
+      'Schedule a joint review with Catalog Team and Search Platform Team to validate the new "variants" field doesn\'t break downstream consumers.',
+      'Set up a staged rollout: deploy the schema change to a canary first, monitor Search Indexer lag and error rates for 15 minutes before full rollout.',
+      'Confirm Storefront BFF product-detail pages render correctly post-deploy. If error rate exceeds 1% on /products, trigger the rollback runbook.',
+      'Document the dependency in the team wiki so the next TPM on this team doesn\'t repeat the discovery process.',
+    ],
+    'scenario-2': [
+      'Page the Pricing Team on-call immediately and confirm they are aware of the slowdown — every minute of stale prices during Thanksgiving costs revenue.',
+      'Open a bridge call with Pricing Team, Storefront BFF, and Cart Service owners to coordinate a live response.',
+      'Direct the Pricing Team to investigate cache staleness and Promo Service latency while you track downstream symptoms across Checkout and Cart.',
+      'Communicate blast radius to leadership: stale prices → incorrect cart totals → checkout failures → lost Thanksgiving revenue. Give a clear timeline for update.',
+      'After resolution, drive a post-incident review to document what happened, update the runbook, and add monitoring alerts for Pricing Engine response time.',
+    ],
+    'scenario-3': [
+      'Convene Payment, Inventory, and Fulfillment team leads before changing any timeout value — all three are affected by a single transaction flow.',
+      'Run load tests with the proposed timeout changes against a staging environment that mirrors production payment and inventory volumes.',
+      'Implement the change behind a feature flag so it can be rolled back instantly if checkout failure rates spike.',
+      'Set up real-time dashboards tracking payment authorization success rate, inventory hold duration, and fulfillment queue depth during the rollout window.',
+      'After rollout, validate with Finance that order completion rates stayed within expected range and document the safe timeout boundaries.',
+    ],
+    'scenario-4': [
+      'Coordinate a three-way review with Risk, Payments, and Product teams before adjusting any fraud model threshold.',
+      'Analyze both sides of the blast radius: too tight blocks legitimate customers, too loose lets fraud through to fulfillment.',
+      'Deploy threshold changes with a gradual ramp (1% → 5% → 25% → 100%) and monitor false-positive rate and fraud-through rate at each stage.',
+      'Set up automated alerts: if legitimate transaction block rate exceeds baseline by 2%, auto-revert to previous threshold.',
+      'Share the analysis and rollout plan with leadership so they understand the customer experience vs. fraud protection tradeoff.',
+    ],
+    'scenario-5': [
+      'Map all service owners affected by the compliance control change and notify each one — missed dependencies become audit findings.',
+      'Schedule a compliance review with the governance team to confirm requirements are met before deployment.',
+      'Create an evidence trail: document which services are affected, what changes are needed, and who approved them.',
+      'Coordinate deployment sequencing across all affected teams — compliance changes often require a specific rollout order.',
+      'After deployment, run the compliance validation checklist and preserve audit artifacts for the next regulatory review cycle.',
+    ],
+  };
+  const defaultActions = [
+    'Identify and notify all affected team owners based on the dependency path you traced.',
+    'Coordinate a joint review with upstream and downstream service owners before taking action.',
+    'Implement changes behind a feature flag or staged rollout to limit blast radius.',
+    'Set up monitoring and alerting for the specific metrics that would indicate a problem.',
+    'Document the decision, the evidence that supported it, and the outcome for the next TPM who inherits this.',
+  ];
+
   return {
-    problem: problemByDomain[scenario.domain] ?? defaultProblem,
-    motivation: motivationByDomain[scenario.domain] ?? defaultMotivation,
+    problem: problemByScenario[scenario.id] ?? defaultProblem,
+    motivation: motivationByScenario[scenario.id] ?? defaultMotivation,
+    architecturalLesson: lessonByScenario[scenario.id] ?? defaultLesson,
+    tpmActions: actionsByScenario[scenario.id] ?? defaultActions,
     partialSolutions: cueTitles.length > 0
       ? `There are already useful clues in artifacts like ${cueTitles.join(', ')}, but none of them alone resolves owner, dependency direction, and safe action.`
       : 'There are partial signals available, but the TPM still has to combine them into one defensible decision.',
-    proofTarget: 'A strong run identifies the right owner, shows one clear path of affected systems, names what could break, and supports the plan with both primary and corroborating evidence.',
+    proofTarget: 'A strong answer identifies the right owner, traces one clear path through the affected systems, names what could break for customers, and backs every claim with evidence from the retrieved artifacts.',
     clueTitles: cueTitles,
   };
-}
-
-function buildDiagnostics(metrics: MetricsData | undefined, gatingPass: boolean, criticalErrors: string[]) {
-  if (!metrics) return [] as Array<{ label: string; status: 'strong' | 'warning' | 'risk'; detail: string }>;
-
-  const diagnostics: Array<{ label: string; status: 'strong' | 'warning' | 'risk'; detail: string }> = [];
-
-  diagnostics.push({
-    label: 'Owner routing',
-    status: metrics.ownerAccuracy >= 0.8 ? 'strong' : metrics.ownerAccuracy >= 0.6 ? 'warning' : 'risk',
-    detail: metrics.ownerAccuracy >= 0.8
-      ? 'Owner identification is well supported.'
-      : metrics.ownerAccuracy >= 0.6
-        ? 'Owner selection is partially supported but still needs review.'
-        : 'The likely owner is still wrong or too weakly supported.',
-  });
-
-  diagnostics.push({
-    label: 'Dependency direction',
-    status: metrics.directionCorrect && metrics.dependencyAccuracy >= 0.8 ? 'strong' : metrics.directionCorrect ? 'warning' : 'risk',
-    detail: metrics.directionCorrect
-      ? metrics.dependencyAccuracy >= 0.8
-        ? 'System path direction is coherent and mostly complete.'
-        : 'Direction is plausible, but the path is still incomplete.'
-      : 'The dependency path still has directionality problems.',
-  });
-
-  diagnostics.push({
-    label: 'Blast radius',
-    status: metrics.blastRadiusCompleteness >= 0.8 ? 'strong' : metrics.blastRadiusCompleteness >= 0.6 ? 'warning' : 'risk',
-    detail: metrics.blastRadiusCompleteness >= 0.8
-      ? 'Operational impact coverage is strong.'
-      : metrics.blastRadiusCompleteness >= 0.6
-        ? 'Some impact is covered, but important consequences may still be missing.'
-        : 'The blast-radius analysis is too thin for a defensible TPM answer.',
-  });
-
-  diagnostics.push({
-    label: 'Evidence support',
-    status: metrics.evidenceRelevance >= 0.8 && metrics.unsupportedClaimCount === 0 ? 'strong' : metrics.evidenceRelevance >= 0.6 ? 'warning' : 'risk',
-    detail: metrics.unsupportedClaimCount > 0
-      ? `There are still ${metrics.unsupportedClaimCount} unsupported claim(s) in the reasoning path.`
-      : metrics.evidenceRelevance >= 0.8
-        ? 'Claims are grounded in relevant evidence.'
-        : 'Evidence is only partially aligned to the claims being made.',
-  });
-
-  diagnostics.push({
-    label: 'Gating readiness',
-    status: gatingPass ? 'strong' : criticalErrors.length > 0 || metrics.criticalErrorCount > 0 ? 'risk' : 'warning',
-    detail: gatingPass
-      ? 'This path currently clears the hard submission gate.'
-      : criticalErrors.length > 0
-        ? `Hard-stop issues remain: ${criticalErrors.join('; ')}`
-        : 'The submission path still needs tightening before it is review-safe.',
-  });
-
-  return diagnostics;
 }
 
 interface ForceGraphProps {
@@ -308,8 +318,20 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
   const WIDTH = 720;
   const HEIGHT = 420;
 
-  const layout = useMemo(() => {
-    if (nodes.length === 0) return { positions: new Map<string, { x: number; y: number }>() };
+  const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const dragRef = useRef<{ node: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const didDragRef = useRef(false);
+
+  // Stable content key — only recompute layout when actual data changes, not on reference identity
+  const layoutKey = nodes.slice().sort().join(',') + '|' + edges.map((e) => `${e.from}>${e.to}`).sort().join(',');
+  const prevLayoutKeyRef = useRef('');
+
+  // Compute initial force-directed layout only when node/edge content actually changes
+  useEffect(() => {
+    if (layoutKey === prevLayoutKeyRef.current) return;
+    prevLayoutKeyRef.current = layoutKey;
+
+    if (nodes.length === 0) { setPositions(new Map()); return; }
 
     const pos = new Map<string, { x: number; y: number }>();
     const cx = WIDTH / 2;
@@ -371,8 +393,55 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
       });
     }
 
-    return { positions: pos };
-  }, [nodes, edges]);
+    setPositions(pos);
+  }, [layoutKey, nodes, edges]);
+
+  // Convert a mouse/pointer event to SVG coordinates
+  const toSvgCoords = useCallback((e: React.MouseEvent | MouseEvent) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * WIDTH,
+      y: ((e.clientY - rect.top) / rect.height) * HEIGHT,
+    };
+  }, []);
+
+  const handleNodePointerDown = useCallback((node: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const svgPt = toSvgCoords(e);
+    const p = positions.get(node);
+    if (!p) return;
+    didDragRef.current = false;
+    dragRef.current = { node, startX: svgPt.x, startY: svgPt.y, origX: p.x, origY: p.y };
+  }, [positions, toSvgCoords]);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const svgPt = toSvgCoords(e);
+      const dx = svgPt.x - drag.startX;
+      const dy = svgPt.y - drag.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDragRef.current = true;
+      setPositions((prev) => {
+        const next = new Map(prev);
+        next.set(drag.node, {
+          x: Math.max(60, Math.min(WIDTH - 60, drag.origX + dx)),
+          y: Math.max(30, Math.min(HEIGHT - 30, drag.origY + dy)),
+        });
+        return next;
+      });
+    };
+    const handleUp = () => { dragRef.current = null; };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [toSvgCoords]);
 
   if (nodes.length === 0) {
     return (
@@ -386,7 +455,10 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
 
   return (
     <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] overflow-hidden" data-testid="force-graph-svg-container">
-      <svg ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ minHeight: 320 }}>
+      <div className="flex items-center justify-between px-3 pt-2">
+        <p className="text-[10px] text-[var(--text-2)] opacity-60">Drag nodes to rearrange</p>
+      </div>
+      <svg ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ minHeight: 320, userSelect: 'none' }}>
         <defs>
           <marker id="arrow-downstream" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <path d="M0,0 L8,3 L0,6" fill="var(--accent, #27d3b6)" />
@@ -397,8 +469,8 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
         </defs>
 
         {edges.map((edge, idx) => {
-          const from = layout.positions.get(edge.from);
-          const to = layout.positions.get(edge.to);
+          const from = positions.get(edge.from);
+          const to = positions.get(edge.to);
           if (!from || !to) return null;
           const dx = to.x - from.x;
           const dy = to.y - from.y;
@@ -424,13 +496,19 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
         })}
 
         {nodes.map((node) => {
-          const p = layout.positions.get(node);
+          const p = positions.get(node);
           if (!p) return null;
           const isSeed = seedSet.has(node);
           const isFocused = focusedNode === node;
+          const isDragging = dragRef.current?.node === node;
           const r = isSeed ? 26 : 22;
           return (
-            <g key={node} onClick={() => onNodeClick(node)} style={{ cursor: 'pointer' }}>
+            <g
+              key={node}
+              onMouseDown={(e) => handleNodePointerDown(node, e)}
+              onClick={() => { if (!didDragRef.current) onNodeClick(node); }}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+            >
               <circle
                 cx={p.x} cy={p.y} r={r}
                 fill={isFocused ? 'rgba(39,211,182,0.25)' : isSeed ? 'rgba(39,211,182,0.14)' : 'rgba(148,163,184,0.12)'}
@@ -443,6 +521,7 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
                 fontSize={node.length > 18 ? 8 : 10}
                 fill="var(--text-0, #e8edf3)"
                 fontWeight={isFocused || isSeed ? 600 : 400}
+                style={{ pointerEvents: 'none' }}
               >
                 {node.length > 22 ? node.slice(0, 20) + '…' : node}
               </text>
@@ -472,9 +551,8 @@ export default function App() {
   const [bootLoading, setBootLoading] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('Overview');
-  const [viewMode, setViewMode] = useState<'guided' | 'advanced'>('guided');
   const [guidedStep, setGuidedStep] = useState<GuidedStep>('Brief');
+  const [feedbackTab, setFeedbackTab] = useState<FeedbackTab>('score');
   const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>('vector');
   const [dependencyTraceInput, setDependencyTraceInput] = useState('');
   const [blastRadiusInput, setBlastRadiusInput] = useState('');
@@ -484,8 +562,7 @@ export default function App() {
 
   // Learning analytics state
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [, setSessionStartTime] = useState<number | null>(null);
   const [hasLoggedFirstEvidence, setHasLoggedFirstEvidence] = useState(false);
 
   // Survey state
@@ -499,8 +576,8 @@ export default function App() {
   const [showExampleModal, setShowExampleModal] = useState(false);
   const [exampleLoading, setExampleLoading] = useState(false);
   const [evaluationCompare, setEvaluationCompare] = useState<EvaluationCompareResponse | null>(null);
-  const [evaluationCompareLoading, setEvaluationCompareLoading] = useState(false);
-  const [evaluationCompareError, setEvaluationCompareError] = useState<string | null>(null);
+  const [_evaluationCompareLoading, setEvaluationCompareLoading] = useState(false);
+  const [_evaluationCompareError, setEvaluationCompareError] = useState<string | null>(null);
 
   const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:9992';
 
@@ -511,15 +588,6 @@ export default function App() {
       hasCorroborating: selectedItems.some((item) => item.role === 'corroborating'),
     };
   }, [evidenceItems, selectedEvidence]);
-
-  // Timer tick effect
-  useEffect(() => {
-    if (!sessionStartTime) return;
-    const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - sessionStartTime) / 1000));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [sessionStartTime]);
 
   // Check survey status on boot
   const checkSurveyStatus = useCallback(async () => {
@@ -535,7 +603,6 @@ export default function App() {
       const res = await axios.post(`${API_URL}/sessions/start`, { scenarioId });
       setCurrentSessionId(res.data.sessionId);
       setSessionStartTime(Date.now());
-      setElapsedSeconds(0);
       setHasLoggedFirstEvidence(false);
     } catch { /* non-critical */ }
   }, [API_URL]);
@@ -569,12 +636,6 @@ export default function App() {
     } catch { /* non-critical */ }
   }, [API_URL, showSurvey, surveyAnswers]);
 
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
   const fetchEvidence = useCallback(async (scenarioId: string, mode: RetrievalMode = retrievalMode) => {
     try {
       const res = await axios.get(`${API_URL}/evidence?scenarioId=${encodeURIComponent(scenarioId)}&mode=${mode}`);
@@ -599,10 +660,10 @@ export default function App() {
 
   useEffect(() => {
     if (!selectedScenario) return;
-    if (viewMode !== 'advanced') return;
-    if (activeTab !== 'Evidence' && activeTab !== 'System Graph') return;
+    if (guidedStep !== 'Feedback') return;
+    if (feedbackTab !== 'evidence' && feedbackTab !== 'graph') return;
     fetchEvidence(selectedScenario.id, retrievalMode);
-  }, [selectedScenario, viewMode, activeTab, retrievalMode, fetchEvidence]);
+  }, [selectedScenario, guidedStep, feedbackTab, retrievalMode, fetchEvidence]);
 
   useEffect(() => {
     setGraphFilter('');
@@ -610,10 +671,7 @@ export default function App() {
     setShowOnlyFocusedGraphEdges(false);
   }, [selectedScenario?.id, retrievalMode]);
 
-  const comparisonViewActive = viewMode === 'guided'
-    ? guidedStep === 'Feedback'
-    : activeTab === 'Evaluation' || activeTab === 'Check-in Export';
-  const evaluationViewActive = viewMode === 'guided' ? guidedStep === 'Feedback' : activeTab === 'Evaluation';
+  const comparisonViewActive = guidedStep === 'Feedback';
 
   useEffect(() => {
     if (!selectedScenario || !comparisonViewActive) return;
@@ -639,20 +697,17 @@ export default function App() {
     fetchEvaluationCompare();
   }, [API_URL, selectedScenario, comparisonViewActive]);
 
-  const closeWalkthrough = (nextTab?: WorkspaceTab, nextGuidedStep?: GuidedStep) => {
+  const closeWalkthrough = (nextGuidedStep?: GuidedStep) => {
     setShowWalkthrough(false);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(WALKTHROUGH_STORAGE_KEY, 'true');
-    }
-    if (nextTab) {
-      setActiveTab(nextTab);
     }
     if (nextGuidedStep) {
       setGuidedStep(nextGuidedStep);
     }
   };
 
-  const selectScenario = useCallback((next: ScenarioData | null, options?: { tab?: WorkspaceTab; step?: GuidedStep; reuseScore?: ScoreResponse | null }) => {
+  const selectScenario = useCallback((next: ScenarioData | null, options?: { step?: GuidedStep; reuseScore?: ScoreResponse | null }) => {
     setSelectedScenario(next);
     setSelectedEvidence([]);
     setScore(options?.reuseScore ?? null);
@@ -663,9 +718,6 @@ export default function App() {
     setDependencyTraceInput('');
     setBlastRadiusInput('');
     setFormData({ ownerRouting: '', actionPlan: '', evidenceNotes: '', dependencyTrace: [], blastRadius: [] });
-    if (options?.tab) {
-      setActiveTab(options.tab);
-    }
     if (options?.step) {
       setGuidedStep(options.step);
     }
@@ -682,7 +734,7 @@ export default function App() {
       const res = await axios.get(`${API_URL}/scenarios`);
       setScenarios(res.data);
       if (res.data.length > 0) {
-        selectScenario(res.data[0], { tab: 'Overview', step: 'Brief' });
+        selectScenario(res.data[0], { step: 'Brief' });
         const surveyRes = await axios.get(`${API_URL}/surveys/status`).catch(() => null);
         if (surveyRes?.data && !surveyRes.data.preCompleted) {
           setSurveyStatus(surveyRes.data);
@@ -747,13 +799,35 @@ export default function App() {
       .filter(Boolean);
   };
 
-  const applyExampleAnswer = (example: ExampleAnswerResponse) => {
-    setEvidenceItems((prev) => {
-      const merged = new Map(prev.map((item) => [item.id, item]));
-      example.selectedEvidence.forEach((item) => merged.set(item.id, item));
-      return Array.from(merged.values());
-    });
-    setSelectedEvidence(example.selectedEvidenceIds);
+  const applyExampleAnswer = async (example: ExampleAnswerResponse) => {
+    // Switch to best strategy and fetch all evidence for this scenario
+    setRetrievalMode('graphrag_gating');
+    if (selectedScenario) {
+      try {
+        const res = await axios.get(
+          `${API_URL}/evidence?scenarioId=${encodeURIComponent(selectedScenario.id)}&mode=graphrag_gating`
+        );
+        const freshEvidence: EvidenceItem[] = res.data;
+        setEvidenceItems(freshEvidence);
+        // Select ALL artifacts — the good answer uses everything available
+        setSelectedEvidence(freshEvidence.map((item) => item.id));
+      } catch {
+        // Fallback: merge example evidence into current items
+        setEvidenceItems((prev) => {
+          const merged = new Map(prev.map((item) => [item.id, item]));
+          example.selectedEvidence.forEach((item) => merged.set(item.id, item));
+          return Array.from(merged.values());
+        });
+        setSelectedEvidence(example.selectedEvidenceIds);
+      }
+    } else {
+      setEvidenceItems((prev) => {
+        const merged = new Map(prev.map((item) => [item.id, item]));
+        example.selectedEvidence.forEach((item) => merged.set(item.id, item));
+        return Array.from(merged.values());
+      });
+      setSelectedEvidence(example.selectedEvidenceIds);
+    }
     setFormData({
       ownerRouting: example.ownerRouting,
       dependencyTrace: example.dependencyTrace,
@@ -767,7 +841,6 @@ export default function App() {
     setBlastRadiusInput(example.blastRadius.join('\n'));
     setSubmitError(null);
     setShowExampleModal(false);
-    setActiveTab('Scenario Workspace');
     setGuidedStep('Decide');
   };
 
@@ -830,8 +903,8 @@ export default function App() {
       if (scenario) {
         setCompletedScenarios((prev) => new Map(prev).set(scenario.id, scoreResult));
       }
-      setActiveTab('Evaluation');
       setGuidedStep('Feedback');
+      setFeedbackTab('score');
       // Mark session completed
       await logSessionEvent('completed');
       // Check if all scenarios done → trigger post-survey
@@ -892,14 +965,12 @@ export default function App() {
 
   if (!selectedScenario) return null;
 
-  const showOverview = viewMode === 'guided' ? guidedStep === 'Brief' : activeTab === 'Overview';
-  const showScenarioWorkspace = viewMode === 'guided'
-    ? guidedStep === 'Investigate' || guidedStep === 'Decide'
-    : activeTab === 'Scenario Workspace';
-  const showSystemGraph = viewMode === 'advanced' && activeTab === 'System Graph';
-  const showEvidence = viewMode === 'advanced' && activeTab === 'Evidence';
-  const showEvaluation = evaluationViewActive;
-  const showCheckInExport = viewMode === 'advanced' && activeTab === 'Check-in Export';
+  const showOverview = guidedStep === 'Brief';
+  const showScenarioWorkspace = guidedStep === 'Investigate' || guidedStep === 'Decide';
+  const showSystemGraph = guidedStep === 'Feedback' && feedbackTab === 'graph';
+  const showEvidence = guidedStep === 'Feedback' && feedbackTab === 'evidence';
+  const showEvaluation = guidedStep === 'Feedback' && feedbackTab === 'score';
+  const showCheckInExport = guidedStep === 'Feedback' && feedbackTab === 'export';
 
   const validationMsg = validateSubmission();
   const canSubmit = !loading && !validationMsg;
@@ -911,12 +982,6 @@ export default function App() {
   const graphSeedServices = Array.from(new Set(
     evidenceItems.flatMap((item) => item.metadata?.graphSeedServices ?? [])
   ));
-  const graphConnectedServices = Array.from(new Set(
-    evidenceItems.flatMap((item) => item.metadata?.graphConnectedServices ?? [])
-  ));
-  const graphMatchedServices = Array.from(new Set(
-    selectedEvidenceItems.flatMap((item) => item.metadata?.graphMatchedServices ?? [])
-  ));
   const retrievedGraphEdges = Array.from(
     new Map(
       evidenceItems
@@ -924,10 +989,18 @@ export default function App() {
         .map((edge) => [`${edge.from}|${edge.to}|${edge.type}`, edge])
     ).values()
   );
+  const graphConnectedServices = (() => {
+    const edgeServices = new Set(retrievedGraphEdges.flatMap((edge) => [edge.from, edge.to]));
+    return Array.from(new Set(
+      evidenceItems.flatMap((item) => item.metadata?.graphConnectedServices ?? [])
+    )).filter((service) => edgeServices.has(service));
+  })();
+  const graphMatchedServices = Array.from(new Set(
+    selectedEvidenceItems.flatMap((item) => item.metadata?.graphMatchedServices ?? [])
+  ));
   const displayGraphEdges = formData.dependencyTrace.length > 0 ? formData.dependencyTrace : retrievedGraphEdges;
   const graphNodes = Array.from(
     new Set([
-      ...graphConnectedServices,
       ...displayGraphEdges.flatMap((edge) => [edge.from, edge.to]),
     ])
   ).sort((left, right) => left.localeCompare(right));
@@ -1034,28 +1107,6 @@ export default function App() {
   const primaryEvidence = selectedEvidenceItems.find((item) => item.role === 'primary');
   const corroboratingEvidence = selectedEvidenceItems.find((item) => item.role === 'corroborating');
 
-  const renderRetrievalModePicker = () => (
-    <div className="flex flex-wrap gap-2">
-      {RETRIEVAL_MODE_OPTIONS.map((option) => {
-        const isActive = retrievalMode === option.value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => setRetrievalMode(option.value)}
-            className={`rounded-xl border px-3 py-2 text-left transition-colors ${
-              isActive
-                ? 'border-[rgba(39,211,182,0.55)] bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)]'
-                : 'border-[color:var(--line)] bg-[var(--chip-bg)] text-[var(--text-1)] hover:border-[color:var(--line-strong)] hover:bg-[var(--hover-bg)]'
-            }`}
-          >
-            <span className="block text-[11px] font-semibold uppercase tracking-wide">{option.label}</span>
-            <span className="block text-[10px] text-[var(--text-2)] mt-0.5">{option.description}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
   const beginnerDependencyTemplate = [
     `${upstreamSystem} -> ${focusSystem} (upstream)`,
     `${focusSystem} -> ${downstreamSystem} (downstream)`,
@@ -1068,15 +1119,132 @@ export default function App() {
         '[operational risk to monitor]',
       ]
   ).join('\n');
-  const scoreStatusLabel = score ? getPerformanceLabel(score.overallScore) : null;
-  const scoreStatusTone = score ? getPerformanceTone(score.overallScore) : '';
+  const scoreStatusLabel = score ? getPerformanceLabel(score.overallScore, score.gatingPass) : null;
+  const scoreStatusTone = score ? getPerformanceTone(score.overallScore, score.gatingPass) : '';
+
+  // Find the weakest metric and build a specific next-step instruction
+  const scoreNextStep: { text: string; destination: GuidedStep; buttonLabel: string } | null = (() => {
+    if (!score || !score.metrics) return null;
+    if (score.overallScore >= 0.9 && score.gatingPass) return null;
+
+    if (!score.gatingPass) {
+      return { text: 'At least one sentence in your answer has no matching artifact.', destination: 'Investigate', buttonLabel: 'Select better evidence →' };
+    }
+
+    const metrics = [
+      { key: 'owner', label: 'Owner', value: score.metrics.ownerAccuracy, dest: 'Decide' as GuidedStep, action: 'Change the owner in your answer to match what the artifacts say.' },
+      { key: 'deps', label: 'Dependencies', value: score.metrics.dependencyAccuracy, dest: 'Decide' as GuidedStep, action: 'Your dependency path is missing systems. Check the System Graph, then fix the path in your answer.' },
+      { key: 'blast', label: 'Blast Radius', value: score.metrics.blastRadiusCompleteness, dest: 'Decide' as GuidedStep, action: 'Your blast radius is too vague. Add specific customer, revenue, or system impacts from the artifacts.' },
+      { key: 'evidence', label: 'Evidence', value: score.metrics.evidenceRelevance, dest: 'Investigate' as GuidedStep, action: 'Your evidence doesn\'t cover your claims. Go back and select artifacts that mention the systems and teams in your answer.' },
+    ];
+    const weakest = metrics.reduce((a, b) => a.value <= b.value ? a : b);
+    if (weakest.value >= 0.8) return null;
+    return { text: weakest.action, destination: weakest.dest, buttonLabel: weakest.dest === 'Investigate' ? 'Go to Investigate →' : 'Go to Decide →' };
+  })();
+
+  const scoreIssues: Array<{ label: string; action: string; destination: GuidedStep }> = (() => {
+    if (!score || !score.metrics) return [];
+    if (score.overallScore >= 0.9 && score.gatingPass) return [];
+    const issues: Array<{ label: string; action: string; destination: GuidedStep }> = [];
+    if (score.metrics.ownerAccuracy < 0.8) {
+      issues.push({ label: 'Owner', action: 'Change the owner to match what the artifacts say.', destination: 'Decide' });
+    }
+    if (score.metrics.dependencyAccuracy < 0.8) {
+      issues.push({ label: 'Connections', action: 'Your dependency path is missing systems — check the System Graph.', destination: 'Decide' });
+    }
+    if (score.metrics.blastRadiusCompleteness < 0.8) {
+      issues.push({ label: 'Blast Radius', action: 'Too vague — add specific customer, revenue, or system impacts.', destination: 'Decide' });
+    }
+    if (score.metrics.evidenceRelevance < 0.8) {
+      issues.push({ label: 'Evidence', action: 'Select artifacts that mention the systems and teams in your answer.', destination: 'Investigate' });
+    }
+    return issues;
+  })();
+
   const scoreSummary = score
-    ? score.gatingPass
-      ? score.overallScore >= 0.8
-        ? 'Your answer is well supported and close to production-ready for this scenario.'
-        : 'Your answer is supported, but it still misses some important TPM details.'
-      : 'The app found unsupported reasoning. Tighten the answer using the evidence you selected.'
+    ? scoreIssues.length > 0
+      ? `${scoreIssues.length} area${scoreIssues.length > 1 ? 's' : ''} to fix — see details below.`
+      : scoreNextStep
+        ? scoreNextStep.text
+        : 'You nailed this scenario. Read the learning takeaways below to see what you just proved you can do.'
     : null;
+
+  const scenarioNarrative = getScenarioNarrative(selectedScenario);
+
+  // Connected learning summary — links scenario → evidence → answer → score
+  const learningData = (() => {
+    if (!score || score.overallScore < 0.8 || !score.gatingPass) return null;
+
+    // Evidence the user actually selected, grouped by role
+    const primaryArtifacts = selectedEvidenceItems.filter((e) => e.role === 'primary');
+    const corroboratingArtifacts = selectedEvidenceItems.filter((e) => e.role === 'corroborating');
+
+    // Rubric lookup helper
+    const rubricScore = (criterion: string) => {
+      const rs = score.rubricScores?.find((r) => r.criterion.toLowerCase().includes(criterion.toLowerCase()));
+      return rs ? Math.round(rs.score * 100) : null;
+    };
+
+    // Decision chain — what the user did for each rubric dimension, linked to evidence
+    const ownerScore = rubricScore('owner');
+    const depScore = rubricScore('dependency');
+    const blastScore = rubricScore('blast');
+    const evidenceScore = rubricScore('evidence');
+
+    const chain: Array<{ icon: string; dimension: string; evidence: string; answer: string; pct: number | null; tone: string }> = [];
+
+    // Owner
+    const ownerArtifact = primaryArtifacts.find((a) => /owner|registry|runbook/i.test(a.title)) ?? primaryArtifacts[0];
+    chain.push({
+      icon: '👤',
+      dimension: 'Owner Routing',
+      evidence: ownerArtifact ? `Read "${ownerArtifact.title}"` : 'Used selected primary artifacts',
+      answer: formData.ownerRouting ? `Identified → ${formData.ownerRouting}` : 'Identified the owning team',
+      pct: ownerScore,
+      tone: (ownerScore ?? 0) >= 80 ? 'ok' : (ownerScore ?? 0) >= 60 ? 'warn' : 'danger',
+    });
+
+    // Dependencies
+    const depArtifact = [...corroboratingArtifacts, ...primaryArtifacts].find((a) => /dependency|spec|integration|CDC|kafka/i.test(a.title)) ?? corroboratingArtifacts[0];
+    const edgeCount = formData.dependencyTrace.length;
+    chain.push({
+      icon: '🔗',
+      dimension: 'Dependency Trace',
+      evidence: depArtifact ? `Read "${depArtifact.title}"` : 'Used selected artifacts',
+      answer: edgeCount > 0 ? `Mapped ${edgeCount} connection${edgeCount > 1 ? 's' : ''} between services` : 'Traced service connections',
+      pct: depScore,
+      tone: (depScore ?? 0) >= 80 ? 'ok' : (depScore ?? 0) >= 60 ? 'warn' : 'danger',
+    });
+
+    // Blast radius
+    const blastCount = formData.blastRadius.length;
+    chain.push({
+      icon: '💥',
+      dimension: 'Blast Radius',
+      evidence: `Cross-referenced ${selectedEvidenceItems.length} artifact${selectedEvidenceItems.length > 1 ? 's' : ''}`,
+      answer: blastCount > 0 ? `Identified ${blastCount} impact${blastCount > 1 ? 's' : ''} on customers, revenue, or operations` : 'Assessed downstream impacts',
+      pct: blastScore,
+      tone: (blastScore ?? 0) >= 80 ? 'ok' : (blastScore ?? 0) >= 60 ? 'warn' : 'danger',
+    });
+
+    // Evidence gating
+    const claimCount = score.claims?.length ?? 0;
+    chain.push({
+      icon: '📄',
+      dimension: 'Evidence Gate',
+      evidence: `${selectedEvidenceItems.length} artifact${selectedEvidenceItems.length > 1 ? 's' : ''} selected (${primaryArtifacts.length} primary, ${corroboratingArtifacts.length} corroborating)`,
+      answer: `${claimCount} claim${claimCount !== 1 ? 's' : ''} in your answer — ${score.gatingPass ? 'all backed' : 'some unsupported'}`,
+      pct: evidenceScore,
+      tone: score.gatingPass ? 'ok' : 'danger',
+    });
+
+    return {
+      primaryArtifacts,
+      corroboratingArtifacts,
+      chain,
+    };
+  })();
+
   const beginnerMetrics = score?.metrics
     ? [
         { label: 'Owner Match', value: score.metrics.ownerAccuracy },
@@ -1088,64 +1256,66 @@ export default function App() {
   const modeLabels = new Map(RETRIEVAL_MODE_OPTIONS.map((option) => [option.value, option.label]));
   const comparisonForSelectedScenario = evaluationCompare?.scenarioId === selectedScenario.id ? evaluationCompare : null;
   const vectorBaseline = comparisonForSelectedScenario?.results.find((result) => result.mode === 'vector') ?? null;
-  const scenarioNarrative = getScenarioNarrative(selectedScenario);
-  const currentDiagnostics = buildDiagnostics(score?.metrics, score?.gatingPass ?? false, score?.criticalErrors ?? []);
-  const bestCompareResult = comparisonForSelectedScenario?.results.find((result) => result.mode === comparisonForSelectedScenario.bestMode) ?? null;
-  const bestModeDiagnostics = buildDiagnostics(bestCompareResult?.metrics, bestCompareResult?.gatingPass ?? false, bestCompareResult?.criticalErrors ?? []);
 
   const currentScoreLabel = score ? `${Math.round(score.overallScore * 100)}%` : '--';
-  const bestModeLabel = comparisonForSelectedScenario
-    ? modeLabels.get(comparisonForSelectedScenario.bestMode) ?? comparisonForSelectedScenario.bestMode
-    : 'Pending';
-
   const fillBeginnerDraft = () => {
     const ownerGuess = keyFacts.owners[0] ?? '';
     const ownerLine = ownerGuess || suggestedTeams[0] || '[owner team]';
+    const primaryTitle = primaryEvidence?.title ?? '[primary artifact]';
+    const corrobTitle = corroboratingEvidence?.title ?? '[corroborating artifact]';
+    const impactLine = keyFacts.impacts[0] ?? '[describe the customer or revenue impact]';
+    const depLine = keyFacts.dependencies[0] ?? `${focusSystem} to ${downstreamSystem}`;
 
     setFormData({
       ownerRouting: ownerLine,
       dependencyTrace: parseDependencyTrace(beginnerDependencyTemplate),
       actionPlan: [
-        `Confirm the risk and current state using ${primaryEvidence?.id ?? '[primary artifact id]'}.`,
-        `Notify ${ownerLine} and align with ${suggestedTeams[1] ?? '[dependent team]'}.`,
-        `Verify ${downstreamSystem} before rollout or recovery.`,
-        'Monitor the key metric and rollback if customer impact appears.'
+        `Confirm ${focusSystem} status and scope using ${primaryTitle}.`,
+        `Notify ${ownerLine} and coordinate with ${suggestedTeams[1] ?? '[dependent team]'} on ${depLine}.`,
+        `Verify ${downstreamSystem} is not impacted before proceeding with recovery.`,
+        `Monitor for ${impactLine} and rollback if it worsens.`,
       ].join('\n'),
       blastRadius: beginnerBlastTemplate.split('\n'),
       evidenceNotes: [
-        `Owner evidence: ${primaryEvidence?.id ?? '[primary artifact id]'}.`,
-        `Dependency evidence: ${corroboratingEvidence?.id ?? '[corroborating artifact id]'}.`,
-        'Why this matters: the selected evidence names the owner, affected systems, and likely impact.',
+        `${primaryTitle} identifies ${ownerLine} as the owner of ${focusSystem}.`,
+        `${corrobTitle} shows the dependency path from ${upstreamSystem} through ${focusSystem} to ${downstreamSystem}.`,
       ].join('\n'),
     });
 
     setDependencyTraceInput(beginnerDependencyTemplate);
     setBlastRadiusInput(beginnerBlastTemplate);
 
-    if (viewMode === 'guided' && guidedStep !== 'Decide') {
+    if (guidedStep !== 'Decide') {
       setGuidedStep('Decide');
     }
   };
 
   return (
-    <div className="min-h-screen text-[var(--text-0)] font-sans" data-testid="app-root">
+    <div className="min-h-screen flex flex-col text-[var(--text-0)] font-sans" data-testid="app-root">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-[color:var(--line)] bg-[var(--header-bg)] shadow-[0_18px_46px_rgba(2,6,23,0.12)] backdrop-blur-xl reveal-up">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1db8a2] via-[#83ebd6] to-[#f0b45a] flex items-center justify-center shadow-[0_12px_28px_rgba(0,0,0,0.32)] ring-1 ring-white/20 shrink-0">
-              <span className="text-base select-none leading-none">🎓</span>
+      <header className="sticky top-0 z-20 border-b border-[color:var(--line)] bg-[var(--header-bg)] shadow-[0_18px_46px_rgba(2,6,23,0.12)] backdrop-blur-xl">
+        <div className="gradient-line" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-[#1db8a2] via-[#83ebd6] to-[#f0b45a] flex items-center justify-center shadow-[0_12px_28px_rgba(0,0,0,0.32),0_0_20px_rgba(39,211,182,0.15)] ring-1 ring-white/20 shrink-0">
+              <span className="text-lg select-none leading-none">🎓</span>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[var(--ok)] border-2 border-[var(--bg-0)] animate-pulse" />
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-lg font-bold text-[var(--text-0)] tracking-tight">OmniMentor</span>
-              <span className="text-[11px] tracking-[0.18em] uppercase text-[var(--text-2)] font-medium">From Architecture Blindness to Fluency</span>
+              <span className="text-lg font-bold tracking-tight" style={{ background: 'linear-gradient(135deg, var(--text-0) 0%, var(--accent-2) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>OmniMentor</span>
+              <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-2)] font-medium">Architecture Fluency Platform</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="hidden sm:flex items-center gap-1.5 mr-2">
+              {(['Brief', 'Investigate', 'Decide', 'Feedback'] as const).map((step, i) => (
+                <span key={step} className={`progress-dot ${guidedStep === step ? 'progress-dot-active' : completedScenarios.size > 0 && i < ['Brief', 'Investigate', 'Decide', 'Feedback'].indexOf(guidedStep) ? 'progress-dot-done' : 'progress-dot-pending'}`} title={step} />
+              ))}
+            </div>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               aria-label="Toggle theme"
-              className="p-1.5 rounded-lg border border-[var(--line)] hover:bg-[var(--surface-1)] transition-colors text-[var(--text-1)]"
+              className="p-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-1)] hover:border-[var(--line-strong)] transition-all duration-200 text-[var(--text-1)]"
             >
               {theme === 'dark' ? (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="5" /><path strokeLinecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>
@@ -1156,132 +1326,148 @@ export default function App() {
             <button
               onClick={() => setShowWalkthrough(true)}
               data-testid="open-walkthrough"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] transition-colors"
+              className="text-xs font-semibold px-3.5 py-2 rounded-xl border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] hover:border-[rgba(39,211,182,0.55)] transition-all duration-200"
             >
               How It Works
             </button>
-            {sessionStartTime && (
-              <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-2)]">
-                <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-[var(--text-1)]">{formatTime(elapsedSeconds)}</span>
-              </div>
-            )}
+            <a
+              href="https://github.com/asharma3084/OmniMentor-Learning-Platform/blob/main/docs/start-here/user-guide.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open help documentation"
+              className="p-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-1)] hover:border-[var(--line-strong)] transition-all duration-200 text-[var(--text-2)] hover:text-[var(--text-1)]"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 18h.01" />
+                <circle cx="12" cy="12" r="9.75" />
+              </svg>
+            </a>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-4 w-full">
         {/* ── Compact scenario bar ── */}
         <div className="mb-3 reveal-up" style={{ animationDelay: '20ms' }}>
-          <div className="card px-4 py-3">
-            {/* Row 1: scenario selector + mode + status chips */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <DomainBadge domain={selectedScenario.domain} />
-              <div className="relative flex-1 min-w-[180px] max-w-sm">
-                <select
-                  value={selectedScenario.id}
-                  aria-label="Active Scenario"
-                  data-testid="scenario-select"
-                  onChange={(e) => {
-                    const next = scenarios.find((s) => s.id === e.target.value) ?? null;
-                    selectScenario(next, { tab: viewMode === 'advanced' ? activeTab : 'Overview', step: 'Brief' });
-                  }}
-                  className="form-input py-1.5 pr-8 text-sm appearance-none cursor-pointer"
-                >
-                  {scenarios.map((s) => (
-                    <option key={s.id} value={s.id}>{s.domain ? `[${s.domain}] ` : ''}{s.title}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-2)]">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
+          <div className="card px-0 py-0 overflow-hidden">
+            {/* Tab bar: steps left, scenario right */}
+            <div className="flex items-stretch justify-between border-b border-[color:var(--line)]">
+              {/* Step tabs */}
+              <div className="flex">
+                {([
+                  { step: 'Brief' as const, icon: '📋', label: 'Brief' },
+                  { step: 'Investigate' as const, icon: '🔍', label: 'Investigate' },
+                  { step: 'Decide' as const, icon: '✍️', label: 'Decide' },
+                  { step: 'Feedback' as const, icon: '📊', label: 'Feedback' },
+                ]).map(({ step, icon, label }, index) => (
+                  <button
+                    key={step}
+                    onClick={() => { setGuidedStep(step); if (step === 'Feedback') setFeedbackTab('score'); }}
+                    data-testid={`guided-step-${step.toLowerCase()}`}
+                    className={`group relative px-4 py-3 text-xs font-semibold transition-all duration-200 whitespace-nowrap flex items-center gap-2 ${
+                      guidedStep === step
+                        ? 'text-[var(--accent-2)] bg-[rgba(39,211,182,0.08)]'
+                        : 'text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--hover-bg)]'
+                    }`}
+                  >
+                    <span className={`step-icon ${guidedStep === step ? 'step-icon-active' : ''}`}>{icon}</span>
+                    <span>{index + 1}. {label}</span>
+                    {guidedStep === step && (
+                      <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-2))' }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+              {/* Scenario selector — right side */}
+              <div className="flex items-center gap-2 px-3">
+                <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-2)]">
+                  <span><span className="text-[var(--text-1)] font-semibold">{completedScenarios.size}/{scenarios.length}</span> done</span>
+                  <span className="opacity-30">·</span>
+                  <span><span className="text-[var(--text-1)] font-semibold">{selectedEvidence.length}</span> evidence</span>
+                  <span className="opacity-30">·</span>
+                  <span className={score ? getPerformanceTone(score.overallScore) : ''}>{currentScoreLabel}</span>
+                </div>
+                <DomainBadge domain={selectedScenario.domain} size="xs" />
+                <div className="relative min-w-[160px] max-w-[260px]">
+                  <select
+                    value={selectedScenario.id}
+                    aria-label="Active Scenario"
+                    data-testid="scenario-select"
+                    onChange={(e) => {
+                      const next = scenarios.find((s) => s.id === e.target.value) ?? null;
+                      selectScenario(next, { step: 'Brief' });
+                    }}
+                    className="form-input py-1 pr-7 text-[11px] appearance-none cursor-pointer"
+                  >
+                    {scenarios.map((s) => (
+                      <option key={s.id} value={s.id}>{s.domain ? `[${s.domain}] ` : ''}{s.title}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-2)]">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setViewMode('guided')}
-                  data-testid="guided-mode-toggle"
-                  className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors ${
-                    viewMode === 'guided'
-                      ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
-                      : 'border border-[color:var(--line)] text-[var(--text-2)] hover:bg-[var(--hover-bg)]'
-                  }`}
-                >
-                  Guided
-                </button>
-                <button
-                  onClick={() => setViewMode('advanced')}
-                  data-testid="advanced-mode-toggle"
-                  className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors ${
-                    viewMode === 'advanced'
-                      ? 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border border-[rgba(240,180,90,0.35)]'
-                      : 'border border-[color:var(--line)] text-[var(--text-2)] hover:bg-[var(--hover-bg)]'
-                  }`}
-                >
-                  Advanced
-                </button>
-              </div>
             </div>
-            {/* Row 2: step/tab nav + compact status */}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {viewMode === 'guided' ? (
-                <>
-                  {(['Brief', 'Investigate', 'Decide', 'Feedback'] as const).map((step, index) => (
+            {/* Feedback sub-tabs — second row, always visible when on Feedback step */}
+            {guidedStep === 'Feedback' && (
+              <div className="flex flex-col gap-1 px-3 py-2 bg-[var(--chip-bg)] border-t border-[color:var(--line)]">
+                <div className="flex items-center gap-2">
+                {([
+                  { key: 'score' as const, label: 'Score & Coaching', desc: 'See your rubric score, metric breakdown, and coaching tips to improve each dimension of your answer.' },
+                  { key: 'graph' as const, label: 'System Graph', desc: 'Explore the live dependency map — see how services connect and which paths your answer traced correctly.' },
+                  { key: 'evidence' as const, label: 'Evidence Explorer', desc: 'Review every artifact you selected and verify which claims each one supports in your answer.' },
+                  { key: 'export' as const, label: 'Check-in Export', desc: 'Generate a structured summary of your completed scenarios for your weekly mentor check-in.' },
+                ]).map(({ key, label, desc }) => (
+                  <div key={key} className="relative group">
                     <button
-                      key={step}
-                      onClick={() => setGuidedStep(step)}
-                      data-testid={`guided-step-${step.toLowerCase()}`}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                        guidedStep === step
+                      onClick={() => setFeedbackTab(key)}
+                      data-testid={`feedback-tab-${key}`}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-colors ${
+                        feedbackTab === key
                           ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
                           : 'text-[var(--text-2)] border border-transparent hover:bg-[var(--hover-bg)]'
                       }`}
                     >
-                      {index + 1}. {step}
+                      {label}
                     </button>
-                  ))}
-                </>
-              ) : (
-                <>
-                  {(['Overview', 'Scenario Workspace', 'System Graph', 'Evidence', 'Evaluation', 'Check-in Export'] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      data-testid={`advanced-tab-${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                        activeTab === tab
-                          ? 'bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)] border border-[rgba(39,211,182,0.42)]'
-                          : 'text-[var(--text-2)] border border-transparent hover:bg-[var(--hover-bg)]'
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </>
-              )}
-              <div className="ml-auto flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-2)]">
-                <span><span className="text-[var(--text-1)] font-semibold">{completedScenarios.size}/{scenarios.length}</span> done</span>
-                <span className="opacity-30">|</span>
-                <span><span className="text-[var(--text-1)] font-semibold">{selectedEvidence.length}</span> evidence</span>
-                <span className="opacity-30">|</span>
-                <span className={score ? getPerformanceTone(score.overallScore) : ''}>{currentScoreLabel}</span>
-                <span className="opacity-30">|</span>
-                <span>{bestModeLabel}</span>
+                    <div className="absolute left-0 top-full mt-1 z-30 w-56 px-3 py-2 rounded-lg bg-[var(--surface-1)] border border-[color:var(--line)] shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150">
+                      <p className="text-[10px] text-[var(--text-1)] leading-relaxed">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+                </div>
+                {feedbackTab && (
+                  <p className="text-[10px] text-[var(--text-2)] leading-relaxed pl-0.5">
+                    {feedbackTab === 'score' && 'See your rubric score, metric breakdown, and specific coaching on each dimension of your answer.'}
+                    {feedbackTab === 'graph' && 'Explore the dependency map showing how services connect — verify the paths you traced in your answer.'}
+                    {feedbackTab === 'evidence' && 'Review every artifact you selected and check which of your claims each one supports.'}
+                    {feedbackTab === 'export' && 'Generate a structured summary of your completed scenarios for your weekly mentor check-in.'}
+                  </p>
+                )}
+                <div className="ml-auto">
+                  <button
+                    onClick={() => {
+                      setScore(null);
+                      setFormData({ ownerRouting: '', dependencyTrace: [], actionPlan: '', blastRadius: [], evidenceNotes: '' });
+                      setDependencyTraceInput('');
+                      setBlastRadiusInput('');
+                      setSelectedEvidence([]);
+                      setEvaluationCompare(null);
+                      setExampleAnswer(null);
+                      setGuidedStep('Brief');
+                    }}
+                    className="px-2.5 py-1 rounded-md text-[10px] font-semibold text-[var(--danger-text)] border border-[rgba(255,124,124,0.35)] hover:bg-[rgba(255,124,124,0.1)] transition-colors"
+                  >
+                    Start Over
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
-
-        {viewMode === 'advanced' && (
-          <div className="mb-3 reveal-up" style={{ animationDelay: '30ms' }}>
-            <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[var(--chip-bg)] px-4 py-2.5 text-xs text-[var(--text-1)]">
-              Advanced mode supports reviewer-focused inspection: verify retrieved evidence, compare retrieval modes, and export a mentor snapshot. Guided mode remains the recommended path for new TPMs.
-            </div>
-          </div>
-        )}
 
         {/* Submit error */}
         {submitError && (
@@ -1294,70 +1480,98 @@ export default function App() {
         )}
 
         {showOverview && (
-          <div className="space-y-3 reveal-up">
-            {viewMode === 'guided' && (
-              <>
-                {/* Compact mission brief */}
-                <div className="card p-4 border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.06)]">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 max-w-3xl">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent-2)]">Mission Brief</p>
-                      <h2 className="text-xl font-bold text-[var(--text-0)] mt-1">{selectedScenario.title}</h2>
-                      <p className="text-sm text-[var(--text-1)] mt-2 leading-relaxed">{selectedScenario.prompt}</p>
+          <div className="space-y-4 reveal-up">
+                {/* Incident-style mission brief */}
+                <div className="hero-panel p-0 overflow-hidden">
+                  {/* Top bar — severity + domain + live indicator */}
+                  <div className="flex items-center justify-between px-5 py-3 bg-[rgba(39,211,182,0.08)] border-b border-[rgba(39,211,182,0.15)]">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--warn)] opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--warn)]" />
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--warn-text)] mono-kicker">Incident Brief</span>
+                      </span>
+                      {selectedScenario.domain && <DomainBadge domain={selectedScenario.domain} size="xs" />}
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-2xl font-bold text-[var(--text-0)]">{completedScenarios.size}/{scenarios.length}</p>
-                      <p className="text-[10px] text-[var(--text-2)]">complete</p>
-                      <div className="mt-1 w-20 bg-[var(--track-bg)] rounded-full h-1.5 overflow-hidden">
-                        <div className="h-1.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
+                    <div className="flex items-center gap-3">
+                      <span className="tag-icon">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6z" /></svg>
+                        {completedScenarios.size}/{scenarios.length} complete
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Main content */}
+                  <div className="px-6 py-6">
+                    {/* Title + situation */}
+                    <h2 className="text-2xl sm:text-3xl font-bold leading-tight" style={{ background: 'linear-gradient(135deg, var(--text-0) 0%, var(--accent-2) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{selectedScenario.title}</h2>
+                    <div className="mt-4 space-y-2">
+                      {selectedScenario.prompt.split('\n\n').map((para, i) => (
+                        <p key={i} className="text-sm text-[var(--text-1)] leading-relaxed">{para}</p>
+                      ))}
+                    </div>
+
+                    {/* Your mission — the 4 deliverables with polished cards */}
+                    <div className="mt-6 rounded-2xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-5">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent-2)] mb-4 mono-kicker">Your Mission — Navigate the System & Respond</p>
+                      <p className="text-xs text-[var(--text-2)] mb-4 leading-relaxed">You're a TPM onboarding onto a new team inside one of the world's largest retailers. These systems are massive, interconnected, and high-stakes. Your job: make sense of the complexity, trace the dependencies, and drive the right response.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {[
+                          { icon: '👤', label: 'Owner', desc: 'Identify which team owns the root cause across dozens of interconnected services.', accent: 'rgba(75,215,158,0.12)', border: 'rgba(75,215,158,0.25)' },
+                          { icon: '🔗', label: 'Dependency path', desc: 'Trace how failures propagate through the retailer\'s complex distributed architecture.', accent: 'rgba(99,102,241,0.12)', border: 'rgba(99,102,241,0.25)' },
+                          { icon: '💥', label: 'Blast radius', desc: 'Assess impact on customers, revenue, stores, and partner teams at enterprise scale.', accent: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.25)' },
+                          { icon: '🛡️', label: 'Safe actions', desc: 'Recommend immediate, safe mitigation steps that balance urgency with system stability.', accent: 'rgba(39,211,182,0.12)', border: 'rgba(39,211,182,0.25)' },
+                        ].map((item, i) => (
+                          <div key={item.label} className="flex items-start gap-3 rounded-xl border px-4 py-3.5 evidence-lift" style={{ backgroundColor: item.accent, borderColor: item.border, animationDelay: `${i * 60}ms` }}>
+                            <span className="text-xl mt-0.5">{item.icon}</span>
+                            <div>
+                              <p className="text-sm font-semibold text-[var(--text-0)]">{item.label}</p>
+                              <p className="text-xs text-[var(--text-2)] mt-0.5">{item.desc}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-[rgba(240,180,90,0.28)] bg-[rgba(240,180,90,0.06)] p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-[var(--warn-text)]">Why this scenario matters</p>
-                      <p className="text-xs text-[var(--text-0)] mt-1.5 leading-relaxed">{scenarioNarrative.problem}</p>
-                      <p className="text-xs text-[var(--text-1)] mt-1.5 leading-relaxed">{scenarioNarrative.motivation}</p>
+
+                    {/* Stakes — one tight line */}
+                    <div className="mt-5 rounded-xl border-l-[3px] border-l-[var(--warn)] border border-[rgba(240,180,90,0.2)] bg-[rgba(240,180,90,0.06)] px-4 py-3">
+                      <p className="text-xs text-[var(--warn-text)] leading-relaxed">
+                        {scenarioNarrative.problem}
+                      </p>
                     </div>
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">What a strong answer proves</p>
-                      <p className="text-xs text-[var(--text-0)] mt-1.5 leading-relaxed">{scenarioNarrative.proofTarget}</p>
-                      {scenarioNarrative.clueTitles.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {scenarioNarrative.clueTitles.map((title) => (
-                            <span key={title} className="rounded-full border border-[color:var(--line)] bg-[var(--tag-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
-                              {title}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+
+                    {/* CTA */}
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => setGuidedStep('Investigate')}
+                        data-testid="start-with-evidence"
+                        className="btn-accent px-6 py-3 text-sm rounded-xl"
+                      >
+                        Start Investigation →
+                      </button>
+                      <button
+                        onClick={() => setShowWalkthrough(true)}
+                        data-testid="replay-walkthrough"
+                        className="px-5 py-3 rounded-xl text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)] hover:border-[var(--line-strong)] transition-all duration-200"
+                      >
+                        How this works
+                      </button>
                     </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => setGuidedStep('Investigate')}
-                      data-testid="start-with-evidence"
-                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
-                    >
-                      Start With Evidence
-                    </button>
-                    <button
-                      onClick={() => setShowWalkthrough(true)}
-                      data-testid="replay-walkthrough"
-                      className="px-3 py-2 rounded-lg text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
-                    >
-                      Replay Walkthrough
-                    </button>
-                    <span className="ml-auto text-[10px] text-[var(--text-2)]">
-                      {['Name the right owner', 'Show one system path', 'State what could break', 'Support with evidence'].join(' · ')}
-                    </span>
                   </div>
                 </div>
 
                 {/* Compact scenario queue */}
-                <div className="card p-4">
-                  <p className="label mb-2">Scenario Queue</p>
-                  <div className="space-y-1.5">
+                <div className="card p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--text-2)]">Scenario Queue</p>
+                    <span className="tag-icon">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>
+                      {scenarios.length} scenarios
+                    </span>
+                  </div>
+                  <div className="space-y-2">
                     {scenarios.map((s) => {
                       const result = completedScenarios.get(s.id);
                       const isActive = selectedScenario?.id === s.id;
@@ -1365,124 +1579,30 @@ export default function App() {
                         <div
                           key={s.id}
                           onClick={() => {
-                            selectScenario(s, { reuseScore: result ?? null, tab: 'Overview', step: 'Brief' });
+                            selectScenario(s, { reuseScore: result ?? null, step: 'Brief' });
                           }}
-                          className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all duration-150 ${
+                          className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer evidence-lift ${
                             isActive
                               ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.06)]'
                               : 'border-[color:var(--line)] hover:bg-[var(--hover-bg)]'
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             {s.domain && <DomainBadge domain={s.domain} size="xs" />}
                             <p className="text-xs font-medium text-[var(--text-0)] truncate">{s.title}</p>
                           </div>
-                          <span className="text-[10px] text-[var(--text-2)] shrink-0 ml-2">{result ? `${Math.round(result.overallScore * 100)}%` : 'Not started'}</span>
+                          <span className={`text-[10px] font-semibold shrink-0 ml-2 px-2.5 py-0.5 rounded-full border ${
+                            result
+                              ? result.overallScore >= 0.8
+                                ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
+                                : 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
+                              : 'bg-[var(--chip-bg)] text-[var(--text-2)] border-[color:var(--line)]'
+                          }`}>{result ? `${Math.round(result.overallScore * 100)}%` : 'Not started'}</span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              </>
-            )}
-            {viewMode === 'advanced' && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="card p-4">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Progress</p>
-                <p className="text-xl font-bold mt-1">{completedScenarios.size}/{scenarios.length}</p>
-                <div className="mt-2 w-full bg-[var(--track-bg)] rounded-full h-1.5 overflow-hidden">
-                  <div className="h-1.5 rounded-full bg-gradient-to-r from-[var(--accent)] to-[#4bd79e] transition-all duration-500" style={{ width: `${scenarios.length > 0 ? Math.max((completedScenarios.size / scenarios.length) * 100, completedScenarios.size > 0 ? 8 : 0) : 0}%` }} />
-                </div>
-                <div className="flex gap-1 mt-2 flex-wrap">
-                  {scenarios.map((s) => (
-                    <div key={s.id} className={`w-2 h-2 rounded-sm transition-colors ${
-                      completedScenarios.has(s.id) ? 'bg-[var(--ok)]' : selectedScenario?.id === s.id ? 'bg-[var(--accent)] opacity-50' : 'bg-[rgba(124,152,182,0.25)]'
-                    }`} title={s.title} />
-                  ))}
-                </div>
-              </div>
-              <div className="card p-4">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Quality</p>
-                {completedScenarios.size > 0 ? (() => {
-                  const scores = Array.from(completedScenarios.values()).map((s) => s.overallScore);
-                  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-                  const pct = Math.round(avg * 100);
-                  return <p className={`text-xl font-bold mt-1 ${pct >= 80 ? 'text-[var(--ok)]' : pct >= 60 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'}`}>{pct}%</p>;
-                })() : <p className="text-xl font-bold mt-1 text-[var(--text-2)]">--</p>}
-              </div>
-              <div className="card p-4">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Evidence</p>
-                <p className="text-xl font-bold mt-1">{selectedEvidence.length}</p>
-                <div className="mt-2 flex gap-1.5">
-                  <button onClick={() => setActiveTab('Scenario Workspace')} className="text-[10px] font-semibold px-2 py-1 rounded-md bg-[var(--accent)] text-slate-950">Practice</button>
-                  <button onClick={() => setActiveTab('Evaluation')} className="text-[10px] font-semibold px-2 py-1 rounded-md border border-[rgba(240,180,90,0.45)] text-[var(--warn-text)]">Feedback</button>
-                </div>
-              </div>
-              <div className="card p-4">
-                <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)]">Actions</p>
-                <div className="mt-2 flex flex-col gap-1.5">
-                  <button
-                    onClick={() => { const next = !surveyStatus.preCompleted ? 'pre' as const : (!surveyStatus.postCompleted ? 'post' as const : null); if (next) setShowSurvey(next); }}
-                    className="text-[10px] font-semibold px-2 py-1 rounded-md border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] disabled:text-[var(--text-2)]"
-                    disabled={surveyStatus.preCompleted && surveyStatus.postCompleted}
-                  >
-                    Self-assess
-                  </button>
-                  <button onClick={() => setShowWalkthrough(true)} className="text-[10px] font-semibold px-2 py-1 rounded-md border border-[color:var(--line)] text-[var(--text-1)]">Walkthrough</button>
-                </div>
-              </div>
-            </div>}
-
-            {viewMode === 'advanced' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-              <div className="card p-4 border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)]">
-                <p className="label">Problem Framing</p>
-                <p className="text-xs text-[var(--text-0)] mt-2 leading-relaxed">{scenarioNarrative.problem}</p>
-                <p className="text-xs text-[var(--text-1)] mt-2 leading-relaxed">{scenarioNarrative.motivation}</p>
-              </div>
-              <div className="card p-4">
-                <p className="label">Review Framing</p>
-                <p className="text-xs text-[var(--text-1)] mt-2 leading-relaxed">{scenarioNarrative.partialSolutions}</p>
-                <p className="text-xs text-[var(--text-0)] mt-2 leading-relaxed">{scenarioNarrative.proofTarget}</p>
-                {scenarioNarrative.clueTitles.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {scenarioNarrative.clueTitles.map((title) => (
-                      <span key={`advanced-${title}`} className="rounded-full border border-[color:var(--line)] bg-[var(--tag-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">{title}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>}
-
-            {viewMode === 'advanced' && <div className="card p-4">
-              <p className="label mb-2">All Scenarios</p>
-              <div className="space-y-1.5">
-                {scenarios.map((s) => {
-                  const result = completedScenarios.get(s.id);
-                  const isActive = selectedScenario?.id === s.id;
-                  return (
-                    <div
-                      key={s.id}
-                      onClick={() => { selectScenario(s, { reuseScore: result ?? null, tab: 'Scenario Workspace', step: 'Decide' }); }}
-                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all duration-150 ${
-                        isActive
-                          ? 'border-[rgba(39,211,182,0.5)] bg-[rgba(39,211,182,0.06)]'
-                          : 'border-[color:var(--line)] hover:bg-[var(--hover-bg)]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${result ? 'bg-[var(--ok)]' : isActive ? 'border border-[var(--accent)]' : 'border border-[rgba(124,152,182,0.35)]'}`} />
-                        <span className="text-xs truncate text-[var(--text-1)]">{s.title}</span>
-                        {s.domain && <DomainBadge domain={s.domain} size="xs" />}
-                      </div>
-                      {result ? (
-                        <span className={`text-[10px] font-bold mono-kicker ${Math.round(result.overallScore * 100) >= 80 ? 'text-[var(--ok)]' : 'text-[var(--warn)]'}`}>{Math.round(result.overallScore * 100)}%</span>
-                      ) : (
-                        <span className="text-[10px] text-[var(--text-2)]">—</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>}
           </div>
         )}
 
@@ -1491,32 +1611,47 @@ export default function App() {
           {/* Left: Evidence + inline guidance */}
           <div className="space-y-3 reveal-up" style={{ animationDelay: '60ms' }}>
             {/* Compact guidance strip */}
-            {viewMode === 'guided' && (
-              <div className="rounded-xl border-l-[3px] border-l-[var(--accent)] border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.06)] px-4 py-3">
+              <div className="rounded-2xl border-l-[3px] border-l-[var(--accent)] border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.06)] px-5 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-sm font-bold text-[var(--text-0)]">
-                      {guidedStep === 'Investigate' ? 'Investigate the situation first.' : 'Make your call and justify it.'}
+                    <h2 className="text-sm font-bold text-[var(--text-0)] flex items-center gap-2">
+                      <span className="text-base">{guidedStep === 'Investigate' ? '🔍' : '✍️'}</span>
+                      {guidedStep === 'Investigate' ? 'Read the evidence and spot the pattern.' : 'Write your decision and back it up.'}
                     </h2>
                     <p className="text-xs text-[var(--text-1)] mt-1 leading-relaxed">
                       {guidedStep === 'Investigate'
-                        ? 'Open evidence, identify the likely owner, and note the systems and risks that keep appearing. Do not rush to fill every field yet.'
-                        : 'Use the evidence you selected to write one clear owner, one critical path, one safe plan, and one explicit blast radius.'}
+                        ? 'Open each artifact, look for who owns the problem, which systems talk to each other, and what could go wrong. Select the evidence that matters most before moving on.'
+                        : 'Name the owner, draw the dependency path, list what breaks if this isn\'t fixed, and write a safe action plan — every claim should trace back to an artifact you selected.'}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 shrink-0 text-[10px] text-[var(--text-2)]">
-                    <span className={hasPrimary ? 'text-[var(--ok)]' : ''}>Primary</span>
-                    <span className={hasCorroborating ? 'text-[var(--ok)]' : ''}>Corroborating</span>
-                    <span className={hasTrace ? 'text-[var(--ok)]' : ''}>Trace</span>
-                    <span className={hasBlast ? 'text-[var(--ok)]' : ''}>Blast</span>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {[
+                      { ok: hasPrimary, label: 'Primary' },
+                      { ok: hasCorroborating, label: 'Corroborating' },
+                      { ok: hasTrace, label: 'Trace' },
+                      { ok: hasBlast, label: 'Blast' },
+                    ].map(({ ok, label }) => (
+                      <span key={label} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
+                        ok
+                          ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.3)]'
+                          : 'bg-[var(--chip-bg)] text-[var(--text-2)] border-[color:var(--line)]'
+                      }`}>
+                        {ok ? (
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-2)] opacity-40" />
+                        )}
+                        {label}
+                      </span>
+                    ))}
                   </div>
                 </div>
                 {guidedStep === 'Investigate' && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       onClick={() => {
-                        setViewMode('advanced');
-                        setActiveTab('System Graph');
+                        setGuidedStep('Feedback');
+                        setFeedbackTab('graph');
                       }}
                       className="px-2.5 py-1 rounded-md text-[11px] font-semibold border border-[color:var(--line)] text-[var(--text-2)] hover:bg-[var(--hover-bg)]"
                     >
@@ -1525,7 +1660,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-            )}
 
             {/* Evidence card — primary workspace surface */}
             <div className="card card-primary p-4">
@@ -1542,7 +1676,19 @@ export default function App() {
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[var(--text-2)] mb-2">Pick at least one primary artifact and one corroborating artifact before you submit.</p>
+              <div className="flex items-center gap-3 mb-3">
+                <label className="text-[11px] text-[var(--text-2)] shrink-0">Search strategy:</label>
+                <select
+                  value={retrievalMode}
+                  onChange={(e) => setRetrievalMode(e.target.value as RetrievalMode)}
+                  className="flex-1 text-[11px] rounded-lg border border-[color:var(--line)] bg-[var(--input-bg)] text-[var(--text-0)] px-2 py-1.5 focus:outline-none focus:border-[rgba(39,211,182,0.55)]"
+                >
+                  {RETRIEVAL_MODE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[11px] text-[var(--text-2)] mb-3">Read each document and check the box if it supports your answer. Pick at least one primary and one corroborating.</p>
               <div className="space-y-1.5">
                 {evidenceItems.map((ev) => {
                   const checked = selectedEvidence.includes(ev.id);
@@ -1550,7 +1696,7 @@ export default function App() {
                     <label
                       key={ev.id}
                       data-testid={`evidence-card-${ev.id}`}
-                      className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all duration-150 ${
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer evidence-lift ${
                         checked
                           ? 'bg-[rgba(39,211,182,0.12)] border-[rgba(39,211,182,0.5)]'
                           : 'bg-[var(--chip-bg)] border-[color:var(--line)] hover:bg-[var(--hover-bg)] hover:border-[color:var(--line-strong)]'
@@ -1586,8 +1732,8 @@ export default function App() {
                         className="sr-only"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-medium text-[var(--text-0)] truncate">{ev.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-semibold text-[var(--text-0)] truncate">{ev.title}</p>
                           <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${
                             ev.role === 'primary'
                               ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
@@ -1596,24 +1742,9 @@ export default function App() {
                             {ev.role}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[var(--text-2)] mt-0.5 line-clamp-1">
-                          {ev.body.substring(0, 80)}…
+                        <p className="text-[11px] text-[var(--text-2)] mt-0.5 line-clamp-2">
+                          {ev.body.substring(0, 120)}…
                         </p>
-                        {ev.metadata?.graphTraversalEdges && ev.metadata.graphTraversalEdges.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {ev.metadata.graphTraversalEdges.slice(0, 3).map((ge, gi) => (
-                              <span key={gi} className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full border border-[rgba(39,211,182,0.3)] bg-[rgba(39,211,182,0.08)] text-[var(--accent-2)]">
-                                {ge.from} → {ge.to}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {viewMode === 'advanced' && ev.metadata?.retrievalScore !== undefined && (
-                          <p className="text-[10px] text-[var(--text-2)] mt-0.5 font-mono">
-                            relevance: {(ev.metadata.retrievalScore * 100).toFixed(0)}%
-                            {ev.metadata.source && <> · {ev.metadata.source}</>}
-                          </p>
-                        )}
                       </div>
                     </label>
                   );
@@ -1677,7 +1808,7 @@ export default function App() {
 
           {/* Right: Form + Score — sticky */}
           <div className="space-y-3 reveal-up lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" style={{ animationDelay: '80ms' }}>
-            {viewMode === 'guided' && guidedStep === 'Investigate' ? (
+            {guidedStep === 'Investigate' ? (
               <div className="card card-primary p-4">
                 <h3 className="text-sm font-semibold text-[var(--text-1)] mb-3">What to extract before answering</h3>
                 <div className="space-y-2.5 text-xs text-[var(--text-1)]">
@@ -1697,9 +1828,10 @@ export default function App() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={fillBeginnerDraft}
-                    disabled={selectedEvidenceItems.length === 0}
+                    disabled={!hasPrimary || !hasCorroborating}
+                    title={!hasPrimary || !hasCorroborating ? 'Select at least one primary and one corroborating artifact first' : undefined}
                     data-testid="build-starter-draft"
-                    className="px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6] disabled:bg-[var(--disabled-bg)] disabled:text-[var(--text-2)]"
+                    className="btn-accent px-4 py-2.5 rounded-xl text-xs"
                   >
                     Build My Starter Draft
                   </button>
@@ -1723,7 +1855,8 @@ export default function App() {
               <div className="mb-3 flex gap-2">
                 <button
                   onClick={fillBeginnerDraft}
-                  disabled={selectedEvidenceItems.length === 0}
+                  disabled={!hasPrimary || !hasCorroborating}
+                  title={!hasPrimary || !hasCorroborating ? 'Select at least one primary and one corroborating artifact first' : undefined}
                   data-testid="fill-beginner-template"
                   className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
                 >
@@ -1823,7 +1956,7 @@ export default function App() {
                   onClick={handleSubmit}
                   disabled={!canSubmit}
                   data-testid="submit-and-score"
-                  className="w-full flex items-center justify-center gap-2 bg-[#1db8a2] hover:bg-[#27d3b6] active:bg-[#17a08d] disabled:bg-[var(--disabled-bg)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm mt-1"
+                  className="w-full btn-accent py-3 text-sm mt-1 rounded-xl"
                 >
                   {loading ? (
                     <>
@@ -1848,7 +1981,7 @@ export default function App() {
 
             {/* Score result */}
             {score && (
-              <div data-testid="score-result-card" className={`card p-6 ${score.gatingPass ? 'border-[rgba(75,215,158,0.45)]' : 'border-[rgba(240,180,90,0.55)]'}`}>
+              <div data-testid="score-result-card" className={`card p-6 ${score.gatingPass && score.overallScore >= 0.8 ? 'card-glow border-[rgba(75,215,158,0.45)]' : score.gatingPass ? 'border-[rgba(75,215,158,0.35)]' : 'border-[rgba(240,180,90,0.55)]'}`}>
                 <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 mb-5">
                   <svg className="w-4 h-4 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
@@ -1895,18 +2028,57 @@ export default function App() {
                     </div>
                     {score.criticalErrors.length > 0 ? (
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2)] mb-1.5">Critical Issues</p>
-                        <ul className="space-y-1">
-                          {score.criticalErrors.map((err, idx) => (
-                            <li key={idx} className="text-xs text-[var(--danger-text)] flex items-start gap-1.5">
-                              <span className="mt-0.5 text-red-500 shrink-0">•</span>
-                              <span>{err}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2)] mb-1.5">What to fix</p>
+                        {(() => {
+                          const unsupportedClaims = (score.gatingResults ?? [])
+                            .filter((r) => !r.supported)
+                            .map((r) => {
+                              const claim = (score.claims ?? []).find((c) => c.id === r.claimId);
+                              return claim ? claim.text : null;
+                            })
+                            .filter(Boolean) as string[];
+
+                          if (unsupportedClaims.length > 0) {
+                            return (
+                              <div className="space-y-2">
+                                <div className="rounded-lg border border-[rgba(255,124,124,0.3)] bg-[rgba(255,124,124,0.06)] p-3">
+                                  <p className="text-[11px] text-[var(--text-2)] mb-2">
+                                    {unsupportedClaims.length === 1
+                                      ? 'This sentence has no matching artifact:'
+                                      : `These ${unsupportedClaims.length} sentences have no matching artifact:`}
+                                  </p>
+                                  <ol className="list-decimal list-inside space-y-1 mb-3">
+                                    {unsupportedClaims.map((claim, idx) => (
+                                      <li key={idx} className="text-xs text-[var(--text-0)] leading-relaxed">
+                                        <span className="italic">"{claim}"</span>
+                                      </li>
+                                    ))}
+                                  </ol>
+                                  <p className="text-[11px] text-[var(--text-2)] mb-2">For each one, either select an artifact that covers this topic, or edit/remove the sentence.</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    <button type="button" onClick={() => setGuidedStep('Investigate')}
+                                      className="text-[11px] px-2.5 py-1 rounded-lg bg-[rgba(39,211,182,0.15)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.25)] transition-colors font-semibold">
+                                      Go to Investigate &rarr;
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <ul className="space-y-1">
+                              {score.criticalErrors.map((err, idx) => (
+                                <li key={idx} className="text-xs text-[var(--danger-text)] flex items-start gap-1.5">
+                                  <span className="mt-0.5 text-red-500 shrink-0">•</span>
+                                  <span>{err}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          );
+                        })()}
                       </div>
                     ) : (
-                      <p className="text-xs text-[var(--ok-text)]">No critical issues detected.</p>
+                      <p className="text-xs text-[var(--ok-text)]">Every claim in your answer is backed by evidence.</p>
                     )}
                   </div>
                 </div>
@@ -1940,9 +2112,7 @@ export default function App() {
                     </svg>
                     Dependency Graph — {selectedScenario.title}
                   </h3>
-                  <span className="text-xs font-semibold text-[var(--text-2)] mono-kicker">mode: {retrievalMode}</span>
                 </div>
-                {renderRetrievalModePicker()}
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex-1 max-w-xl">
                     <label className="text-[10px] uppercase tracking-wider text-[var(--text-2)] block mb-1">Filter services or paths</label>
@@ -2033,7 +2203,7 @@ export default function App() {
                   <p className="text-sm text-[var(--text-2)] mb-2">
                     {graphConnectedServices.length > 0 ? 'Graph context is available. Add explicit edges in the workspace when you are ready to commit your answer.' : 'No dependency edges captured yet.'}
                   </p>
-                  <button onClick={() => setActiveTab('Scenario Workspace')} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
+                  <button onClick={() => setGuidedStep('Decide')} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
                     Add edges in Scenario Workspace
                   </button>
                 </div>
@@ -2185,17 +2355,17 @@ export default function App() {
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Related evidence</p>
-                            <div className="space-y-2">
-                              {graphEvidenceForNode(focusedGraphNode).slice(0, 4).map((item) => (
-                                <div key={item.id} className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
-                                  <p className="text-xs font-semibold text-[var(--text-0)]">{item.title}</p>
-                                  <p className="text-[11px] text-[var(--text-2)] mt-1">{item.id} · {item.role}</p>
-                                </div>
-                              ))}
-                              {graphEvidenceForNode(focusedGraphNode).length === 0 && (
-                                <p className="text-[11px] text-[var(--text-2)]">No directly linked evidence was found for this node in the current evidence set.</p>
-                              )}
-                            </div>
+                            {graphEvidenceForNode(focusedGraphNode).length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => setFeedbackTab('evidence')}
+                                className="text-xs font-semibold text-[var(--accent-2)] hover:underline"
+                              >
+                                {graphEvidenceForNode(focusedGraphNode).length} artifact{graphEvidenceForNode(focusedGraphNode).length !== 1 ? 's' : ''} linked — view in Evidence Explorer →
+                              </button>
+                            ) : (
+                              <p className="text-[11px] text-[var(--text-2)]">No directly linked evidence for this node.</p>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -2220,11 +2390,22 @@ export default function App() {
                     </svg>
                     Evidence Artifacts — {selectedScenario.title}
                   </h3>
-                  <p className="text-[11px] text-[var(--text-2)] mt-1">Switch retrieval modes to compare plain ranking against graph-aware evidence context.</p>
+                  <p className="text-[11px] text-[var(--text-2)] mt-1">These are the documents the system found for this scenario. Try different search strategies to see how the evidence changes.</p>
                 </div>
-                <span className="text-xs font-semibold text-[var(--text-2)] mono-kicker">{evidenceItems.length} retrieved · {retrievalMode}</span>
+                <span className="text-xs font-semibold text-[var(--text-2)] mono-kicker">{evidenceItems.length} retrieved</span>
               </div>
-              <div className="mb-4">{renderRetrievalModePicker()}</div>
+              <div className="flex items-center gap-3 mb-4">
+                <label className="text-[11px] text-[var(--text-2)] shrink-0">Search strategy:</label>
+                <select
+                  value={retrievalMode}
+                  onChange={(e) => setRetrievalMode(e.target.value as RetrievalMode)}
+                  className="flex-1 text-[11px] rounded-lg border border-[color:var(--line)] bg-[var(--input-bg)] text-[var(--text-0)] px-2 py-1.5 focus:outline-none focus:border-[rgba(39,211,182,0.55)]"
+                >
+                  {RETRIEVAL_MODE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-3">
                 {evidenceItems.map((ev) => {
                   const isSelected = selectedEvidence.includes(ev.id);
@@ -2271,31 +2452,14 @@ export default function App() {
                         </div>
                       )}
                       {ev.metadata?.graphConnectedServices && ev.metadata.graphConnectedServices.length > 0 && (
-                        <div className="mt-3 rounded-lg border border-[rgba(39,211,182,0.22)] bg-[rgba(39,211,182,0.06)] p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-[var(--accent-2)] mb-2">Graph provenance</p>
-                          {ev.metadata.graphSeedServices && ev.metadata.graphSeedServices.length > 0 && (
-                            <p className="text-[11px] text-[var(--text-1)] mb-2">Seed services: {ev.metadata.graphSeedServices.join(', ')}</p>
-                          )}
-                          <div className="flex flex-wrap gap-2">
-                            {ev.metadata.graphConnectedServices.map((service) => (
-                              <span key={`${ev.id}-${service}`} className="rounded-full border border-[color:var(--line)] bg-[var(--chip-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">
-                                {service}
-                              </span>
-                            ))}
-                          </div>
-                          {ev.metadata.graphTraversalEdges && ev.metadata.graphTraversalEdges.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {ev.metadata.graphTraversalEdges.map((ge, gi) => (
-                                <span key={gi} className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full border ${
-                                  ge.type === 'downstream'
-                                    ? 'border-[rgba(39,211,182,0.3)] bg-[rgba(39,211,182,0.08)] text-[var(--accent-2)]'
-                                    : 'border-[rgba(240,180,90,0.3)] bg-[rgba(240,180,90,0.08)] text-[var(--warn-text)]'
-                                }`}>
-                                  {ge.from} → {ge.to}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setFeedbackTab('graph')}
+                            className="text-[10px] font-semibold text-[var(--accent-2)] hover:underline"
+                          >
+                            Graph linked: {ev.metadata.graphConnectedServices.join(', ')} — view in System Graph →
+                          </button>
                         </div>
                       )}
                     </div>
@@ -2321,19 +2485,94 @@ export default function App() {
                       <p className="text-sm font-semibold text-[var(--text-1)] mb-2">Overall Score</p>
                       <p data-testid="evaluation-score-status" className={`text-lg font-bold ${scoreStatusTone}`}>{scoreStatusLabel}</p>
                       <p className="text-xs text-[var(--text-2)] mt-1 max-w-sm">{scoreSummary}</p>
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                        score.gatingPass
-                          ? 'bg-[rgba(75,215,158,0.14)] text-[var(--ok-text)] border-[rgba(75,215,158,0.45)]'
-                          : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.5)]'
-                      }`}>
-                        {score.gatingPass ? '✓ Gating Passed' : '✗ Gating Not Passed'}
-                      </span>
-                      {score.criticalErrors.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-xs text-[var(--text-2)] mb-1">Critical Issues:</p>
-                          {score.criticalErrors.map((err, i) => (
-                            <p key={i} className="text-xs text-[var(--danger-text)]">• {err}</p>
-                          ))}
+                      <div className="mt-2">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                          score.gatingPass
+                            ? 'bg-[rgba(75,215,158,0.14)] text-[var(--ok-text)] border-[rgba(75,215,158,0.45)]'
+                            : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.5)]'
+                        }`}>
+                          {score.gatingPass ? '✓ Evidence Gate: Passed' : '✗ Evidence Gate: Failed'}
+                        </span>
+                        <p className="text-[10px] text-[var(--text-2)] mt-1.5 max-w-sm leading-relaxed">
+                          {score.gatingPass
+                            ? 'Every sentence in your answer can be traced back to a specific artifact you selected. This is how TPMs build trust — no unsupported assertions.'
+                            : 'Some sentences in your answer don\'t match any artifact you selected. In a real incident review, unsupported claims get challenged. Fix them below.'}
+                        </p>
+                      </div>
+                      {!score.gatingPass && (() => {
+                        const unsupported = (score.gatingResults ?? [])
+                          .filter((r) => !r.supported)
+                          .map((r) => (score.claims ?? []).find((c) => c.id === r.claimId)?.text)
+                          .filter(Boolean) as string[];
+                        return unsupported.length > 0 ? (
+                          <div className="mt-3">
+                            <div className="rounded-lg border border-[rgba(255,124,124,0.3)] bg-[rgba(255,124,124,0.06)] p-3">
+                              <p className="text-[11px] text-[var(--text-2)] mb-2">
+                                {unsupported.length === 1
+                                  ? 'This sentence has no matching artifact — fix it to reach 100%:'
+                                  : `These ${unsupported.length} sentences have no matching artifact — fix them to reach 100%:`}
+                              </p>
+                              <ol className="list-decimal list-inside space-y-1 mb-3">
+                                {unsupported.map((claim, i) => (
+                                  <li key={i} className="text-xs text-[var(--text-0)] leading-relaxed">
+                                    <span className="italic">"{claim}"</span>
+                                  </li>
+                                ))}
+                              </ol>
+                              <p className="text-[11px] text-[var(--text-2)] mb-2">For each one, either select an artifact that covers this topic, or edit/remove the sentence.</p>
+                              <div className="flex flex-wrap gap-2">
+                                <button type="button" onClick={() => { setGuidedStep('Investigate'); }}
+                                  className="text-[11px] px-2.5 py-1 rounded-lg bg-[rgba(39,211,182,0.15)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.25)] transition-colors font-semibold">
+                                  Go to Investigate &rarr;
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : score.criticalErrors.length > 0 ? (
+                          <div className="mt-2">
+                            {score.criticalErrors.map((err, i) => (
+                              <p key={i} className="text-xs text-[var(--danger-text)]">• {err}</p>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
+                      {score.gatingPass && score.overallScore < 0.9 && scoreIssues.length > 0 && (
+                        <div className="mt-3">
+                          <div className="rounded-lg border border-[rgba(255,180,80,0.35)] bg-[rgba(255,180,80,0.06)] p-3">
+                            <p className="text-[11px] text-[var(--text-2)] mb-2 font-semibold">
+                              {scoreIssues.length === 1 ? '1 area needs work:' : `${scoreIssues.length} areas need work:`}
+                            </p>
+                            <ul className="space-y-1.5 mb-3">
+                              {scoreIssues.map((issue, i) => (
+                                <li key={i} className="text-xs text-[var(--text-0)] leading-relaxed flex items-start gap-2">
+                                  <span className="font-semibold text-[var(--accent-1)] shrink-0">{issue.label}:</span>
+                                  <span>{issue.action}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="flex flex-wrap gap-2">
+                              {scoreIssues.some((i) => i.destination === 'Decide') && (
+                                <button type="button" onClick={() => { setGuidedStep('Decide'); }}
+                                  className="text-[11px] px-2.5 py-1 rounded-lg bg-[rgba(39,211,182,0.15)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.25)] transition-colors font-semibold">
+                                  Fix in Decide &rarr;
+                                </button>
+                              )}
+                              {scoreIssues.some((i) => i.destination === 'Investigate') && (
+                                <button type="button" onClick={() => { setGuidedStep('Investigate'); }}
+                                  className="text-[11px] px-2.5 py-1 rounded-lg bg-[rgba(39,211,182,0.15)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.25)] transition-colors font-semibold">
+                                  Fix in Investigate &rarr;
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {score.gatingPass && score.overallScore < 0.9 && scoreIssues.length === 0 && scoreNextStep && (
+                        <div className="mt-3">
+                          <button type="button" onClick={() => { setGuidedStep(scoreNextStep.destination); }}
+                            className="text-[11px] px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.15)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.25)] transition-colors font-semibold">
+                            {scoreNextStep.buttonLabel}
+                          </button>
                         </div>
                       )}
                     </div>
@@ -2373,242 +2612,173 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="card p-6">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between mb-4">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--text-1)]">Mode Comparison</p>
-                      <p className="text-xs text-[var(--text-2)] mt-1">Compares retrieval modes (vector, graph, GraphRAG, GraphRAG+gating) and surfaces the best mode, evidence counts, and differences to help reviewers verify claims quickly.</p>
-                    </div>
-                    {comparisonForSelectedScenario && (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)] border-[rgba(39,211,182,0.35)]">
-                        Best current mode: {modeLabels.get(comparisonForSelectedScenario.bestMode) ?? comparisonForSelectedScenario.bestMode}
-                      </span>
-                    )}
-                  </div>
+                {/* Connected learning summary — scenario → evidence → answer → score */}
+                {learningData && (
+                  <div className="card p-6 space-y-6">
 
-                  {evaluationCompareLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-[var(--text-2)]">
-                      <Spinner />
-                      Comparing modes for this scenario...
+                    {/* Section 1: The Challenge */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-base">🎯</span>
+                        <p className="text-sm font-semibold text-[var(--text-0)]">The Challenge</p>
+                      </div>
+                      <p className="text-xs text-[var(--text-1)] leading-relaxed">{scenarioNarrative.problem}</p>
+                      <p className="text-xs text-[var(--text-2)] mt-1 leading-relaxed italic">{scenarioNarrative.motivation}</p>
                     </div>
-                  ) : evaluationCompareError ? (
-                    <p className="text-sm text-[var(--danger-text)]">{evaluationCompareError}</p>
-                  ) : comparisonForSelectedScenario ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                        {comparisonForSelectedScenario.results.map((result) => {
-                          const scorePct = Math.round(result.overallScore * 100);
-                          const deltaVsVector = vectorBaseline
-                            ? Math.round((result.overallScore - vectorBaseline.overallScore) * 100)
-                            : 0;
-                          const isBest = result.mode === comparisonForSelectedScenario.bestMode;
-                          return (
-                            <div key={result.mode} className={`rounded-xl border p-4 ${
-                              isBest
-                                ? 'border-[rgba(39,211,182,0.45)] bg-[rgba(39,211,182,0.08)]'
-                                : 'border-[color:var(--line)] bg-[var(--chip-bg)]'
-                            }`}>
-                              <div className="flex items-start justify-between gap-3 mb-3">
-                                <div>
-                                  <p className="text-sm font-semibold text-[var(--text-0)]">{modeLabels.get(result.mode) ?? result.mode}</p>
-                                  <p className="text-[11px] text-[var(--text-2)] mt-1">{result.evidenceCount} evidence selected</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className={`text-lg font-bold ${result.overallScore >= 0.8 ? 'text-[var(--ok)]' : result.overallScore >= 0.6 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'}`}>{scorePct}%</p>
-                                  <p className="text-[10px] text-[var(--text-2)]">{result.mode === 'vector' ? 'baseline' : `${deltaVsVector >= 0 ? '+' : ''}${deltaVsVector} vs vector`}</p>
-                                </div>
+
+                    <div className="border-t border-[color:var(--line)]" />
+
+                    {/* Section 2: Evidence You Used */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-base">📎</span>
+                        <p className="text-sm font-semibold text-[var(--text-0)]">Evidence You Used</p>
+                        <span className="text-[10px] text-[var(--text-2)] ml-1">{selectedEvidenceItems.length} artifact{selectedEvidenceItems.length !== 1 ? 's' : ''} selected</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedEvidenceItems.map((ev) => (
+                          <div key={ev.id} className="flex items-start gap-2.5 rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] px-3 py-2.5">
+                            <span className={`shrink-0 mt-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                              ev.role === 'primary'
+                                ? 'bg-[rgba(75,215,158,0.15)] text-[var(--ok-text)] border border-[rgba(75,215,158,0.3)]'
+                                : 'bg-[rgba(99,102,241,0.12)] text-[#818cf8] border border-[rgba(99,102,241,0.3)]'
+                            }`}>{ev.role === 'primary' ? 'Primary' : 'Corr.'}</span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-[var(--text-0)] truncate">{ev.title}</p>
+                              <p className="text-[10px] text-[var(--text-2)] mt-0.5 line-clamp-2 leading-relaxed">{ev.body.slice(0, 120)}{ev.body.length > 120 ? '…' : ''}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedEvidenceItems.length === 0 && (
+                        <p className="text-xs text-[var(--text-2)] italic">No evidence artifacts were selected for this scenario.</p>
+                      )}
+                    </div>
+
+                    <div className="border-t border-[color:var(--line)]" />
+
+                    {/* Section 3: Your Decision Chain */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-base">⛓️</span>
+                        <p className="text-sm font-semibold text-[var(--text-0)]">Your Decision Chain</p>
+                      </div>
+                      <p className="text-[11px] text-[var(--text-2)] mb-3 leading-relaxed">Each row shows: which evidence you read → what you decided → how the rubric scored it.</p>
+                      <div className="space-y-2.5">
+                        {learningData.chain.map((c, i) => (
+                          <div key={i} className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] px-4 py-3 evidence-lift" style={{ animationDelay: `${i * 60}ms` }}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{c.icon}</span>
+                                <span className="text-xs font-semibold text-[var(--text-0)]">{c.dimension}</span>
                               </div>
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                  result.gatingPass
-                                    ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
-                                    : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.4)]'
-                                }`}>
-                                  {result.gatingPass ? 'gating passed' : 'gating failed'}
-                                </span>
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[color:var(--line)] text-[var(--text-2)]">
-                                  unsupported claims: {result.metrics.unsupportedClaimCount}
-                                </span>
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[color:var(--line)] text-[var(--text-2)]">
-                                  critical errors: {result.metrics.criticalErrorCount}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-[11px] mb-3">
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
-                                  <p className="text-[var(--text-2)]">Owner</p>
-                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.ownerAccuracy * 100)}%</p>
-                                </div>
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
-                                  <p className="text-[var(--text-2)]">Dependencies</p>
-                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.dependencyAccuracy * 100)}%</p>
-                                </div>
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
-                                  <p className="text-[var(--text-2)]">Blast radius</p>
-                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.blastRadiusCompleteness * 100)}%</p>
-                                </div>
-                                <div className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-2">
-                                  <p className="text-[var(--text-2)]">Evidence relevance</p>
-                                  <p className="text-[var(--text-0)] font-semibold mt-1">{Math.round(result.metrics.evidenceRelevance * 100)}%</p>
-                                </div>
-                              </div>
-                              <p className="text-[11px] text-[var(--text-1)]">
-                                {result.gatingPass
-                                  ? 'This mode currently produces a defensible evidence mix for the scenario.'
-                                  : result.metrics.unsupportedClaimCount > 0
-                                    ? 'This mode still leaves unsupported reasoning in the generated submission path.'
-                                    : 'This mode still misses at least one hard submission requirement.'}
-                              </p>
-                              {result.selectedEvidenceTitles.length > 0 && (
-                                <div className="mt-3">
-                                  <p className="text-[10px] uppercase tracking-wide text-[var(--text-2)] mb-2">Selected evidence mix</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {result.selectedEvidenceTitles.slice(0, 3).map((title) => (
-                                      <span key={`${result.mode}-${title}`} className="rounded-full border border-[color:var(--line)] bg-[var(--tag-bg)] px-2 py-0.5 text-[10px] text-[var(--text-1)]">{title}</span>
-                                    ))}
-                                  </div>
-                                </div>
+                              {c.pct !== null && (
+                                <span className={`text-xs font-mono font-semibold ${
+                                  c.tone === 'ok' ? 'text-[var(--ok)]' : c.tone === 'warn' ? 'text-[var(--warn)]' : 'text-[var(--danger)]'
+                                }`}>{c.pct}%</span>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-
-                      {vectorBaseline && (() => {
-                        const bestModeResult = comparisonForSelectedScenario.results.find((result) => result.mode === comparisonForSelectedScenario.bestMode) ?? vectorBaseline;
-                        const scoreDelta = Math.round((bestModeResult.overallScore - vectorBaseline.overallScore) * 100);
-                        const criterionDeltas = [
-                          { label: 'Owner match', best: bestModeResult.metrics.ownerAccuracy, base: vectorBaseline.metrics.ownerAccuracy },
-                          { label: 'Dependencies', best: bestModeResult.metrics.dependencyAccuracy, base: vectorBaseline.metrics.dependencyAccuracy },
-                          { label: 'Blast radius', best: bestModeResult.metrics.blastRadiusCompleteness, base: vectorBaseline.metrics.blastRadiusCompleteness },
-                          { label: 'Evidence relevance', best: bestModeResult.metrics.evidenceRelevance, base: vectorBaseline.metrics.evidenceRelevance },
-                        ];
-                        const improved = criterionDeltas.filter((c) => c.best > c.base);
-                        const declined = criterionDeltas.filter((c) => c.best < c.base);
-                        return (
-                          <>
-                          <div className="rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.08)] p-4">
-                            <p className="text-xs font-semibold text-[var(--warn-text)] mb-2">How to explain this result</p>
-                            <p className="text-sm text-[var(--text-1)] leading-relaxed">
-                              Compared with the vector baseline, <span className="font-semibold text-[var(--text-0)]">{modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode}</span>
-                              {' '}currently changes the scenario outcome by <span className="font-semibold text-[var(--text-0)]">{scoreDelta >= 0 ? '+' : ''}{scoreDelta} points</span>.
-                              {' '}The most important review signal is whether the mode improves evidence relevance and reduces unsupported claims without hurting gating.
-                            </p>
-                          </div>
-
-                          {/* Per-criterion forensics */}
-                          <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
-                            <p className="text-xs font-semibold text-[var(--text-1)] mb-3">Per-criterion breakdown: why {modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode} {scoreDelta >= 0 ? 'wins' : 'differs'}</p>
-                            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
-                              {criterionDeltas.map((c) => {
-                                const delta = Math.round((c.best - c.base) * 100);
-                                return (
-                                  <div key={c.label} className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
-                                    <p className="text-[10px] text-[var(--text-2)] mb-1">{c.label}</p>
-                                    <div className="flex items-baseline gap-2">
-                                      <span className="text-sm font-bold text-[var(--text-0)]">{Math.round(c.best * 100)}%</span>
-                                      <span className={`text-[11px] font-semibold ${delta > 0 ? 'text-[var(--ok)]' : delta < 0 ? 'text-[var(--danger)]' : 'text-[var(--text-2)]'}`}>
-                                        {delta > 0 ? '+' : ''}{delta} vs baseline
-                                      </span>
-                                    </div>
-                                    <div className="mt-1.5 flex gap-1 items-center">
-                                      <div className="flex-1 bg-[var(--track-bg)] rounded-full h-1">
-                                        <div className="h-1 rounded-full bg-[var(--text-2)] opacity-40" style={{ width: `${Math.round(c.base * 100)}%` }} />
-                                      </div>
-                                      <div className="flex-1 bg-[var(--track-bg)] rounded-full h-1.5">
-                                        <div className={`h-1.5 rounded-full ${c.best >= 0.8 ? 'bg-[var(--ok)]' : c.best >= 0.6 ? 'bg-[var(--warn)]' : 'bg-[var(--danger)]'}`} style={{ width: `${Math.round(c.best * 100)}%` }} />
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                            <div className="flex items-center gap-2 text-[11px] text-[var(--text-2)] leading-relaxed">
+                              <span className="shrink-0 text-[var(--accent-2)]">Evidence:</span>
+                              <span>{c.evidence}</span>
                             </div>
-                            {improved.length > 0 && (
-                              <p className="text-[11px] text-[var(--text-1)] leading-relaxed">
-                                <span className="text-[var(--ok)] font-semibold">Improved:</span> {improved.map((c) => `${c.label} (+${Math.round((c.best - c.base) * 100)})`).join(', ')}
-                              </p>
-                            )}
-                            {declined.length > 0 && (
-                              <p className="text-[11px] text-[var(--text-1)] leading-relaxed mt-1">
-                                <span className="text-[var(--danger)] font-semibold">Lower:</span> {declined.map((c) => `${c.label} (${Math.round((c.best - c.base) * 100)})`).join(', ')}
-                              </p>
-                            )}
-                            {improved.length === 0 && declined.length === 0 && (
-                              <p className="text-[11px] text-[var(--text-2)]">All criteria are identical between the baseline and the best mode for this scenario.</p>
-                            )}
-                          </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[var(--text-2)]">Mode comparison will appear here when scenario comparison data is available.</p>
-                  )}
-                </div>
-
-                <div className="card p-6">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between mb-4">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--text-1)]">Diagnostics Panel</p>
-                      <p className="text-xs text-[var(--text-2)] mt-1">This breaks the evaluation into error categories so it is clearer where the current answer is weak and where the strongest retrieval mode helps.</p>
-                    </div>
-                    {bestCompareResult && (
-                      <span className="text-[10px] font-semibold px-2 py-1 rounded-full border border-[rgba(39,211,182,0.35)] bg-[rgba(39,211,182,0.12)] text-[var(--accent-2)]">
-                        Retrieval benchmark: {modeLabels.get(bestCompareResult.mode) ?? bestCompareResult.mode}
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2)] mb-3">Current answer diagnostics</p>
-                      <div className="space-y-3">
-                        {currentDiagnostics.map((item) => (
-                          <div key={`current-${item.label}`} className="rounded-lg border border-[color:var(--line)] bg-[var(--tag-bg)] p-3">
-                            <div className="flex items-center justify-between gap-3 mb-1">
-                              <p className="text-sm font-semibold text-[var(--text-0)]">{item.label}</p>
-                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                item.status === 'strong'
-                                  ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
-                                  : item.status === 'warning'
-                                    ? 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
-                                    : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.4)]'
-                              }`}>
-                                {item.status}
-                              </span>
+                            <div className="flex items-center gap-2 text-[11px] text-[var(--text-1)] leading-relaxed mt-0.5">
+                              <span className="shrink-0 text-[var(--accent-2)]">Your answer:</span>
+                              <span>{c.answer}</span>
                             </div>
-                            <p className="text-[11px] text-[var(--text-2)] leading-relaxed">{item.detail}</p>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-[rgba(39,211,182,0.24)] bg-[rgba(39,211,182,0.06)] p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-2)] mb-3">Best-mode diagnostics</p>
-                      {bestCompareResult ? (
-                        <div className="space-y-3">
-                          {bestModeDiagnostics.map((item) => (
-                            <div key={`best-${item.label}`} className="rounded-lg border border-[rgba(39,211,182,0.22)] bg-[var(--tag-bg)] p-3">
-                              <div className="flex items-center justify-between gap-3 mb-1">
-                                <p className="text-sm font-semibold text-[var(--text-0)]">{item.label}</p>
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                  item.status === 'strong'
-                                    ? 'bg-[rgba(75,215,158,0.12)] text-[var(--ok-text)] border-[rgba(75,215,158,0.35)]'
-                                    : item.status === 'warning'
-                                      ? 'bg-[rgba(240,180,90,0.12)] text-[var(--warn-text)] border-[rgba(240,180,90,0.35)]'
-                                      : 'bg-[rgba(255,124,124,0.16)] text-[var(--danger-text)] border-[rgba(255,124,124,0.4)]'
-                                }`}>
-                                  {item.status}
-                                </span>
+                    <div className="border-t border-[color:var(--line)]" />
+
+                    {/* Section 4: What This Taught You */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-base">🧠</span>
+                        <p className="text-sm font-semibold text-[var(--text-0)]">What This Taught You</p>
+                      </div>
+                      <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] px-4 py-3">
+                        <p className="text-xs font-semibold text-[var(--accent-2)] uppercase tracking-wide mb-1">Architectural Insight</p>
+                        <p className="text-xs text-[var(--text-1)] leading-relaxed">{scenarioNarrative.architecturalLesson}</p>
+                      </div>
+                      <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] px-4 py-3 mt-2">
+                        <p className="text-xs font-semibold text-[var(--accent-2)] uppercase tracking-wide mb-1">TPM Skill Practiced</p>
+                        <p className="text-xs text-[var(--text-1)] leading-relaxed">{scenarioNarrative.motivation}</p>
+                      </div>
+                    </div>
+
+                    {/* Section 5: Why This Matters callout */}
+                    <div className="rounded-xl border-l-[3px] border-l-[var(--accent-2)] border border-[rgba(39,211,182,0.2)] bg-[rgba(39,211,182,0.06)] px-4 py-3">
+                      <p className="text-xs text-[var(--text-1)] leading-relaxed">
+                        <span className="font-semibold text-[var(--accent-2)]">Why this matters:</span> {scenarioNarrative.problem} You proved you can read the evidence, trace the system, and make a defensible decision — the core skill a TPM needs on day one with a new team.
+                      </p>
+                    </div>
+
+                    <div className="border-t border-[color:var(--line)]" />
+
+                    {/* Section 6: What a TPM Does Next — real-world actions */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-base">🚀</span>
+                        <p className="text-sm font-semibold text-[var(--text-0)]">What a TPM Does Next</p>
+                      </div>
+                      <p className="text-[11px] text-[var(--text-2)] mb-3 leading-relaxed">You've identified the owner, traced the dependencies, and assessed the blast radius. In the real world, here's what you'd do with that analysis:</p>
+                      <div className="space-y-2">
+                        {scenarioNarrative.tpmActions.map((action, i) => (
+                          <div key={i} className="flex items-start gap-3 rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] px-3.5 py-2.5">
+                            <span className="shrink-0 w-5 h-5 rounded-full bg-[rgba(39,211,182,0.15)] text-[var(--accent-2)] text-[10px] font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                            <p className="text-xs text-[var(--text-1)] leading-relaxed">{action}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-[color:var(--line)]" />
+
+                    {/* Section 7: Your Next Step in the platform */}
+                    <div className="rounded-xl border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.06)] p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-base">📋</span>
+                        <p className="text-sm font-semibold text-[var(--text-0)]">Your Next Step</p>
+                      </div>
+                      {(() => {
+                        const nextScenario = scenarios.find((s) => !completedScenarios.has(s.id) && s.id !== selectedScenario.id);
+                        const allDone = scenarios.every((s) => completedScenarios.has(s.id));
+                        return (
+                          <div className="space-y-2">
+                            {!allDone && nextScenario && (
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-[var(--text-1)]">
+                                  You've completed <span className="font-semibold text-[var(--accent-2)]">{completedScenarios.size}</span> of <span className="font-semibold">{scenarios.length}</span> scenarios.
+                                  Try a different domain to build broader architectural fluency.
+                                </p>
+                                <button
+                                  onClick={() => { setSelectedScenario(nextScenario); setScore(null); setFormData({ ownerRouting: '', dependencyTrace: [], actionPlan: '', blastRadius: [], evidenceNotes: '' }); setDependencyTraceInput(''); setBlastRadiusInput(''); setSelectedEvidence([]); setEvaluationCompare(null); setExampleAnswer(null); setGuidedStep('Brief'); }}
+                                  className="shrink-0 ml-3 btn-accent px-4 py-2 text-xs rounded-lg"
+                                >
+                                  Next: {nextScenario.title.length > 30 ? nextScenario.title.slice(0, 30) + '…' : nextScenario.title} →
+                                </button>
                               </div>
-                              <p className="text-[11px] text-[var(--text-2)] leading-relaxed">{item.detail}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-[var(--text-2)]">Best-mode diagnostics will appear here when comparison data is available.</p>
-                      )}
+                            )}
+                            {allDone && (
+                              <p className="text-xs text-[var(--text-1)]">
+                                🎉 You've completed <span className="font-semibold text-[var(--ok-text)]">all {scenarios.length} scenarios</span>.
+                                Head to <button onClick={() => { setGuidedStep('Feedback'); setFeedbackTab('export'); }} className="font-semibold text-[var(--accent-2)] underline underline-offset-2">Check-in Export</button> to generate your mentor summary, or revisit any scenario to try a different search strategy.
+                              </p>
+                            )}
+                            {!allDone && !nextScenario && (
+                              <p className="text-xs text-[var(--text-1)]">
+                                Explore the <button onClick={() => { setGuidedStep('Feedback'); setFeedbackTab('graph'); }} className="font-semibold text-[var(--accent-2)] underline underline-offset-2">System Graph</button> to deepen your understanding, or head to <button onClick={() => { setGuidedStep('Feedback'); setFeedbackTab('export'); }} className="font-semibold text-[var(--accent-2)] underline underline-offset-2">Check-in Export</button> for your mentor summary.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Rubric scores */}
                 {score.rubricScores && score.rubricScores.length > 0 && (
@@ -2634,7 +2804,7 @@ export default function App() {
               <div className="card p-6 text-center py-12">
                 <p className="text-sm text-[var(--text-2)] mb-2">No evaluation results yet.</p>
                 <p className="text-xs text-[var(--text-2)] mb-4">Complete a submission to see rubric feedback and metrics.</p>
-                <button onClick={() => { if (viewMode === 'guided') { setGuidedStep('Investigate'); } else { setActiveTab('Scenario Workspace'); } }} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
+                <button onClick={() => { setGuidedStep('Investigate'); }} className="text-xs px-3 py-1.5 rounded-lg bg-[rgba(39,211,182,0.18)] text-[var(--accent-2)]">
                   Go to Scenario Workspace
                 </button>
               </div>
@@ -2776,23 +2946,23 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
                   <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Progress</p>
-                    <p className="text-xl font-bold text-[var(--text-0)] mt-2">{completedScenarios.size} / {scenarios.length}</p>
+                    <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--text-2)] mono-kicker">Progress</p>
+                    <p className="stat-value mt-2">{completedScenarios.size} / {scenarios.length}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">completed scenarios</p>
                   </div>
                   <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Current score</p>
-                    <p className="text-xl font-bold text-[var(--text-0)] mt-2">{score ? `${Math.round(score.overallScore * 100)}%` : 'N/A'}</p>
+                    <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--text-2)] mono-kicker">Current score</p>
+                    <p className="stat-value mt-2">{score ? `${Math.round(score.overallScore * 100)}%` : 'N/A'}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">{score ? (score.gatingPass ? 'gating passed' : 'gating not passed') : 'not scored yet'}</p>
                   </div>
                   <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Best mode</p>
+                    <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--text-2)] mono-kicker">Best mode</p>
                     <p className="text-base font-bold text-[var(--text-0)] mt-2">{bestModeResult ? (modeLabels.get(bestModeResult.mode) ?? bestModeResult.mode) : 'N/A'}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">{comparisonDelta !== null ? `${comparisonDelta >= 0 ? '+' : ''}${comparisonDelta} vs vector` : 'comparison pending'}</p>
                   </div>
                   <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-2)]">Evidence mix</p>
-                    <p className="text-xl font-bold text-[var(--text-0)] mt-2">{selectedEvidence.length}</p>
+                    <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--text-2)] mono-kicker">Evidence mix</p>
+                    <p className="stat-value mt-2">{selectedEvidence.length}</p>
                     <p className="text-[11px] text-[var(--text-2)] mt-1">{hasPrimary && hasCorroborating ? 'primary + corroborating covered' : 'needs both evidence roles'}</p>
                   </div>
                 </div>
@@ -2814,14 +2984,35 @@ export default function App() {
         })()}
       </main>
 
+      {/* Branded footer */}
+      <footer className="footer-bar mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1db8a2] via-[#83ebd6] to-[#f0b45a] flex items-center justify-center ring-1 ring-white/10 shrink-0">
+              <span className="text-xs select-none">🎓</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-[var(--text-1)]">OmniMentor</span>
+              <span className="text-[9px] text-[var(--text-2)] tracking-wide">Architecture Fluency Platform</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] text-[var(--text-2)]">{scenarios.length} scenarios · {completedScenarios.size} completed</span>
+            <span className="text-[10px] text-[var(--text-2)] opacity-50">•</span>
+            <span className="text-[10px] text-[var(--text-2)]">Built for TPM learners</span>
+          </div>
+        </div>
+        <div className="gradient-line" />
+      </footer>
+
       {/* First-run walkthrough modal */}
       {showWalkthrough && !showSurvey && (
         <div data-testid="walkthrough-modal" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="card max-w-4xl w-full p-6 shadow-2xl reveal-up">
+          <div className="hero-panel max-w-4xl w-full p-6 shadow-2xl reveal-up">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-2)]">First Run Walkthrough</p>
-                <h2 className="text-xl font-bold text-[var(--text-0)] mt-1">How a new TPM should use OmniMentor</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent-2)] mono-kicker">Getting Started</p>
+                <h2 className="text-xl font-bold mt-1" style={{ background: 'linear-gradient(135deg, var(--text-0) 0%, var(--accent-2) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>How a new TPM should use OmniMentor</h2>
                 <p className="text-sm text-[var(--text-1)] mt-2 max-w-2xl leading-relaxed">
                   You do not need to know the whole system upfront. The goal is to make one defensible decision using evidence, system connections, and a safe next step.
                 </p>
@@ -2858,8 +3049,8 @@ export default function App() {
                   text: 'Submit once your answer is grounded in evidence. The score tells you where your reasoning is strong and where support is missing.',
                 },
               ].map((item) => (
-                <div key={item.step} className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
-                  <div className="w-8 h-8 rounded-full bg-[rgba(39,211,182,0.14)] border border-[rgba(39,211,182,0.34)] text-[var(--accent-2)] flex items-center justify-center text-sm font-bold">
+                <div key={item.step} className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4 evidence-lift">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold" style={{ background: 'linear-gradient(135deg, rgba(39,211,182,0.2), rgba(131,235,214,0.15))', border: '1px solid rgba(39,211,182,0.35)', color: 'var(--accent-2)', boxShadow: '0 4px 12px rgba(39,211,182,0.1)' }}>
                     {item.step}
                   </div>
                   <h3 className="text-sm font-semibold text-[var(--text-0)] mt-3">{item.title}</h3>
@@ -2891,16 +3082,16 @@ export default function App() {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <button
-                onClick={() => closeWalkthrough('Overview', 'Brief')}
+                onClick={() => closeWalkthrough('Brief')}
                 data-testid="walkthrough-start-overview"
                 className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
               >
                 Start In Overview
               </button>
               <button
-                onClick={() => closeWalkthrough('Scenario Workspace', 'Investigate')}
+                onClick={() => closeWalkthrough('Investigate')}
                 data-testid="walkthrough-start-practice"
-                className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
+                className="btn-accent px-5 py-2.5 rounded-xl text-sm"
               >
                 Take Me To Practice
               </button>
@@ -2968,7 +3159,7 @@ export default function App() {
               <button
                 onClick={() => applyExampleAnswer(exampleAnswer)}
                 data-testid="use-example-answer"
-                className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-slate-950 hover:bg-[#27d3b6]"
+                className="btn-accent px-5 py-2.5 rounded-xl text-sm"
               >
                 Use This Example In The Form
               </button>
@@ -3036,7 +3227,7 @@ export default function App() {
                 onClick={submitSurvey}
                 disabled={Object.keys(surveyAnswers).length < 5}
                 data-testid="submit-survey"
-                className="flex-1 bg-[var(--accent)] hover:bg-[#27d3b6] disabled:bg-[var(--disabled-bg)] disabled:text-[var(--text-2)] disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-colors text-sm"
+                className="flex-1 btn-accent py-2.5 rounded-xl text-sm"
               >
                 Submit Survey
               </button>

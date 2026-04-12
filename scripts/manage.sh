@@ -134,9 +134,20 @@ start_service() {
   local conflicting_pids
   conflicting_pids="$(external_port_pids "$service")"
   if [[ -n "$conflicting_pids" ]]; then
-    log_error "Port $port is already in use by external process(es): $conflicting_pids"
-    log_error "Use scripts/manage.sh kill-port $service only if you intentionally want to stop them."
-    exit 1
+    log_warn "Port $port is already in use by process(es): $conflicting_pids — killing automatically."
+    for cpid in $conflicting_pids; do
+      kill "$cpid" 2>/dev/null || true
+    done
+    sleep 1
+    # Verify port is now free
+    conflicting_pids="$(external_port_pids "$service")"
+    if [[ -n "$conflicting_pids" ]]; then
+      log_warn "Port $port still occupied — force-killing: $conflicting_pids"
+      for cpid in $conflicting_pids; do
+        kill -9 "$cpid" 2>/dev/null || true
+      done
+      sleep 1
+    fi
   fi
 
   case "$service" in

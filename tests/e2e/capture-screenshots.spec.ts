@@ -3,7 +3,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 
-const OUT = '/tmp/im1-screenshots';
+const OUT = '/tmp/omnimentor-screenshots';
 
 async function completePreSurveyIfNeeded(page: Page) {
   const surveyModal = page.getByTestId('survey-modal');

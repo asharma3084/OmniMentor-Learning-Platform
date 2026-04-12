@@ -187,7 +187,7 @@ export function seedSampleData(db: Database.Database): void {
   }
 
   const insertScenario = db.prepare(`
-    INSERT OR IGNORE INTO scenarios (id, title, domain, prompt, artifacts)
+    INSERT OR REPLACE INTO scenarios (id, title, domain, prompt, artifacts)
     VALUES (?, ?, ?, ?, ?)
   `);
 

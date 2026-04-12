@@ -7,7 +7,7 @@
       "domain": "Catalog",
       "title": "Deploy Catalog API Schema Migration",
       "prompt": "The Catalog Team needs to deploy a schema migration to the Catalog API that adds a new 'variants' field to product records. This change affects the CDC event schema consumed by Search Indexer. Identify the owner, map dependencies, assess blast radius, and determine safe deployment actions.",
-      "artifacts": ["art-cat-001", "art-cat-002", "art-cat-003", "art-cat-004", "art-cat-005"],
+      "artifacts": ["art-cat-001", "art-cat-002", "art-cat-003", "art-cat-004", "art-cat-005", "art-cart-004"],
       "goldOwner": "Catalog Team",
       "goldDependencyTrace": [
         { "from": "Catalog API", "to": "Search Indexer", "type": "downstream" },
@@ -34,8 +34,8 @@
     {
       "id": "scenario-2",
       "domain": "Catalog",
-      "title": "Pricing Engine Degradation During Flash Sale",
-      "prompt": "During a flash sale event, the Pricing Engine is experiencing elevated latency (p99 > 3s, normal is 200ms). Active promotions are returning stale cached prices. Determine the responsible owner, map the dependency impact, assess blast radius, and recommend safe actions.",
+      "title": "Thanksgiving Sale — Pricing Engine Slowdown",
+      "prompt": "It's Thanksgiving morning and the Pricing Engine is in trouble. Response times have spiked to 3 seconds (normally 200 ms), and customers are seeing stale prices on doorbuster deals. The Promo Service pushed new holiday discounts overnight, but the Pricing Engine can't keep up with the traffic surge.\n\nAs the TPM on call, figure out who owns the fix, trace how the slowdown ripples across the system, identify which teams and customers are affected, and recommend safe next steps to protect revenue.",
       "artifacts": ["art-cat-001", "art-cat-002", "art-cat-003", "art-cat-004", "art-cat-005"],
       "goldOwner": "Pricing Team",
       "goldDependencyTrace": [
@@ -54,7 +54,7 @@
       "goldBlastRadius": [
         "Incorrect prices shown on Storefront via Catalog API fallback",
         "Cart Service displaying stale prices to customers",
-        "Revenue impact if flash sale prices not applied correctly"
+        "Revenue impact if Thanksgiving sale prices not applied correctly"
       ],
       "goldRequiredEvidenceIds": ["art-cat-004"],
       "rubricExplanations": "Owner is Pricing Team. Evidence art-cat-004 documents the synchronous dependency, fallback behavior (stale cached price for 15 min), and blast radius to Storefront and Cart."

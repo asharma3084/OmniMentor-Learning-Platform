@@ -219,7 +219,7 @@
   }
 
   .label {
-    @apply block text-xs font-semibold uppercase tracking-wider mb-1.5;
+    @apply block text-[10px] font-medium uppercase tracking-wider mb-1.5;
     color: var(--text-2);
   }
 
@@ -344,4 +344,192 @@
 
 [data-theme="light"] .form-input:focus {
   box-shadow: 0 0 0 3px rgba(15, 168, 144, 0.15);
+}
+
+/* ── A+ grade visual upgrades ── */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(39, 211, 182, 0.15), 0 0 40px rgba(39, 211, 182, 0.05); }
+  50% { box-shadow: 0 0 20px rgba(39, 211, 182, 0.25), 0 0 60px rgba(39, 211, 182, 0.1); }
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(39, 211, 182, 0.25); }
+  50% { border-color: rgba(39, 211, 182, 0.55); }
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.95); opacity: 1; }
+  50% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+
+@layer components {
+  /* Enhanced card hover */
+  .card {
+    transition: transform 0.2s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .card:hover {
+    box-shadow:
+      0 20px 50px rgba(2, 6, 23, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* Gradient accent primary button */
+  .btn-accent {
+    @apply relative inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-200;
+    background: linear-gradient(135deg, #1db8a2 0%, #27d3b6 50%, #83ebd6 100%);
+    background-size: 200% 200%;
+    color: #0a1628;
+    box-shadow: 0 4px 20px rgba(39, 211, 182, 0.25), 0 0 0 1px rgba(39, 211, 182, 0.15);
+  }
+  .btn-accent:hover {
+    background-position: 100% 0;
+    box-shadow: 0 6px 28px rgba(39, 211, 182, 0.35), 0 0 0 1px rgba(39, 211, 182, 0.3);
+    transform: translateY(-1px);
+  }
+  .btn-accent:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 12px rgba(39, 211, 182, 0.2);
+  }
+  .btn-accent:disabled {
+    background: var(--disabled-bg);
+    color: var(--text-2);
+    box-shadow: none;
+    transform: none;
+    cursor: not-allowed;
+  }
+
+  /* Gradient header line */
+  .gradient-line {
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #1db8a2 20%, #83ebd6 50%, #f0b45a 80%, transparent 100%);
+    background-size: 200% 100%;
+    animation: gradientShift 6s ease infinite;
+  }
+
+  /* Glow card variant */
+  .card-glow {
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+
+  /* Step icon badge */
+  .step-icon {
+    @apply w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0;
+    background: rgba(39, 211, 182, 0.1);
+    border: 1px solid rgba(39, 211, 182, 0.2);
+    transition: all 0.2s ease;
+  }
+  .step-icon-active {
+    background: linear-gradient(135deg, rgba(39, 211, 182, 0.2), rgba(131, 235, 214, 0.15));
+    border-color: rgba(39, 211, 182, 0.5);
+    box-shadow: 0 0 12px rgba(39, 211, 182, 0.15);
+  }
+
+  /* Evidence card lift */
+  .evidence-lift {
+    transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .evidence-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.25);
+  }
+
+  /* Animated progress dots */
+  .progress-dot {
+    @apply w-2 h-2 rounded-full transition-all duration-300;
+  }
+  .progress-dot-done {
+    background: var(--accent);
+    box-shadow: 0 0 6px rgba(39, 211, 182, 0.4);
+  }
+  .progress-dot-active {
+    background: var(--accent);
+    animation: pulseRing 1.5s ease-in-out infinite;
+  }
+  .progress-dot-pending {
+    background: var(--line);
+  }
+
+  /* Stats counter */
+  .stat-value {
+    @apply text-3xl font-bold tracking-tight;
+    background: linear-gradient(135deg, var(--text-0), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Branded footer */
+  .footer-bar {
+    border-top: 1px solid var(--line);
+    background: var(--header-bg);
+    backdrop-filter: blur(12px);
+  }
+
+  /* Shimmer loading */
+  .shimmer-bg {
+    background: linear-gradient(90deg, transparent 25%, rgba(39, 211, 182, 0.06) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: shimmer 2s ease infinite;
+  }
+
+  /* Tag with icon */
+  .tag-icon {
+    @apply inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border;
+    border-color: var(--line);
+    background: var(--tag-bg);
+    color: var(--text-1);
+    transition: all 0.15s ease;
+  }
+  .tag-icon:hover {
+    border-color: var(--line-strong);
+    background: var(--hover-bg);
+  }
+}
+
+/* ── Light theme A+ overrides ── */
+[data-theme="light"] .btn-accent {
+  background: linear-gradient(135deg, #0fa890 0%, #12b89a 50%, #17c8a8 100%);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(15, 168, 144, 0.2);
+}
+[data-theme="light"] .btn-accent:hover {
+  box-shadow: 0 6px 24px rgba(15, 168, 144, 0.3);
+}
+
+[data-theme="light"] .gradient-line {
+  background: linear-gradient(90deg, transparent 0%, #0fa890 20%, #17c8a8 50%, #c88a2e 80%, transparent 100%);
+  background-size: 200% 100%;
+  animation: gradientShift 6s ease infinite;
+}
+
+[data-theme="light"] .card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .stat-value {
+  background: linear-gradient(135deg, var(--text-0), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="light"] .evidence-lift:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }

@@ -44,7 +44,7 @@ flowchart TB
     INVESTIGATE["Investigate"]
     DECIDE["Decide"]
     FEEDBACK["Feedback"]
-    ADV["Advanced Mode\nOverview | Graph | Evidence | Evaluation | Export"]
+    ADV["Feedback Sub-tabs\nScore & Coaching | System Graph | Evidence Explorer | Check-in Export"]
   end
 
   %% ---------- Services ----------
@@ -233,8 +233,8 @@ flowchart LR
 ### 5.1 Web App (`apps/web`)
 - Renders scenario prompts and evidence artifacts.
 - Captures structured submission fields.
-- Displays score, gating outcome, and rubric feedback.
-- Tracks learning session time with a live elapsed timer (mm:ss) in the header.
+- Displays score, gating outcome, rubric feedback, connected learning summary, and TPM next-actions.
+- Tracks learning session time via API endpoints (start, first evidence, first submit, completion) for RQ1 measurement.
 - Presents pre-survey modal on first load and post-survey after all scenarios are completed.
 - Logs behavioral proxy events (first evidence selection, first submission) per session.
 
@@ -257,8 +257,9 @@ flowchart LR
 - Result: GUI architecture is defined for a guided-first TPM onboarding flow with advanced review surfaces available when needed.
 
 ### 5.1b Guided-First UI Contract
-- Default entry is a guided 4-step flow: `Brief`, `Investigate`, `Decide`, `Feedback`.
-- `Advanced Mode` preserves richer review surfaces: `Overview`, `Scenario Workspace`, `System Graph`, `Evidence`, `Evaluation`, `Check-in Export`.
+- Default entry is a guided 4-step tabbed flow: `1. Brief`, `2. Investigate`, `3. Decide`, `4. Feedback`.
+- Feedback sub-tabs provide deeper review surfaces: `Score & Coaching`, `System Graph`, `Evidence Explorer`, `Check-in Export`.
+- Tab navigation is the single UI paradigm — there is no separate "Advanced Mode" toggle.
 - Decide step enforces required structured fields: owner routing, dependency trace, action plan, blast-radius plan, evidence notes.
 - Score surfaces must explicitly show critical error categories: wrong owner, wrong directionality, unsafe action without verification.
 - Uncertainty and provenance are mandatory user-visible signals for trust design.

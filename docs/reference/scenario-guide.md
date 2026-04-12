@@ -27,7 +27,7 @@ For each scenario, the strongest review path is:
 3. Select one primary and one corroborating artifact.
 4. Complete the structured decision in `Decide`.
 5. Review score, gating, and diagnostics in `Feedback`.
-6. Use `Advanced Mode` for graph review, evaluation comparison, and export when deeper explanation is needed.
+6. Use the Feedback sub-tabs (System Graph, Evidence Explorer, Check-in Export) for deeper review.
 
 ## Current Scenario Set
 
@@ -90,7 +90,7 @@ For each scenario, the strongest review path is:
 If the goal is to show both breadth and depth without overwhelming the reviewer:
 
 1. Run one scenario from each domain to show coverage.
-2. Use `Advanced Mode` on one graph-heavy scenario to show system review depth.
+2. Use the `System Graph` sub-tab on one graph-heavy scenario to show system review depth.
 3. Open `Evaluation` to show four-mode comparison.
 4. Open `Check-in Export` to show the mentor-facing summary.
 

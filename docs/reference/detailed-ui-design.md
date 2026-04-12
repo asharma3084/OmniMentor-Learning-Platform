@@ -1,7 +1,7 @@
 # OmniMentor Detailed UI Design
 
-Version: 3.2
-Last Updated: 2026-03-15
+Version: 4.0
+Last Updated: 2026-04-11
 
 This document captures the product's UI design rationale and detailed interaction model.
 
@@ -24,75 +24,114 @@ Design a TPM onboarding interface that improves architecture fluency through:
 
 ## 3. Information Architecture (Post-Login)
 
-Default learner flow:
-- `Brief`
-- `Investigate`
-- `Decide`
-- `Feedback`
+Primary tabbed flow (always visible in the top navigation bar):
+- `1. Brief` — scenario context, mission framing, deliverable cards
+- `2. Investigate` — evidence retrieval, artifact selection, key fact extraction
+- `3. Decide` — structured submission form with guided readiness indicators
+- `4. Feedback` — scoring, coaching, learning summary, next actions
 
-Secondary advanced review surfaces:
-- `Overview`
-- `Scenario Workspace`
-- `System Graph`
-- `Evidence`
-- `Evaluation`
-- `Check-in Export`
+Feedback sub-tabs (second row, visible when Feedback tab is active):
+- `Score & Coaching` — overall score, rubric breakdown, metric coaching, connected learning summary
+- `System Graph` — interactive dependency map with node detail and evidence linking
+- `Evidence Explorer` — full artifact review with role tags, provenance, and claim support verification
+- `Check-in Export` — structured mentor check-in summary with copy/download actions
 
 Navigation behavior:
-- Guided mode is the default entry experience for a new TPM.
-- Advanced mode is visually secondary and intended for deeper graph, evaluator, and export review.
-- Current scenario context and learning progress remain visible in both modes.
+- Tab-based navigation is the single entry experience. There is no separate "advanced mode" toggle.
+- The scenario selector sits on the right side of the tab bar with a domain badge.
+- Progress indicators (scenarios done, evidence count) are visible in the tab bar.
+- Feedback sub-tabs provide deeper review surfaces without leaving the main flow.
+- Current scenario context and learning progress remain visible across all tabs.
 
 ## 4. Global Shell Mockup
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ 🎓 OmniMentor | From Architecture Blindness to Fluency              ⏱ 03:42 | User | Help │
+│ 🎓 OmniMentor  ARCHITECTURE FLUENCY PLATFORM        ● ● ●    [How It Works]  [?]          │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Guided Mode: Brief | Investigate | Decide | Feedback         [Advanced Mode]               │
+│ 📋 1. Brief  🔍 2. Investigate  ✍️ 3. Decide  📊 4. Feedback    1/6 done  [Catalog] ▾      │
+│   Score & Coaching | System Graph | Evidence Explorer | Check-in Export  (sub-tabs)        │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ Page Content Area                                                                           │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 🎓 OmniMentor · Architecture Fluency Platform         6 scenarios · 1 completed            │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The live elapsed timer (`⏱ mm:ss`) is displayed in the shell header during an active learning session, providing continuous time-on-task awareness for the learner (RQ1 instrumentation).
+The header uses a gradient brand line, status dots for service health, and a help icon that provides in-app guidance. The footer is pinned to the viewport bottom with scenario progress and branding. Session timing is tracked via the API (start, first evidence, first submit, completion) for RQ1 instrumentation.
 
 ## 5. Primary Mockup (Design A: Guided-First TPM Practice Studio)
 
 ## 5.1 Brief Mockup
 
 ```text
-┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
-│ Mission Brief                               │ Success Criteria                             │
-│ Scenario: Payment Retry Storm               │ - find likely owner                          │
-│ Domain: Cart & Checkout                     │ - trace 1-3 critical connections             │
-│ Prompt: [scenario statement]                │ - name what could break                      │
-│                                             │ - justify with main + supporting evidence    │
-├──────────────────────────────────────────────┴──────────────────────────────────────────────┤
-│ [Start With Evidence] [Replay Walkthrough] [Open Advanced Mode]                           │
-└────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ● Incident Brief                                      📦 Catalog  │  1/6 complete          │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Deploy Catalog API Schema Migration                    (gradient title)                     │
+│ [scenario prompt text — full width, no max-width cap]                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ YOUR MISSION — NAVIGATE THE SYSTEM & RESPOND                                                │
+│ You're a TPM onboarding onto a new team inside one of the world's largest retailers.        │
+│ ┌─────────────────────────────┐ ┌─────────────────────────────┐                             │
+│ │ 👤 Owner                    │ │ 🔗 Dependency path          │                             │
+│ │ Identify which team owns    │ │ Trace how failures propagate│                             │
+│ │ the root cause              │ │ through distributed arch    │                             │
+│ ├─────────────────────────────┤ ├─────────────────────────────┤                             │
+│ │ 💥 Blast radius             │ │ 🛡️ Safe actions              │                             │
+│ │ Assess impact on customers, │ │ Recommend immediate, safe   │                             │
+│ │ revenue, stores, partners   │ │ mitigation steps            │                             │
+│ └─────────────────────────────┘ └─────────────────────────────┘                             │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ⚠ [scenario-specific stakes line]                                                           │
+│ [Start Investigation →]  [How this works]                                                   │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Scenario Queue: 6 scenarios listed with domain badges and score pills                       │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The Brief step reduces first-run ambiguity by turning the scenario into a bounded mission before the learner sees the full form.
+The Brief step frames each scenario as an incident brief with four concrete deliverables (Owner, Dependency path, Blast radius, Safe actions). The TPM context paragraph explains they are onboarding onto a new team in a large-scale retail environment with massive interconnected systems. This reduces first-run ambiguity by turning the scenario into a bounded mission before the learner sees the full form.
 
 ## 5.2 Investigate + Decide Mockup
 
 ```text
-┌───────────────────────────────┬─────────────────────────────────┬──────────────────────────────┐
-│ Evidence + Key Facts          │ Structured Submission           │ Guided Readiness Rail        │
-│ Scenario: Checkout auth fail  │ Owner Routing [..............]  │ Readiness: 72%               │
-│ ⏱ Session: 04:17               │ Dependency Trace [...........]  │ Missing: policy artifact      │
-│ [x] Ownership Registry        │ Action Plan [.................] │ Warning: C2 unsupported       │
-│ [x] Runbook                   │ Blast-Radius Plan [..........]  │ Suggested next step shown     │
-│ [ ] Policy Control            │ Evidence Notes [..............] │                               │
-│ [ ] Incident Timeline         │ [Submit & Score]               │                               │
-│ Coverage 2/4 ██████░░░░       │                                 │                               │
-└───────────────────────────────┴─────────────────────────────────┴──────────────────────────────┘
+┌───────────────────────────┬─────────────────────────────────┬──────────────────────────────┐
+│ Evidence + Key Facts      │ Structured Submission           │ Guided Readiness Rail        │
+│ Scenario: Checkout auth   │ Owner Routing [..............]  │ ● Primary  ● Corroborating  │
+│ [x] Ownership Registry    │ Dependency Trace [...........]  │ ● Trace    ● Blast          │
+│ [x] Runbook               │ Action Plan [.................] │ Warning: C2 unsupported      │
+│ [ ] Policy Control        │ Blast-Radius Plan [..........]  │ Suggested next step shown    │
+│ [ ] Incident Timeline     │ Evidence Notes [..............] │                              │
+│ Coverage 2/4 ██████░░░░   │ [Submit & Score]                │                              │
+└───────────────────────────┴─────────────────────────────────┴──────────────────────────────┘
 ```
 
-The Investigate step emphasizes evidence and extracted clues first. The Decide step exposes the full structured form after the learner has enough context to answer concretely.
+The Investigate step emphasizes evidence and extracted clues first. Readiness indicators show pill badges for Primary, Corroborating, Trace, and Blast coverage. The Decide step exposes the full structured form after the learner has enough context. Fill Template is disabled until at least one primary and one corroborating artifact are selected.
 
-## 5.3 System Graph Mockup
+## 5.3 Feedback Mockup (Score & Coaching)
+
+```text
+┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
+│ Overall Score                                │ What the app is checking                     │
+│ [ScoreRing 100%]                             │ Owner Match         ████████████ 100%        │
+│ Strong                                       │ System Connections  ████████████ 100%        │
+│ ✓ Evidence Gate: Passed                      │ Blast Radius        ████████████ 100%        │
+│ Every sentence traced to an artifact.        │ Evidence Support    ████████████ 100%        │
+├──────────────────────────────────────────────┴──────────────────────────────────────────────┤
+│ 🎯 The Challenge: [scenario-specific problem + TPM motivation]                              │
+│ 📎 Evidence You Used: [artifacts with Primary/Corr. badges and body preview]                │
+│ ⛓️ Your Decision Chain: Evidence read → Your answer → Score % per rubric dimension           │
+│ 🧠 What This Taught You: Architectural Insight + TPM Skill Practiced                       │
+│ 🚀 What a TPM Does Next: 5 scenario-specific real-world actions                            │
+│ 📋 Your Next Step: progress + button to next scenario or check-in export                   │
+├────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Rubric Breakdown: Owner Routing | Dependency Trace | Blast Radius | Evidence Gating        │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+The Feedback step provides a connected learning summary linking scenario → evidence → answer → score. After a passing score, the TPM sees real-world actions they would take next (notify teams, coordinate response, staged rollout, post-incident review) and a platform next-step CTA to continue practicing.
+
+## 5.4 System Graph Mockup
 
 ```text
 ┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
@@ -106,7 +145,7 @@ The Investigate step emphasizes evidence and extracted clues first. The Decide s
 └──────────────────────────────────────────────┴──────────────────────────────────────────────┘
 ```
 
-## 5.4 Evidence Mockup
+## 5.5 Evidence Mockup
 
 ```text
 ┌──────────────────────────┬───────────────────────────────────────────────────────────────────┐
@@ -119,7 +158,7 @@ The Investigate step emphasizes evidence and extracted clues first. The Decide s
 └──────────────────────────┴───────────────────────────────────────────────────────────────────┘
 ```
 
-## 5.5 Evaluation Mockup
+## 5.6 Evaluation Mockup
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -135,7 +174,7 @@ The Investigate step emphasizes evidence and extracted clues first. The Decide s
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 5.6 Check-in Export Mockup
+## 5.7 Check-in Export Mockup
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -351,7 +390,7 @@ Accessibility:
 RQ1:
 - scenario workflow + graph-assisted dependency reasoning
 - retrieval-mode comparison in evaluation
-- **live session timer tracking time-to-competent-submission**
+- **API-tracked session timing (start, first evidence selection, first submission, completion) for time-to-competent-submission measurement**
 - **learning session API recording start, first evidence, first submit, and completion timestamps**
 
 RQ2:

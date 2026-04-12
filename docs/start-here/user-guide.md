@@ -4,18 +4,6 @@ This guide is for TPMs who want to use OmniMentor without reading the rest of th
 
 If you are opening OmniMentor for the first time, start here.
 
-The current app does not have separate product modes called `new`, `intermediate`, and `advanced`.
-What it does have is:
-
-- `Guided Mode` for the main learning flow
-- `Advanced Mode` for deeper review
-
-So the simplest way to think about the app is this:
-
-- New TPMs should mostly stay in `Guided Mode`
-- Intermediate TPMs should use `Guided Mode` first, then check their work in `Advanced Mode`
-- Advanced TPMs can move between both modes as needed
-
 ## What OmniMentor Helps You Practice
 
 OmniMentor helps you practice how to:
@@ -26,27 +14,31 @@ OmniMentor helps you practice how to:
 - support your decision with evidence
 - write a safer action plan instead of making unsupported guesses
 
-This is not a passive reading tool. It is a practice environment.
+This is not a passive reading tool. It is a practice environment designed for TPMs onboarding onto new teams inside large-scale distributed systems.
 
 ## The Main Flow
 
-Most TPMs should use the app in this order:
+The app uses four tabs visible at the top of the screen:
 
-1. `Brief`
-2. `Investigate`
-3. `Decide`
-4. `Feedback`
+1. `1. Brief` — read the incident scenario and understand your mission
+2. `2. Investigate` — review evidence artifacts and select the ones that matter
+3. `3. Decide` — write your structured answer backed by the evidence you found
+4. `4. Feedback` — see your score, understand what you learned, and plan next actions
 
-That is the default guided path in the current UI.
+Under Feedback, four sub-tabs give you deeper review tools:
+- `Score & Coaching` — rubric score, metric breakdown, connected learning summary, TPM next-actions
+- `System Graph` — interactive dependency map showing how services connect
+- `Evidence Explorer` — full list of artifacts you selected and what each one supports
+- `Check-in Export` — structured summary for your weekly mentor check-in
 
 ## Before You Start
 
 When you first open the app:
 
 1. Complete the pre-survey if it appears.
-2. Read the walkthrough if it opens.
-3. Stay in `Guided Mode` unless you already know why you need the advanced screens.
-4. Pick one scenario and finish it fully before jumping to another one.
+2. Read the walkthrough if it opens (click "How It Works").
+3. Pick one scenario and finish it fully before jumping to another one.
+4. Use the `?` help icon in the header if you need guidance at any point.
 
 ## Quick Rule
 
@@ -89,7 +81,7 @@ While investigating:
 - note the systems, teams, and dependencies that keep appearing
 - use `Show Me A Good Answer` only if you are stuck or want to study what a strong answer looks like
 
-If you need more detail, open `Advanced Mode` to inspect the deeper review surfaces.
+Use the key facts panel on the right to see what the app has extracted from the evidence so far.
 
 ### Step 3: Decide
 
@@ -121,20 +113,25 @@ What weak answers usually look like:
 
 ### Step 4: Feedback
 
-After you submit, review the feedback screen.
+After you submit, the Feedback tab shows several layers of insight:
 
-Pay attention to:
+**Score & Coaching** — pay attention to:
+- overall score and whether Evidence Gate passed
+- per-metric breakdown (Owner Match, System Connections, Blast Radius, Evidence Support)
+- **The Challenge** — what this scenario tested and why it matters
+- **Evidence You Used** — the artifacts you selected, with role badges and body preview
+- **Your Decision Chain** — for each rubric dimension, shows which evidence you read, what you decided, and the score
+- **What This Taught You** — the specific architectural insight and TPM skill you just practiced
+- **What a TPM Does Next** — 5 real-world actions (notify teams, coordinate, staged rollout, post-incident review)
+- **Your Next Step** — jump to the next uncompleted scenario or generate a mentor check-in
 
-- overall score
-- whether gating passed
-- owner match
-- system connections
-- evidence support
-- critical errors or unsupported claims
+**System Graph** — explore the live dependency map to verify the paths you traced.
 
-Do not treat the score as the only result.
+**Evidence Explorer** — review every artifact and check which claims each supports.
 
-The real value is learning why your answer was strong, partial, or risky.
+**Check-in Export** — generate a structured summary for your weekly mentor check-in.
+
+Do not treat the score as the only result. The real value is understanding the full chain: scenario → evidence → your decision → what it means for real-world TPM work.
 
 ## How Different TPM Levels Should Use OmniMentor
 
@@ -142,12 +139,12 @@ The real value is learning why your answer was strong, partial, or risky.
 
 If you are new to the team, domain, or product area:
 
-- stay in `Guided Mode`
-- follow the four steps in order
-- use the walkthrough
+- follow the four tabs in order: Brief → Investigate → Decide → Feedback
+- use the walkthrough (click "How It Works")
 - use the example answer when you are blocked
 - do not worry about being fast; focus on being evidence-based
 - finish one full scenario before trying to optimize your workflow
+- after scoring, read the full learning summary — especially "What a TPM Does Next"
 
 Best habit for new TPMs:
 
@@ -157,9 +154,9 @@ Ask, "What evidence proves this?" before you ask, "What do I think is happening?
 
 If you already understand TPM basics but are still learning the domain:
 
-- start in `Guided Mode`
 - try to solve the scenario without the example answer first
-- use `Advanced Mode` to validate your reasoning after your first pass
+- after scoring, study the Decision Chain to see which rubric dimensions need work
+- use the System Graph to validate your dependency reasoning
 - compare your submission to the feedback and look for recurring mistakes
 - pay special attention to dependency direction and blast radius quality
 
@@ -171,26 +168,24 @@ Use the app to refine judgment, not just to get a higher score.
 
 If you are experienced and want deeper practice:
 
-- move quickly through `Guided Mode` if the scenario is clear
-- use `Advanced Mode` to inspect evidence and evaluation more critically
+- move quickly through Brief and Investigate if the scenario is clear
 - challenge your own assumptions before submitting
-- look for places where your answer is directionally right but not well-supported
-- use the app to practice explainable reasoning, not just fast triage
+- after scoring, focus on the "What This Taught You" section for architectural insights
+- use the System Graph to find dependency paths you missed
+- treat the Connected Learning Summary as a discipline check: can you defend every claim?
 
 Best habit for advanced TPMs:
 
 Treat the tool as a discipline check: can you defend the decision clearly, safely, and with evidence?
 
-## When To Use Advanced Mode
+## When To Use The Feedback Sub-Tabs
 
-Use `Advanced Mode` when:
+Use the Feedback sub-tabs when:
 
-- you want a deeper review of the scenario
-- you need more context before finalizing your answer
-- you want to inspect evidence and evaluation more closely
-- you are checking your reasoning after completing the guided path
-
-Do not start there by default unless you already know why the deeper surfaces will help you.
+- **Score & Coaching**: you want to understand why your score is what it is and what next actions a TPM would take
+- **System Graph**: you want to visually verify the dependency paths in your answer
+- **Evidence Explorer**: you want to review which artifacts backed which claims
+- **Check-in Export**: you have completed scenarios and need to generate your mentor summary
 
 ## A Good First Session
 
@@ -198,12 +193,12 @@ For your first real session in OmniMentor:
 
 1. Open the app and complete the pre-survey if shown.
 2. Pick one scenario only.
-3. Stay in `Guided Mode`.
-4. Read `Brief` slowly.
-5. In `Investigate`, select one primary and one corroborating artifact.
-6. In `Decide`, write a complete answer in all required fields.
-7. Submit and study `Feedback`.
-8. If your answer was weak, review the example answer and try again.
+3. Read the Brief carefully — understand the mission and deliverables.
+4. In Investigate, select one primary and one corroborating artifact.
+5. In Decide, write a complete answer in all required fields.
+6. Submit and study the full Feedback — score, learning summary, and TPM next-actions.
+7. If your answer was weak, review the example answer and try again.
+8. When ready, click the next-scenario button to continue practicing.
 
 That is enough for a strong first run.
 
@@ -241,8 +236,8 @@ You are using OmniMentor well if you are getting better at:
 
 If you remember only five things, remember these:
 
-1. Start in `Guided Mode`.
-2. Follow `Brief` -> `Investigate` -> `Decide` -> `Feedback`.
-3. Always choose one primary and one corroborating artifact.
-4. Use feedback to improve your reasoning, not just your score.
-5. Use `Advanced Mode` as a deeper review tool, not as the default starting point.
+1. Follow the four tabs: Brief → Investigate → Decide → Feedback.
+2. Always choose one primary and one corroborating artifact.
+3. Use feedback to understand the full learning chain, not just the score number.
+4. Read "What a TPM Does Next" to connect practice to real-world action.
+5. Use the Feedback sub-tabs (System Graph, Evidence Explorer, Check-in Export) to deepen your understanding.

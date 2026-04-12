@@ -7,7 +7,7 @@ These research questions define the functional and evaluative scope of OmniMento
 
 | | Research Question | Drives |
 |---|---|---|
-| **RQ1** | Does scenario-based practice with a knowledge graph reduce orientation time vs. static documentation? | Scenarios, knowledge graph retrieval, benchmark timing, **session time tracking, time-to-competent-submission KPI** |
+| **RQ1** | Does scenario-based practice with a knowledge graph reduce orientation time vs. static documentation? | Scenarios, knowledge graph retrieval, benchmark timing, **API-tracked session timing (start, first evidence, first submit, completion), time-to-competent-submission KPI** |
 | **RQ2** | Does a non-judgmental automated assistant reduce self-reported anxiety during onboarding? | Non-judgmental feedback design, uncertainty signaling, provenance display, **pre/post Likert surveys** |
 | **RQ3** | Does ownership-visualization scaffolding accelerate transition from peripheral to legitimate participant? | Ownership graph, dependency trace, contribution visualization, **behavioral proxy tracking (hesitation time, attempt counts)** |
 
@@ -81,4 +81,4 @@ These research questions define the functional and evaluative scope of OmniMento
 - Session tracking endpoints (`POST /sessions/start`, `POST /sessions/event`, `GET /analytics/sessions`) return valid responses.
 - Survey endpoints (`POST /surveys`, `GET /surveys`, `GET /surveys/status`) correctly store and retrieve pre/post responses.
 - Pre-survey modal displays on first visit; post-survey displays after all scenarios are completed.
-- Live elapsed timer is visible during active learning sessions.
+- Session timing is tracked via API endpoints (start, first evidence, first submit, completion) for RQ1 measurement.

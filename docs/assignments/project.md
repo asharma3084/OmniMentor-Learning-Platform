@@ -52,7 +52,7 @@ These areas are engineering-complete and tested:
 
 ## Deliverable 2: Project Presentation (10 pts)
 
-**Format:** JDF PDF + Narrated video (5–10 min, target ~8 min)
+**Format:** JDF PDF + Narrated video (~10 min)
 
 ### Done
 
@@ -63,18 +63,34 @@ These areas are engineering-complete and tested:
 
 ### Pending
 
-- [ ] **75-second opening hook** — Architecture Blindness problem framing
-  - "New TPMs freeze when they see a service map for the first time" → OmniMentor as the solution
-  - Must hook the audience before showing any UI
-- [ ] **Live demo recording** — Walk through 1–2 scenarios in the actual application
+The final presentation follows an academic-talk arc rather than a demo-first format.
+
+- [ ] **Problem Statement slide** (~1 min) — Architecture Blindness framed as a learning science problem
+  - New TPMs face cognitive overload when interpreting service maps for the first time
+  - No safe practice environment exists for incident decision-making
+- [ ] **Related Work slide(s)** (~2 min) — With proper academic citations
+  - Cognitive load theory (Sweller; Paas & van Merriënboer)
+  - Situated cognition / legitimate peripheral participation (Lave & Wenger)
+  - Intelligent tutoring systems and non-judgmental AI tutoring
+  - Incident management training in industry
+  - Must explain how OmniMentor relates to each area of prior work
+- [ ] **Gap slide** (~30 sec) — What existing solutions don't address
+  - Existing ITS lack domain-specific incident context
+  - Industry training lacks structured, scaffolded practice with feedback
+- [ ] **Solution / System Design slide(s)** (~1 min) — OmniMentor's approach to filling the gap
+  - Guided 4-step flow, graph-augmented retrieval, structured scoring with gating
+- [ ] **Live demo segment** (~3–4 min) — Walk through 1–2 scenarios in the actual application
   - Guided flow: Brief → Investigate → Decide → Feedback
   - Show connected learning summary, TPM next-actions, evidence gate
-  - Optional: show System Graph and Evaluation Forensics for IM2 features
-- [ ] **Results slide** — Ablation numbers, test coverage, KPI framework summary
+  - Show System Graph and Evaluation Forensics for IM2 features
+- [ ] **Results slide** (~1 min) — Ablation numbers, test coverage, KPI framework
   - vector → graph → graphrag → graphrag_gating progression
   - Full E2E coverage, all scenarios, complete ablation sweep
-- [ ] **30-second closing** — Future directions (expanded scenarios, real user studies, anxiety measurement)
-- [ ] **Narrated video** — Record with talk track, ~8 minutes total
+- [ ] **Conclusion + Future Work slide** (~1 min) — Formal academic closing
+  - Key contributions: guided scaffolding, graph-augmented retrieval, connected learning feedback
+  - Future: expanded scenario domains, real user studies, anxiety measurement, multi-role support
+- [ ] **References slide** — Proper citations for all related work mentioned
+- [ ] **Narrated video** — Record with revised talk track, ~10 minutes total
   - Use QuickTime or OBS for screen recording with voiceover
   - Export as MP4, verify file plays correctly
 - [ ] **GT-accessible hosting** — Upload to GT-approved platform (Canvas, GT MediaSpace, or similar)
@@ -97,14 +113,16 @@ These areas are engineering-complete and tested:
 
 ### Pending (writing required)
 
+- [ ] **Related Work** (⭐ PRIORITY) — Literature review covering:
+  - Cognitive load theory (Sweller, 1988; Paas & van Merriënboer, 1994)
+  - Situated cognition and legitimate peripheral participation (Lave & Wenger, 1991)
+  - Design-Based Research methodology (Barab & Squire, 2004; The Design-Based Research Collective, 2003)
+  - Non-judgmental AI tutoring and intelligent tutoring systems (VanLehn, 2011)
+  - Incident management training in industry
+  - Must clearly explain how OmniMentor positions against each area and what gap it fills
+  - Write this section first — it feeds both the paper and the presentation
 - [ ] **Abstract** — ~250 words, problem → approach → results → contribution
 - [ ] **Introduction** — Architecture Blindness problem, OmniMentor as non-judgmental practice environment, contribution statement
-- [ ] **Related Work** — Literature review covering:
-  - Cognitive load theory (Sweller, Paas & van Merriënboer)
-  - Situated cognition and legitimate peripheral participation (Lave & Wenger)
-  - Design-Based Research methodology (Barab & Squire, The Design-Based Research Collective)
-  - Non-judgmental AI tutoring and intelligent tutoring systems
-  - Incident management training in industry
 - [ ] **Problem Statement** — Formal RQ1, RQ2, RQ3 with operational definitions
 - [ ] **Methodology** — DBR iteration cycles, contract-first TDD, synthetic corpus design decisions
 - [ ] **System Design** — Condense architecture docs into paper-appropriate format (component diagram, data flow, scoring pipeline)
@@ -115,10 +133,10 @@ These areas are engineering-complete and tested:
 
 ### Writing Strategy
 
-The hardest part is the paper. Suggested approach:
-1. Start with **Methodology** and **System Design** — these are closest to work already done
-2. Write **Evaluation** and **Results** next — ablation data is already collected
-3. Draft **Related Work** — requires literature search but is independent of other sections
+Revised priority order:
+1. Start with **Related Work** — writing it first feeds both the paper and the presentation
+2. Write **Methodology** and **System Design** — closest to work already done
+3. Write **Evaluation** and **Results** — ablation data is already collected
 4. Write **Introduction** and **Abstract** last — easier once the body exists
 5. **Limitations** can be written at any point
 
@@ -128,9 +146,8 @@ The hardest part is the paper. Suggested approach:
 
 | Check | Due | Points | Notes |
 |-------|-----|--------|-------|
-| WSC 6 | April 13 | Completion grade | Same week as IM2 submission |
-| WSC 7 | April 20 | Completion grade | Paper writing should be underway |
-| WSC 8 | April 27 | Completion grade | Final week before May 4 deadline |
+| WSC 7 | April 20 | Completion grade | Related work + paper planning underway |
+| WSC 8 | April 27 | Completion grade | Paper writing progress; presentation restructuring; final sprint |
 
 Status checks are completion grades — honest, concise updates. 1–2 sentences per question. Q4 (team) is N/A for individual projects.
 
@@ -140,8 +157,10 @@ Status checks are completion grades — honest, concise updates. 1–2 sentences
 
 | Risk | Mitigation |
 |------|------------|
+| Related work / citations take longer than expected | Start immediately — it feeds both paper and presentation |
 | Paper takes longer than expected | Start with sections closest to existing docs; don't write linearly |
-| Video recording quality | Practice with talk track first; re-record individual segments if needed |
+| Presentation restructuring scope | Follow the academic-talk arc; don't over-design slides |
+| Video recording quality | Practice with revised talk track first; re-record individual segments if needed |
 | Link accessibility | Test in incognito on a different device before submission |
 | Zip archive issues | Test extraction on a clean directory; verify build works from scratch |
 | Scope creep on new features | Feature-freeze after IM2; remaining time is for writing and packaging |

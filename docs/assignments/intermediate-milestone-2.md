@@ -128,11 +128,11 @@ Raw data: `reports/week2/ablation-summary.csv`
 - [x] JDF document written (20 sections)
 - [x] Slide deck updated (Slide 8 with IM2 features)
 - [x] Talk track written
-- [ ] Narrated video recorded (~5–7 min using talk track)
-- [ ] Video hosted on GT-accessible platform
-- [ ] Video link inserted into JDF
-- [ ] JDF exported as PDF
-- [ ] Submitted by April 13, 8:00 AM
+- [x] Narrated video recorded
+- [x] Video hosted on GT-accessible platform
+- [x] Video link inserted into JDF
+- [x] JDF exported as PDF
+- [x] Submitted April 13
 
 ## Cross-References
 

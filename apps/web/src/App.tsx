@@ -1355,11 +1355,11 @@ export default function App() {
               {/* Step tabs */}
               <div className="flex">
                 {([
-                  { step: 'Brief' as const, icon: '📋', label: 'Brief' },
-                  { step: 'Investigate' as const, icon: '🔍', label: 'Investigate' },
-                  { step: 'Decide' as const, icon: '✍️', label: 'Decide' },
-                  { step: 'Feedback' as const, icon: '📊', label: 'Feedback' },
-                ]).map(({ step, icon, label }, index) => (
+                  { step: 'Brief' as const, icon: '📋', label: 'Brief', tip: 'Read the incident scenario and understand what decision you need to make.' },
+                  { step: 'Investigate' as const, icon: '🔍', label: 'Investigate', tip: 'Review evidence artifacts and select primary and corroborating sources.' },
+                  { step: 'Decide' as const, icon: '✍️', label: 'Decide', tip: 'Write your structured response — ownership, dependencies, blast radius, and evidence.' },
+                  { step: 'Feedback' as const, icon: '📊', label: 'Feedback', tip: 'See your rubric score, coaching labels, and connected learning summary.' },
+                ]).map(({ step, icon, label, tip }, index) => (
                   <button
                     key={step}
                     onClick={() => { setGuidedStep(step); if (step === 'Feedback') setFeedbackTab('score'); }}
@@ -1375,6 +1375,9 @@ export default function App() {
                     {guidedStep === step && (
                       <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-2))' }} />
                     )}
+                    <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-1.5 rounded-md text-[11px] font-normal leading-snug bg-[var(--card-bg)] text-[var(--text-2)] border border-[var(--border)] shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-normal w-52 text-center z-50">
+                      {tip}
+                    </span>
                   </button>
                 ))}
               </div>

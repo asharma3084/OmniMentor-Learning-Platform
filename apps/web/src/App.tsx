@@ -23,6 +23,7 @@ const DOMAIN_STYLES: Record<string, { bg: string; text: string; border: string; 
   'Catalog': { bg: 'rgba(99,102,241,0.14)', text: '#a5b4fc', border: 'rgba(99,102,241,0.4)', icon: '📦' },
   'Cart & Checkout': { bg: 'rgba(39,211,182,0.14)', text: '#7ae2cf', border: 'rgba(39,211,182,0.4)', icon: '🛒' },
   'Risk & Compliance': { bg: 'rgba(251,146,60,0.14)', text: '#fdba74', border: 'rgba(251,146,60,0.4)', icon: '🛡️' },
+  'Fulfillment & Logistics': { bg: 'rgba(34,197,94,0.14)', text: '#86efac', border: 'rgba(34,197,94,0.4)', icon: '🚚' },
 };
 
 const DEFAULT_DOMAIN_STYLE = { bg: 'rgba(148,163,184,0.14)', text: '#94a3b8', border: 'rgba(148,163,184,0.4)', icon: '📊' };

@@ -208,8 +208,16 @@ stop_service() {
   local remaining_pids
   remaining_pids="$(get_port_pids "$(service_port "$service")")"
   if [[ -n "$remaining_pids" ]]; then
-    log_warn "$service still has external process(es) using port $(service_port "$service"): $remaining_pids"
-    log_warn "Leaving external process(es) untouched. Use scripts/manage.sh kill-port $service only if intentional."
+    log_warn "$service port $(service_port "$service") still in use by: $remaining_pids — killing to free port."
+    # shellcheck disable=SC2086
+    kill $remaining_pids 2>/dev/null || true
+    sleep 1
+    remaining_pids="$(get_port_pids "$(service_port "$service")")"
+    if [[ -n "$remaining_pids" ]]; then
+      # shellcheck disable=SC2086
+      kill -9 $remaining_pids 2>/dev/null || true
+      sleep 1
+    fi
   fi
 
   if [[ "$stopped_managed" == true ]]; then

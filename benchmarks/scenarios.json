@@ -73,7 +73,7 @@
       "id": "scenario-2",
       "domain": "Catalog",
       "title": "Thanksgiving Sale \u2014 Pricing Engine Slowdown",
-      "prompt": "It's Thanksgiving morning and the Pricing Engine is in trouble. Response times have spiked to 3 seconds (normally 200 ms), and customers are seeing stale prices on doorbuster deals. The Promo Service pushed new holiday discounts overnight, but the Pricing Engine can't keep up with the traffic surge.\n\nAs the TPM on call, figure out who owns the fix, trace how the slowdown ripples across the system, identify which teams and customers are affected, and recommend safe next steps to protect revenue.",
+      "prompt": "It's Thanksgiving morning and the prices on the website are wrong. A 65-inch TV that should be $299 is showing $799. The Pricing Engine can't keep up with holiday traffic, so the site is showing old prices instead of the doorbuster deals.\n\nFigure out who owns the fix, what other systems are affected, and what to do right now.",
       "artifacts": [
         "art-cat-001",
         "art-cat-002",
@@ -380,6 +380,341 @@
         "identity provider rotation under pressure",
         "cross-system authentication dependencies",
         "emergency change governance"
+      ]
+    },
+    {
+      "id": "scenario-7",
+      "domain": "Fulfillment & Logistics",
+      "title": "Supplier Feed Ingestion Failure During Holiday Ramp",
+      "prompt": "It's two weeks before Thanksgiving and the warehouses are supposed to be receiving a flood of inbound shipments from suppliers to stock up for the holiday rush. But since this morning, 40% of supplier shipment notifications (ASNs) are being rejected by the Supplier Portal. Warehouse receiving teams are sitting idle because they don't know what's arriving. Inventory counts for thousands of popular items are going stale.\n\nFigure out who owns the Supplier Portal, what went wrong with the supplier feed, which downstream systems are affected, and what the team should do to get shipments flowing again before the holiday stock-up window closes.",
+      "artifacts": [
+        "art-ful-001",
+        "art-ful-002",
+        "art-ful-003",
+        "art-ful-006"
+      ],
+      "goldOwner": "Vendor Management Team",
+      "goldDependencyTrace": [
+        {
+          "from": "ext-supplier-edi",
+          "to": "Supplier Portal",
+          "type": "upstream"
+        },
+        {
+          "from": "Supplier Portal",
+          "to": "Warehouse Management System (WMS)",
+          "type": "downstream"
+        },
+        {
+          "from": "Supplier Portal",
+          "to": "Inventory Sync",
+          "type": "downstream"
+        }
+      ],
+      "goldSafeActions": [
+        "Engage Vendor Management Team on-call to investigate ASN rejection spike",
+        "Check Supplier Portal logs for EDI parsing errors on rejected messages",
+        "Identify which suppliers are affected and contact top-volume suppliers directly",
+        "Alert Warehouse Ops that receiving confirmations are delayed for affected suppliers",
+        "Monitor Inventory Sync ATP staleness — escalate if popular SKUs go stale > 4 hours"
+      ],
+      "goldBlastRadius": [
+        "Warehouse receiving blocked for affected suppliers — idle dock capacity",
+        "Inventory Sync ATP counts going stale for 8,000+ SKUs",
+        "Storefront may show items as in-stock when warehouse hasn't actually received them"
+      ],
+      "goldRequiredEvidenceIds": [
+        "art-ful-001",
+        "art-ful-006"
+      ],
+      "rubricExplanations": "Owner is Vendor Management Team per art-ful-001. PIR-2026-055 (art-ful-006) documents the exact same failure pattern — EDI segment terminator change caused mass ASN rejections. Blast radius extends to stale ATP and idle warehouse capacity.",
+      "difficulty": "beginner",
+      "estimatedMinutes": 10,
+      "learningOutcomes": [
+        "external partner integration triage",
+        "supplier onboarding impact",
+        "inbound logistics dependencies"
+      ]
+    },
+    {
+      "id": "scenario-8",
+      "domain": "Fulfillment & Logistics",
+      "title": "Warehouse Management System Patch During Peak Receiving",
+      "prompt": "A critical bug in the Warehouse Management System is causing duplicate scan entries during receiving — every inbound pallet is being counted twice, inflating inventory numbers. The fix is ready, but it's peak holiday receiving season and the DCs are processing 500k units per day. Deploying now risks disrupting active receiving operations across all 12 distribution centers.\n\nDetermine who owns the WMS, map the downstream systems affected by the inflated counts, assess the blast radius of deploying (or not deploying) the patch, and recommend a safe deployment approach.",
+      "artifacts": [
+        "art-ful-001",
+        "art-ful-002",
+        "art-ful-003",
+        "art-ful-005"
+      ],
+      "goldOwner": "Warehouse Ops Team",
+      "goldDependencyTrace": [
+        {
+          "from": "Supplier Portal",
+          "to": "Warehouse Management System (WMS)",
+          "type": "upstream"
+        },
+        {
+          "from": "Fulfillment Router",
+          "to": "Warehouse Management System (WMS)",
+          "type": "upstream"
+        },
+        {
+          "from": "Warehouse Management System (WMS)",
+          "to": "Transport Management System (TMS)",
+          "type": "downstream"
+        },
+        {
+          "from": "Warehouse Management System (WMS)",
+          "to": "Inventory Sync",
+          "type": "downstream"
+        }
+      ],
+      "goldSafeActions": [
+        "Get Warehouse Ops Lead approval before deploying during active receiving shifts",
+        "Deploy canary to a single low-volume DC first — monitor for 30 minutes",
+        "Verify pick accuracy stays above 99.5% and receiving scan rate does not drop > 10%",
+        "Roll out to remaining DCs in batches of 2-3 with monitoring between waves",
+        "Alert Inventory Sync team that ATP counts may correct downward after patch (duplicate removals)"
+      ],
+      "goldBlastRadius": [
+        "If deployed badly: receiving operations disrupted across 12 DCs during peak season",
+        "If not deployed: inflated ATP counts cause Cart to show false in-stock, leading to overselling",
+        "Inventory Sync receives corrected (lower) counts post-patch — Storefront stock badges may flip to out-of-stock"
+      ],
+      "goldRequiredEvidenceIds": [
+        "art-ful-002"
+      ],
+      "rubricExplanations": "Owner is Warehouse Ops Team per art-ful-002. The runbook specifies canary-first deployment on single DC with 30-min observation. Blast radius is bidirectional: deploying risks receiving disruption, not deploying risks overselling from inflated ATP.",
+      "difficulty": "intermediate",
+      "estimatedMinutes": 12,
+      "learningOutcomes": [
+        "deploy-vs-delay tradeoff analysis",
+        "canary deployment in warehouse ops",
+        "inventory accuracy downstream impact"
+      ]
+    },
+    {
+      "id": "scenario-9",
+      "domain": "Fulfillment & Logistics",
+      "title": "Cross-Dock Routing Misconfig Sends Freight to Wrong DC",
+      "prompt": "Stores in the Southeast region are reporting empty shelves on popular holiday items. Investigation reveals that a routing rule change in the Transport Management System yesterday accidentally redirected freight meant for the Atlanta DC to the Chicago DC instead. The inventory is physically in Chicago, but the Southeast stores it was supposed to replenish are running out of stock.\n\nFigure out who owns the TMS routing rules, how the misconfig is affecting inventory and stores, and what the team should do to redirect the freight and prevent further misdirected shipments.",
+      "artifacts": [
+        "art-ful-003",
+        "art-ful-007",
+        "art-ful-008"
+      ],
+      "goldOwner": "Transportation Team",
+      "goldDependencyTrace": [
+        {
+          "from": "Warehouse Management System (WMS)",
+          "to": "Transport Management System (TMS)",
+          "type": "upstream"
+        },
+        {
+          "from": "Transport Management System (TMS)",
+          "to": "Inventory Sync",
+          "type": "downstream"
+        },
+        {
+          "from": "Transport Management System (TMS)",
+          "to": "Last Mile Delivery Service",
+          "type": "downstream"
+        }
+      ],
+      "goldSafeActions": [
+        "Revert the routing rule change in TMS immediately to stop further misdirected freight",
+        "Initiate manual freight redirect from Chicago DC to Atlanta DC for affected shipments",
+        "Alert Store Ops in Southeast region about expected 48-hour restock delay",
+        "Verify Inventory Sync location data corrects after redirect is in transit",
+        "Add routing rule change review process to prevent silent misconfigurations"
+      ],
+      "goldBlastRadius": [
+        "Southeast stores running out of stock on popular holiday items",
+        "Freight redirect adds 48-hour delay and $8-12 per unit in additional shipping cost",
+        "Inventory Sync shows inventory at wrong location until receiving scan corrects it"
+      ],
+      "goldRequiredEvidenceIds": [
+        "art-ful-003",
+        "art-ful-008"
+      ],
+      "rubricExplanations": "Owner is Transportation Team per art-ful-003. Art-ful-008 documents cross-dock misconfiguration blast radius: silent routing to wrong DC, 12-24 hour detection lag, 48-hour recovery with $8-12/unit cost. The scenario tests multi-facility dependency mapping and configuration governance.",
+      "difficulty": "beginner",
+      "estimatedMinutes": 10,
+      "learningOutcomes": [
+        "configuration change impact assessment",
+        "multi-facility dependency mapping",
+        "freight redirect cost-benefit analysis"
+      ]
+    },
+    {
+      "id": "scenario-10",
+      "domain": "Fulfillment & Logistics",
+      "title": "Middle-Mile Carrier Delay Cascading to Store Stockouts",
+      "prompt": "It's the Tuesday before Thanksgiving — the single biggest store-replenishment day of the year. A major middle-mile carrier has notified your Transportation Team that a fleet of trucks carrying high-demand holiday items from the Dallas DC to 45 stores across Texas and Oklahoma will be 20+ hours late due to severe weather and equipment breakdowns.\n\nThese stores will run out of doorbuster items by Wednesday evening if not restocked. The alternate option is to reroute shipments from the Denver DC, which has partial inventory but at significantly higher shipping cost. As the TPM coordinating the response, determine who owns the decision, map all affected systems and teams, assess whether to reroute or accept the stockout, and recommend a course of action.",
+      "artifacts": [
+        "art-ful-003",
+        "art-ful-005",
+        "art-ful-007",
+        "art-ful-008"
+      ],
+      "goldOwner": "Transportation Team",
+      "goldDependencyTrace": [
+        {
+          "from": "Warehouse Management System (WMS)",
+          "to": "Transport Management System (TMS)",
+          "type": "upstream"
+        },
+        {
+          "from": "Transport Management System (TMS)",
+          "to": "ext-freight-carrier",
+          "type": "downstream"
+        },
+        {
+          "from": "Transport Management System (TMS)",
+          "to": "Inventory Sync",
+          "type": "downstream"
+        },
+        {
+          "from": "Transport Management System (TMS)",
+          "to": "Last Mile Delivery Service",
+          "type": "downstream"
+        }
+      ],
+      "goldSafeActions": [
+        "Get revised ETA from carrier and assess if partial delivery is possible before Wednesday",
+        "Evaluate Denver DC inventory levels for affected SKUs — confirm partial stock availability",
+        "Calculate rerouting cost vs revenue impact of Thanksgiving stockout for 45 stores",
+        "If rerouting: coordinate with Denver DC Warehouse Ops for expedited pick-pack-ship",
+        "Alert Store Ops in affected region to adjust shelf signage and manage customer expectations",
+        "Escalate to VP Supply Chain if revenue impact exceeds $50k threshold"
+      ],
+      "goldBlastRadius": [
+        "45 stores in Texas and Oklahoma run out of doorbuster items before Thanksgiving",
+        "Revenue loss from empty shelves during highest-traffic shopping days",
+        "Rerouting from Denver DC adds $2-5 per unit and may not arrive in time",
+        "Inventory Sync shows in-transit stock that won't arrive — Storefront may mislead customers"
+      ],
+      "goldRequiredEvidenceIds": [
+        "art-ful-003",
+        "art-ful-007"
+      ],
+      "rubricExplanations": "Owner is Transportation Team per art-ful-003. Art-ful-007 provides the escalation playbook: reroute if alternate DC has stock, accept stockout if not, escalate above $50k. The scenario forces a cost-vs-revenue tradeoff decision under Thanksgiving deadline pressure.",
+      "difficulty": "advanced",
+      "estimatedMinutes": 15,
+      "learningOutcomes": [
+        "degraded-mode decision making",
+        "cost-vs-revenue tradeoff under time pressure",
+        "multi-DC rerouting coordination"
+      ]
+    },
+    {
+      "id": "scenario-11",
+      "domain": "Fulfillment & Logistics",
+      "title": "Last-Mile Carrier API Timeout During Peak Delivery Window",
+      "prompt": "Thousands of packages are out for delivery, but customers checking their orders see 'Tracking Unavailable.' The carrier tracking API (FedEx/UPS) stopped responding. Drivers can't get route updates. 'Where is my order?' calls are flooding customer support.\n\nFigure out who owns the fix, what's affected, and what to do right now.",
+      "artifacts": [
+        "art-ful-004",
+        "art-ful-005"
+      ],
+      "goldOwner": "Logistics Operations Team",
+      "goldDependencyTrace": [
+        {
+          "from": "Fulfillment Router",
+          "to": "Last Mile Delivery Service",
+          "type": "upstream"
+        },
+        {
+          "from": "Last Mile Delivery Service",
+          "to": "ext-carrier-api",
+          "type": "downstream"
+        },
+        {
+          "from": "Last Mile Delivery Service",
+          "to": "Notification Hub",
+          "type": "downstream"
+        }
+      ],
+      "goldSafeActions": [
+        "Engage Logistics Operations Team on-call for carrier API investigation",
+        "Contact carrier (FedEx/UPS) technical support to get outage status and ETA",
+        "Enable cached last-known tracking status fallback so customers see stale-but-useful data instead of 'Unavailable'",
+        "Alert Customer Support team about tracking outage — provide talking points for WISMO calls",
+        "Monitor carrier API recovery — disable fallback cache when live tracking resumes"
+      ],
+      "goldBlastRadius": [
+        "Customers see 'Tracking Unavailable' — WISMO call volume spikes 5x",
+        "Delivery drivers operating without updated route information",
+        "Same-day delivery SLA may be breached without customer visibility"
+      ],
+      "goldRequiredEvidenceIds": [
+        "art-ful-004"
+      ],
+      "rubricExplanations": "Owner is Logistics Operations Team per art-ful-004. The carrier API SLA doc (art-ful-004) documents the fallback behavior (stale tracking for 30 min), WISMO spike pattern (5x within 1 hour), and the dependency chain. This is a straightforward external-dependency outage with clear ownership and actions.",
+      "difficulty": "beginner",
+      "estimatedMinutes": 8,
+      "learningOutcomes": [
+        "external dependency outage triage",
+        "customer impact management",
+        "fallback and graceful degradation"
+      ]
+    },
+    {
+      "id": "scenario-12",
+      "domain": "Fulfillment & Logistics",
+      "title": "Fulfillment Router Capacity Breach During Order Surge",
+      "prompt": "It's Black Friday morning and orders are pouring in at record volume. The Fulfillment Router — the service that decides whether each order ships from a store, a distribution center, or is available for pickup — is falling behind. Its queue depth has crossed 10,000 pending routing decisions and latency has spiked to 8 seconds (normally under 1 second).\n\nNew orders are stuck waiting for a shipping method to be assigned. Customers aren't getting shipping confirmations. The Notification Hub can't send 'Your order has shipped' emails because it's waiting on the routing decision.\n\nDetermine who owns the Fulfillment Router, what's causing the backup, which teams and customers are affected, and what the team should do right now to clear the queue and restore order flow.",
+      "artifacts": [
+        "art-ful-004",
+        "art-ful-005",
+        "art-cart-001",
+        "art-cart-004"
+      ],
+      "goldOwner": "Supply Chain Team",
+      "goldDependencyTrace": [
+        {
+          "from": "Checkout Orchestrator",
+          "to": "Fulfillment Router",
+          "type": "upstream"
+        },
+        {
+          "from": "Fulfillment Router",
+          "to": "Warehouse Management System (WMS)",
+          "type": "downstream"
+        },
+        {
+          "from": "Fulfillment Router",
+          "to": "Notification Hub",
+          "type": "downstream"
+        },
+        {
+          "from": "Fulfillment Router",
+          "to": "Last Mile Delivery Service",
+          "type": "downstream"
+        }
+      ],
+      "goldSafeActions": [
+        "Engage Supply Chain Team on-call for Fulfillment Router capacity investigation",
+        "Scale Fulfillment Router horizontally to handle Black Friday volume",
+        "If scaling is slow: temporarily default all orders to ship-from-DC to reduce routing complexity",
+        "Alert Commerce Team that new order shipping confirmations are delayed",
+        "Monitor queue depth — target below 10k and latency below 5s before resuming normal routing logic"
+      ],
+      "goldBlastRadius": [
+        "New orders stuck without shipping method — customers not getting shipping confirmations",
+        "Notification Hub delayed because it's waiting on fulfillment routing decision",
+        "SLA commitments for same-day and next-day delivery being missed for queued orders"
+      ],
+      "goldRequiredEvidenceIds": [
+        "art-ful-005"
+      ],
+      "rubricExplanations": "Owner is Supply Chain Team per art-ful-005. The capacity thresholds (queue > 10k, latency > 5s) are documented in art-ful-005. Blast radius extends to all downstream fulfillment: WMS can't receive pick instructions, Notification Hub can't confirm shipping, Last Mile can't dispatch.",
+      "difficulty": "beginner",
+      "estimatedMinutes": 10,
+      "learningOutcomes": [
+        "capacity-driven incident triage",
+        "graceful degradation under load",
+        "fulfillment pipeline dependencies"
       ]
     }
   ]

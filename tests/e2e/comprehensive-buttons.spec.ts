@@ -1,6 +1,6 @@
 /**
  * Comprehensive button and interaction tests covering every clickable element,
- * all 6 scenarios, and full guided + advanced flows.
+ * all 12 scenarios, and full guided + advanced flows.
  */
 import { expect, type Page, test } from '@playwright/test';
 
@@ -391,10 +391,10 @@ test.describe('Form inputs and validation', () => {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 test.describe('Scenario selector', () => {
-  test('scenario dropdown has 6 options', async ({ page }) => {
+  test('scenario dropdown has 12 options', async ({ page }) => {
     await enterGuidedPractice(page);
     const options = page.getByTestId('scenario-select').locator('option');
-    await expect(options).toHaveCount(6);
+    await expect(options).toHaveCount(12);
   });
 
   test('switching scenarios resets form and loads new evidence', async ({ page }) => {
@@ -405,10 +405,10 @@ test.describe('Scenario selector', () => {
     await waitForEvidence(page);
   });
 
-  test('can navigate through all 6 scenarios and see evidence', async ({ page }) => {
+  test('can navigate through all 12 scenarios and see evidence', async ({ page }) => {
     await enterGuidedPractice(page);
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
       await page.getByTestId('scenario-select').selectOption({ index: i });
       await page.getByTestId('guided-step-investigate').click();
       await waitForEvidence(page);
@@ -471,7 +471,7 @@ test.describe('Feedback surfaces via sub-tabs', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   12. FULL GUIDED FLOW — ALL 6 SCENARIOS (example answer → score)
+   12. FULL GUIDED FLOW — ALL 12 SCENARIOS (example answer → score)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 test.describe('Full guided flow per scenario', () => {
@@ -482,6 +482,12 @@ test.describe('Full guided flow per scenario', () => {
     { index: 3, name: 'Payment Gateway Security Patch Deployment' },
     { index: 4, name: 'Deploy Updated Fraud Detection Model' },
     { index: 5, name: 'Identity Provider Emergency Rotation' },
+    { index: 6, name: 'Supplier Feed Ingestion Failure During Holiday Ramp' },
+    { index: 7, name: 'Warehouse Management System Patch During Peak Receiving' },
+    { index: 8, name: 'Cross-Dock Routing Misconfig Sends Freight to Wrong DC' },
+    { index: 9, name: 'Middle-Mile Carrier Delay Cascading to Store Stockouts' },
+    { index: 10, name: 'Last-Mile Carrier API Timeout During Peak Delivery Window' },
+    { index: 11, name: 'Fulfillment Router Capacity Breach During Order Surge' },
   ];
 
   for (const scenario of scenarios) {

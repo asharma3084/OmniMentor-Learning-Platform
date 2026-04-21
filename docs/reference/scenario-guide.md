@@ -1,14 +1,15 @@
 # Scenario Guide
 
-This guide describes the six scenarios that currently ship in OmniMentor and how to use them in a mentor walkthrough or product demo.
+This guide describes the twelve scenarios that ship in OmniMentor and how to use them in a mentor walkthrough or product demo.
 
 ## What This Guide Covers
 
-The current public baseline is six implemented scenarios across three domains:
+The current public baseline is twelve implemented scenarios across four domains:
 
 - Catalog
 - Cart and Checkout
 - Risk and Compliance
+- Fulfillment and Logistics (First Mile, Middle Mile, Last Mile)
 
 Each scenario is designed to train the same core TPM skills:
 
@@ -42,9 +43,10 @@ For each scenario, the strongest review path is:
   - blast radius includes stale search results on Storefront and Mobile BFF
   - deployment scheduled outside bulk-import window
 
-#### Scenario 2: Thanksgiving Sale — Pricing Engine Slowdown (Beginner)
+#### Scenario 2: Thanksgiving Sale — Pricing Engine Slowdown (Beginner) ★ Demo
 
 - Objective: triage a performance incident and trace pricing-related blast radius under production pressure.
+- Demo note: universally relatable — everyone understands wrong prices on Thanksgiving deals. Short dependency chain, one required evidence artifact.
 - Strong answer signals:
   - owner is Pricing Team
   - upstream source (Promo Service overload) is identified
@@ -91,18 +93,83 @@ For each scenario, the strongest review path is:
   - dual-key rotation strategy (add new key, then retire old)
   - off-peak deployment window coordinated with SRE
 
+### Fulfillment And Logistics — First Mile
+
+#### Scenario 7: Supplier Feed Ingestion Failure During Holiday Ramp (Beginner)
+
+- Objective: triage a supplier EDI ingestion failure that blocks warehouse receiving and stales inventory counts before the holiday rush.
+- Strong answer signals:
+  - owner is Vendor Management Team
+  - ASN rejection root cause identified (EDI parsing error)
+  - blast radius includes idle receiving docks and stale ATP for thousands of SKUs
+  - top-volume suppliers contacted directly
+
+#### Scenario 8: Warehouse Management System Patch During Peak Receiving (Intermediate)
+
+- Objective: evaluate the deploy-vs-delay tradeoff for a WMS bug fix during peak holiday receiving (duplicate scan entries inflating inventory).
+- Strong answer signals:
+  - owner is Warehouse Ops Team
+  - canary deployment on single low-volume DC first with 30-minute observation
+  - blast radius is bidirectional: deploying risks receiving disruption, not deploying risks overselling
+  - Inventory Sync alerted that ATP counts will correct downward post-patch
+
+### Fulfillment And Logistics — Middle Mile
+
+#### Scenario 9: Cross-Dock Routing Misconfig Sends Freight to Wrong DC (Beginner)
+
+- Objective: trace how a TMS routing rule misconfiguration silently redirects freight to the wrong facility, causing regional store stockouts.
+- Strong answer signals:
+  - owner is Transportation Team
+  - routing rule reverted immediately to stop further misdirected freight
+  - manual freight redirect initiated from Chicago DC to Atlanta DC
+  - 48-hour recovery delay and added shipping cost acknowledged
+
+#### Scenario 10: Middle-Mile Carrier Delay Cascading to Store Stockouts (Advanced)
+
+- Objective: make a cost-vs-revenue rerouting decision under Thanksgiving deadline pressure when a middle-mile carrier is 20+ hours late.
+- Strong answer signals:
+  - owner is Transportation Team
+  - revised ETA obtained from carrier before deciding
+  - reroute-vs-accept-stockout tradeoff analyzed ($2-5/unit reroute cost vs revenue loss)
+  - VP Supply Chain escalation triggered if revenue impact exceeds $50k
+  - Store Ops in affected region alerted for shelf signage
+
+### Fulfillment And Logistics — Last Mile
+
+#### Scenario 11: Last-Mile Carrier API Timeout During Peak Delivery Window (Beginner) ★ Demo
+
+- Objective: triage a carrier tracking API outage that leaves customers unable to see delivery status and spikes support calls.
+- Demo note: universally relatable — everyone understands "where is my package?" Short dependency chain, one required evidence artifact.
+- Strong answer signals:
+  - owner is Logistics Operations Team
+  - carrier technical support contacted for outage status
+  - cached last-known tracking fallback enabled
+  - Customer Support team alerted with talking points for WISMO calls
+
+#### Scenario 12: Fulfillment Router Capacity Breach During Order Surge (Beginner)
+
+- Objective: triage a capacity breach in the fulfillment routing service during Black Friday order surge.
+- Strong answer signals:
+  - owner is Supply Chain Team
+  - horizontal scaling initiated
+  - fallback: default all orders to ship-from-DC to reduce routing complexity
+  - queue depth and latency thresholds monitored (queue > 10k, latency > 5s)
+
 ## Recommended Demo Sequence
 
-If the goal is to show both breadth and depth without overwhelming the reviewer:
+For a quick and impactful demo, use the two demo scenarios:
 
-1. Run one scenario from each domain to show coverage.
-2. Use the `System Graph` sub-tab on one graph-heavy scenario to show system review depth.
-3. Open `Score & Coaching` to show evaluation scoring and fix-action guidance.
-4. Open `Check-in Export` to show the mentor-facing summary.
+1. **Thanksgiving Sale** (Scenario 2) — pricing incident everyone understands. Show how the learner reads the brief, finds the right evidence, identifies the Pricing Team as owner, and traces the blast radius through the system.
+2. **Last-Mile Carrier API Timeout** (Scenario 11) — shipping tracking outage everyone relates to. Show the same decision flow but in the logistics domain, with external carrier dependency.
+3. Use the `System Graph` sub-tab on one of these to show the dependency visualization.
+4. Open `Score & Coaching` to show evaluation scoring and fix-action guidance.
+5. Open `Check-in Export` to show the mentor-facing summary.
+
+For a deeper review, run one scenario from each of the four domains to show coverage breadth.
 
 ## What A Mentor Should Look For
 
-Across the six-scenario set, the most important review signals are:
+Across the twelve-scenario set, the most important review signals are:
 
 - more accurate owner routing
 - stronger dependency directionality

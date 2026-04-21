@@ -65,10 +65,10 @@ test('capture flow assets', async ({ page }) => {
   await expect(page.getByText('Node detail')).toBeVisible();
   await capture(page, '07-system-graph.png');
 
-  // Feedback sub-tabs — Score (evaluation compare)
+  // Feedback sub-tabs — Score (evaluation details)
   await page.getByTestId('feedback-tab-score').click();
-  await expect(page.getByText('Mode Comparison')).toBeVisible();
-  await expect(page.getByText('Best current mode:')).toBeVisible();
+  await expect(page.getByText('Overall Score')).toBeVisible();
+  await expect(page.getByText('What the app is checking')).toBeVisible();
   await capture(page, '08-evaluation-compare.png');
 
   // Feedback sub-tabs — Check-in Export

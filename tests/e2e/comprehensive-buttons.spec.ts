@@ -67,10 +67,9 @@ test.describe('Header buttons', () => {
     await expect(page.getByTestId('walkthrough-modal')).toBeVisible();
   });
 
-  test('session timer is visible and ticking', async ({ page }) => {
+  test('scenario selector is visible in header', async ({ page }) => {
     await enterGuidedPractice(page);
-    const timer = page.locator('text=/\\d+:\\d{2}/').first();
-    await expect(timer).toBeVisible();
+    await expect(page.getByTestId('scenario-select')).toBeVisible();
   });
 });
 
@@ -95,13 +94,13 @@ test.describe('Walkthrough modal', () => {
     await expect(page.getByTestId('walkthrough-modal')).toBeVisible();
     await page.getByTestId('walkthrough-start-overview').click();
     await expect(page.getByTestId('walkthrough-modal')).toBeHidden();
-    await expect(page.getByText('Mission Brief')).toBeVisible();
+    await expect(page.getByText('Incident Brief')).toBeVisible();
     await expect(page.getByTestId('guided-step-brief')).toBeVisible();
   });
 
   test('Take Me To Practice lands on Investigate step', async ({ page }) => {
     await enterGuidedPractice(page);
-    await expect(page.getByText('Investigate the situation first.')).toBeVisible();
+    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
     await expect(page.getByTestId('guided-step-investigate')).toBeVisible();
   });
 
@@ -155,13 +154,13 @@ test.describe('Survey modal', () => {
 test.describe('Guided step navigation', () => {
   test('all 4 step buttons navigate correctly', async ({ page }) => {
     await enterGuidedPractice(page);
-    await expect(page.getByText('Investigate the situation first.')).toBeVisible();
+    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
 
     await page.getByTestId('guided-step-brief').click();
-    await expect(page.getByText('Mission Brief')).toBeVisible();
+    await expect(page.getByText('Incident Brief')).toBeVisible();
 
     await page.getByTestId('guided-step-investigate').click();
-    await expect(page.getByText('Investigate the situation first.')).toBeVisible();
+    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
 
     await page.getByTestId('guided-step-decide').click();
     await expect(page.getByText('Your Submission')).toBeVisible();
@@ -178,7 +177,7 @@ test.describe('Guided step navigation', () => {
     await expect(page.getByTestId('walkthrough-modal')).toBeHidden();
 
     await page.getByTestId('start-with-evidence').click();
-    await expect(page.getByText('Investigate the situation first.')).toBeVisible();
+    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
   });
 
   test('Continue To Decision button goes to Decide step', async ({ page }) => {
@@ -242,11 +241,11 @@ test.describe('Evidence selection', () => {
     await primaryCard.click();
     await corrobCard.click();
 
-    // Role indicators should be green
-    const greenPrimary = page.locator('.text-\\[var\\(--ok\\)\\]').filter({ hasText: 'Primary' });
-    const greenCorroborating = page.locator('.text-\\[var\\(--ok\\)\\]').filter({ hasText: 'Corroborating' });
-    await expect(greenPrimary).toBeVisible();
-    await expect(greenCorroborating).toBeVisible();
+    // Role badges should be visible on selected cards
+    await expect(primaryCard.locator('text=primary')).toBeVisible();
+    await expect(corrobCard.locator('text=corroborating')).toBeVisible();
+    // Build button becomes enabled when both roles are selected
+    await expect(page.getByTestId('build-starter-draft')).toBeEnabled();
   });
 });
 
@@ -265,8 +264,11 @@ test.describe('Starter draft buttons', () => {
     await waitForEvidence(page);
 
     const primaryCard = page.locator('[data-testid^="evidence-card-"]').filter({ hasText: 'primary' }).first();
+    const corrobCard = page.locator('[data-testid^="evidence-card-"]').filter({ hasText: 'corroborating' }).first();
     await primaryCard.click();
+    await corrobCard.click();
 
+    await expect(page.getByTestId('build-starter-draft')).toBeEnabled();
     await page.getByTestId('build-starter-draft').click();
 
     await expect(page.getByTestId('owner-routing-input')).not.toBeEmpty();
@@ -281,10 +283,12 @@ test.describe('Starter draft buttons', () => {
     await waitForEvidence(page);
 
     const primaryCard = page.locator('[data-testid^="evidence-card-"]').filter({ hasText: 'primary' }).first();
+    const corrobCard = page.locator('[data-testid^="evidence-card-"]').filter({ hasText: 'corroborating' }).first();
     await primaryCard.click();
+    await corrobCard.click();
 
     await page.getByTestId('continue-to-decision').click();
-    await expect(page.getByTestId('fill-beginner-template')).toBeVisible();
+    await expect(page.getByTestId('fill-beginner-template')).toBeEnabled();
     await page.getByTestId('fill-beginner-template').click();
 
     await expect(page.getByTestId('owner-routing-input')).not.toBeEmpty();
@@ -427,16 +431,16 @@ test.describe('Feedback surfaces via sub-tabs', () => {
 
   test('System Graph sub-tab renders SVG force-directed graph', async ({ page }) => {
     await enterGuidedPractice(page);
-    await page.getByTestId('guided-step-feedback').click();
+    await waitForEvidence(page);
+    // Submit to trigger full graph data load
+    await submitExampleAnswerFromInvestigate(page);
     await page.getByTestId('feedback-tab-graph').click();
-    await page.getByRole('button', { name: /GraphRAG/i }).first().click();
-    await page.waitForTimeout(1200);
     const svgContainer = page.getByTestId('force-graph-svg-container');
-    await expect(svgContainer).toBeVisible();
+    await expect(svgContainer).toBeVisible({ timeout: 15000 });
     const svg = svgContainer.locator('svg');
-    await expect(svg).toBeVisible();
-    const circles = svg.locator('circle');
-    expect(await circles.count()).toBeGreaterThan(0);
+    await expect(svg).toBeVisible({ timeout: 10000 });
+    // Use auto-retrying assertion — D3 force simulation renders circles asynchronously
+    await expect(svg.locator('circle').first()).toBeVisible({ timeout: 15000 });
   });
 
   test('System Graph filter input filters nodes', async ({ page }) => {
@@ -540,7 +544,7 @@ test.describe('Go to Scenario Workspace button', () => {
     await page.getByTestId('guided-step-feedback').click();
     await expect(page.getByText('No evaluation results yet.')).toBeVisible();
     await page.getByText('Go to Scenario Workspace').click();
-    await expect(page.getByText('Investigate the situation first.')).toBeVisible();
+    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
   });
 });
 
@@ -549,14 +553,14 @@ test.describe('Go to Scenario Workspace button', () => {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 test.describe('Evaluation after scoring', () => {
-  test('Score sub-tab shows Mode Comparison after submit', async ({ page }) => {
+  test('Score sub-tab shows scoring details after submit', async ({ page }) => {
     await enterGuidedPractice(page);
     await waitForEvidence(page);
     await submitExampleAnswerFromInvestigate(page);
 
     await expect(page.getByTestId('feedback-tab-score')).toBeVisible();
-    await expect(page.getByText('Mode Comparison')).toBeVisible();
-    await expect(page.getByText('Best current mode:')).toBeVisible();
-    await expect(page.getByText('How to explain this result')).toBeVisible();
+    await expect(page.getByText('Overall Score')).toBeVisible();
+    await expect(page.getByText('What the app is checking')).toBeVisible();
+    await expect(page.getByTestId('evaluation-score-status')).toBeVisible();
   });
 });

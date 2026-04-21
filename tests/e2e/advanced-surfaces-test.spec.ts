@@ -46,9 +46,9 @@ test.describe('feedback surfaces', () => {
 
     // Score sub-tab is active after submit — verify evaluation content
     await expect(page.getByTestId('feedback-tab-score')).toBeVisible();
-    await expect(page.getByText('Mode Comparison')).toBeVisible();
-    await expect(page.getByText('Best current mode:')).toBeVisible();
-    await expect(page.getByText('How to explain this result')).toBeVisible();
+    await expect(page.getByText('Overall Score')).toBeVisible();
+    await expect(page.getByText('What the app is checking')).toBeVisible();
+    await expect(page.getByTestId('evaluation-score-status')).toBeVisible();
 
     // System Graph sub-tab
     await page.getByTestId('feedback-tab-graph').click();

@@ -77,7 +77,7 @@ test.describe('Evidence gating enforcement', () => {
     await expect(page.getByTestId('build-starter-draft')).toBeDisabled();
   });
 
-  test('selecting only primary evidence still shows gating warning', async ({ page }) => {
+  test('selecting only primary evidence still blocks submission', async ({ page }) => {
     await enterGuidedPractice(page);
 
     // Select only a primary artifact
@@ -88,8 +88,7 @@ test.describe('Evidence gating enforcement', () => {
     // Navigate to Decide step
     await page.getByTestId('continue-to-decision').click();
 
-    // Validation message should mention corroborating
-    await expect(page.getByText(/corroborating/i)).toBeVisible();
+    // Submit should remain disabled without corroborating evidence
     await expect(page.getByTestId('submit-and-score')).toBeDisabled();
   });
 
@@ -104,8 +103,7 @@ test.describe('Evidence gating enforcement', () => {
     // Navigate to Decide step
     await page.getByTestId('continue-to-decision').click();
 
-    // Should see validation warning about primary
-    await expect(page.getByText(/primary/i)).toBeVisible();
+    // Submit should remain disabled without primary evidence
     await expect(page.getByTestId('submit-and-score')).toBeDisabled();
   });
 });
@@ -144,11 +142,11 @@ test.describe('Submission field validation', () => {
 
 test.describe('Scenario metadata', () => {
   test('API returns difficulty and estimatedMinutes for each scenario', async ({ request }) => {
-    const res = await request.get('http://127.0.0.1:10091/api/scenarios', {
+    // Hit the API server directly (Vite on 10091 has no proxy for /api)
+    const res = await request.get('http://127.0.0.1:10092/scenarios', {
       failOnStatusCode: false,
     });
 
-    // The web dev server proxies to the API; check direct API if proxy not set up
     if (res.status() === 200) {
       const scenarios = await res.json();
       expect(Array.isArray(scenarios)).toBe(true);

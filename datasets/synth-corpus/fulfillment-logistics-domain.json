@@ -1,0 +1,100 @@
+{
+  "domain": "Fulfillment & Logistics",
+  "description": "End-to-end fulfillment and logistics service ecosystem — manages supplier inbound (first mile), distribution center transfers (middle mile), and customer delivery (last mile) for Omni-Mart.",
+  "services": [
+    {
+      "id": "svc-supplier-portal",
+      "name": "Supplier Portal",
+      "owner": "Vendor Management Team",
+      "tier": "T2",
+      "description": "EDI/API gateway for supplier purchase order acknowledgements, advance ship notices (ASN), and invoice reconciliation. Ingests inbound shipment data from 2,000+ suppliers.",
+      "upstream": ["ext-supplier-edi"],
+      "downstream": ["svc-warehouse-mgmt", "svc-inventory-sync"]
+    },
+    {
+      "id": "svc-warehouse-mgmt",
+      "name": "Warehouse Management System (WMS)",
+      "owner": "Warehouse Ops Team",
+      "tier": "T1",
+      "description": "Controls receiving, putaway, pick, pack, and ship operations across 12 distribution centers. Generates shipment-ready events consumed by Transport Management.",
+      "upstream": ["svc-supplier-portal", "svc-fulfillment-router"],
+      "downstream": ["svc-transport-mgmt", "svc-inventory-sync"]
+    },
+    {
+      "id": "svc-transport-mgmt",
+      "name": "Transport Management System (TMS)",
+      "owner": "Transportation Team",
+      "tier": "T1",
+      "description": "Optimizes middle-mile routing: DC-to-DC transfers, DC-to-store replenishment, and cross-dock consolidation. Selects carriers based on cost, SLA, and capacity.",
+      "upstream": ["svc-warehouse-mgmt"],
+      "downstream": ["svc-last-mile-delivery", "svc-inventory-sync", "ext-freight-carrier"]
+    },
+    {
+      "id": "svc-last-mile-delivery",
+      "name": "Last Mile Delivery Service",
+      "owner": "Logistics Operations Team",
+      "tier": "T1",
+      "description": "Manages carrier dispatch, real-time package tracking, delivery confirmation, and returns initiation for customer shipments. Integrates with external carrier APIs (FedEx, UPS, USPS) for tracking and label generation.",
+      "upstream": ["svc-fulfillment-router", "svc-transport-mgmt"],
+      "downstream": ["ext-carrier-api", "svc-notification-hub", "svc-inventory-sync"]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-ful-001",
+      "title": "Supplier Portal – Ownership & Integration",
+      "content": "Supplier Portal is owned by Vendor Management Team (T2). On-call: vendor-ops@omnimart.dev. The service processes ~15k ASN messages/day at peak via EDI 856 and REST API. Inbound data feeds Warehouse Management for receiving and Inventory Sync for ATP updates. If Supplier Portal goes down, warehouses cannot confirm inbound shipments and ATP counts go stale within 4 hours.",
+      "type": "document",
+      "domain": "Fulfillment & Logistics"
+    },
+    {
+      "id": "art-ful-002",
+      "title": "Warehouse Management System – Operations Runbook",
+      "content": "WMS is owned by Warehouse Ops Team (T1). On-call: warehouse-oncall@omnimart.dev. Handles receiving, putaway, pick-pack-ship across 12 DCs. Peak receiving volume: 500k units/day during holiday ramp (3x normal). Deploying WMS patches during active receiving shifts requires Warehouse Ops Lead approval and 30-min canary period on a single DC before full rollout. Rollback trigger: pick accuracy drops below 99.5% or receiving scan rate drops > 10%.",
+      "type": "document",
+      "domain": "Fulfillment & Logistics"
+    },
+    {
+      "id": "art-ful-003",
+      "title": "Transport Management – Routing & Carrier Dependency",
+      "content": "TMS is owned by Transportation Team (T1). On-call: transport-oncall@omnimart.dev. Routes shipments across 12 DCs and 200+ stores. Cross-dock rules determine whether freight is consolidated at a hub or shipped direct. Routing misconfiguration blast radius: freight arrives at wrong facility, causing inventory misplacement and downstream store stockouts within 24-48 hours. Carrier SLA: middle-mile transfers must arrive within 18 hours for next-day store replenishment.",
+      "type": "reference",
+      "domain": "Fulfillment & Logistics"
+    },
+    {
+      "id": "art-ful-004",
+      "title": "Last Mile Delivery – Carrier API SLA & Fallback",
+      "content": "Last Mile Delivery Service is owned by Logistics Operations Team (T1). On-call: logistics-oncall@omnimart.dev. Integrates with FedEx, UPS, and USPS tracking APIs. Carrier API SLA: tracking response < 1s p99, label generation < 3s p99. If carrier API is unavailable: tracking status shows 'Unavailable' to customers, delivery ETAs are hidden, and driver route updates are delayed. Fallback: serve last-known tracking status (stale up to 30 min). Customer impact: WISMO (Where Is My Order) call volume spikes 5x within 1 hour of tracking outage.",
+      "type": "document",
+      "domain": "Fulfillment & Logistics"
+    },
+    {
+      "id": "art-ful-005",
+      "title": "Fulfillment Router – Capacity & SLA Thresholds",
+      "content": "Fulfillment Router is owned by Supply Chain Team (T1). Determines ship-from-store vs ship-from-DC vs pickup based on inventory position, shipping cost, and delivery SLA. Peak throughput: 25k routing decisions/minute during Black Friday. If Fulfillment Router backs up: new orders queue behind pending routing decisions, SLA commitments are missed, and Notification Hub sends delayed shipping confirmations. Capacity breach threshold: queue depth > 10k or routing latency > 5s p99.",
+      "type": "reference",
+      "domain": "Fulfillment & Logistics"
+    },
+    {
+      "id": "art-ful-006",
+      "title": "Supplier Portal – Post-Incident Review (PIR-2026-055)",
+      "content": "Incident: Supplier Portal EDI gateway rejected 40% of ASN messages for 6 hours during holiday ramp-up. Root cause: a supplier onboarding batch changed the EDI 856 segment terminator from ~ to | for 300+ suppliers without notification. Warehouses could not confirm inbound for affected suppliers; ATP counts went stale for 8,000 SKUs. Resolution: added flexible segment-terminator parsing and supplier-specific validation profiles. Lesson: external partner changes require inbound message validation, not just format assumptions.",
+      "type": "document",
+      "domain": "Fulfillment & Logistics"
+    },
+    {
+      "id": "art-ful-007",
+      "title": "Middle-Mile Carrier Delay – Escalation Playbook",
+      "content": "When a middle-mile carrier misses the 18-hour SLA for DC-to-store transfer: (1) Transportation Team investigates carrier status and gets revised ETA, (2) if delay > 6 hours, evaluate rerouting from alternate DC with available inventory, (3) if no alternate DC has stock, accept stockout and notify Store Ops for shelf signage, (4) escalate to VP Supply Chain if revenue impact > $50k. Rerouting from alternate DC adds $2-5 per unit in shipping cost. Historical frequency: ~3 carrier delays per Thanksgiving week.",
+      "type": "document",
+      "domain": "Fulfillment & Logistics"
+    },
+    {
+      "id": "art-ful-008",
+      "title": "Cross-Dock Routing – Configuration Management",
+      "content": "Cross-dock routing rules in TMS determine which shipments bypass putaway and go directly to outbound lanes. Rules are defined per origin-DC and destination-store pair. Misconfigured rules can silently route freight to the wrong DC — inventory shows as 'in transit' but arrives at a facility with no demand. Detection: Inventory Sync flags location mismatch within 12-24 hours when receiving scan at wrong DC triggers alert. Recovery: manual freight redirect adds 48-hour delay and $8-12/unit cost.",
+      "type": "reference",
+      "domain": "Fulfillment & Logistics"
+    }
+  ]
+}

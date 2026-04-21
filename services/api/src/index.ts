@@ -53,9 +53,6 @@ type SqlScenarioRow = {
   domain: string;
   prompt: string;
   artifacts: string;
-  difficulty: string;
-  estimated_minutes: number;
-  learning_outcomes: string;
 };
 
 type ScenarioArtifact = {
@@ -391,7 +388,6 @@ app.get('/scenarios', (_req: Request, res: Response, next: NextFunction) => {
     const parsed = scenarios.map((s) => ({
       ...s,
       artifacts: parseJson<unknown[]>(s.artifacts),
-      learning_outcomes: parseJson<string[]>(s.learning_outcomes),
     }));
     res.json(parsed);
   } catch (err) {
@@ -413,7 +409,6 @@ app.get('/scenarios/:id', (req: Request, res: Response, next: NextFunction) => {
     const parsed = {
       ...scenario,
       artifacts: parseJson<unknown[]>(scenario.artifacts),
-      learning_outcomes: parseJson<string[]>(scenario.learning_outcomes),
     };
 
     res.json(parsed);

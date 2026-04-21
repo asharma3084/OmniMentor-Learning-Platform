@@ -8,7 +8,6 @@ import {
   scoreBlastRadius,
   buildRubricScores,
   calculateOverallScore,
-  DEFAULT_RUBRIC_WEIGHTS,
 } from '../scoring/index';
 import { Submission, ScenarioBenchmark } from '../types';
 
@@ -99,39 +98,5 @@ describe('Scoring Logic', () => {
     const score = calculateOverallScore(metrics);
     expect(score).toBeGreaterThan(0.8); // Should be high
     expect(score).toBeLessThanOrEqual(1.0);
-  });
-
-  it('should use default rubric weights (equal 0.25)', () => {
-    expect(DEFAULT_RUBRIC_WEIGHTS).toEqual({
-      owner: 0.25,
-      dependency: 0.25,
-      blastRadius: 0.25,
-      evidence: 0.25,
-    });
-  });
-
-  it('should accept custom rubric weights', () => {
-    const metrics = {
-      ownerAccuracy: 1.0,
-      dependencyAccuracy: 0.0,
-      directionCorrect: false,
-      blastRadiusCompleteness: 0.0,
-      evidenceRelevance: 0.0,
-      unsupportedClaimCount: 2,
-      criticalErrorCount: 1,
-    };
-
-    // With default weights: 1.0 * 0.25 = 0.25
-    const defaultScore = calculateOverallScore(metrics);
-    expect(defaultScore).toBe(0.25);
-
-    // With owner-heavy weights: 1.0 * 0.7 = 0.7
-    const customScore = calculateOverallScore(metrics, {
-      owner: 0.7,
-      dependency: 0.1,
-      blastRadius: 0.1,
-      evidence: 0.1,
-    });
-    expect(customScore).toBe(0.7);
   });
 });

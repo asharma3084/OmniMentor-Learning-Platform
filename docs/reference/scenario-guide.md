@@ -33,57 +33,63 @@ For each scenario, the strongest review path is:
 
 ### Catalog
 
-#### Scenario 1: Catalog Service Ownership Change
+#### Scenario 1: Deploy Catalog API Schema Migration (Intermediate)
 
-- Objective: route ownership correctly after a service-boundary change.
+- Objective: coordinate a CDC-impacting schema change with downstream consumers.
 - Strong answer signals:
-  - ownership evidence is explicit
-  - dependency direction is correct
-  - escalation path is justified
+  - owner is Catalog Team
+  - Search Indexer mapping must be updated before deployment
+  - blast radius includes stale search results on Storefront and Mobile BFF
+  - deployment scheduled outside bulk-import window
 
-#### Scenario 2: Product Feed Latency Escalation
+#### Scenario 2: Thanksgiving Sale — Pricing Engine Slowdown (Beginner)
 
-- Objective: identify the upstream source of a customer-facing latency problem and explain the downstream impact.
+- Objective: triage a performance incident and trace pricing-related blast radius under production pressure.
 - Strong answer signals:
-  - upstream source is named correctly
-  - downstream blast radius is broader than a single system
-  - mitigation sequence is safe and evidence-backed
+  - owner is Pricing Team
+  - upstream source (Promo Service overload) is identified
+  - Catalog API fallback to cached base price is acknowledged
+  - downstream impact on Cart and Storefront is mapped
 
 ### Cart And Checkout
 
-#### Scenario 3: Checkout Auth Failure
+#### Scenario 3: Deploy Checkout Orchestrator Saga Timeout Change (Intermediate)
 
-- Objective: route an incident across auth, gateway, and checkout service boundaries.
+- Objective: plan a saga timeout change post-incident with full dependency coordination.
 - Strong answer signals:
-  - dependency path is directional and coherent
-  - owner routing is specific
-  - action plan does not skip validation
+  - owner is Commerce Team
+  - all saga participants mapped (Payment Gateway, Inventory Sync, Fulfillment Router, Notification Hub)
+  - Payments Team sign-off required
+  - circuit breaker thresholds validated with Supply Chain Team
 
-#### Scenario 4: Payment Retry Storm
+#### Scenario 4: Payment Gateway Security Patch Deployment (Beginner)
 
-- Objective: contain retry amplification without breaking revenue flow.
+- Objective: deploy a critical TLS patch within PCI-DSS constraints under time pressure.
 - Strong answer signals:
-  - blast radius covers customer and operational impact
-  - unsafe actions are avoided
-  - evidence notes explain why the selected response is safer
+  - owner is Payments Team
+  - PCI compliance requires InfoSec security review
+  - blast radius is all checkout transactions
+  - zero-downtime rolling strategy required
 
 ### Risk And Compliance
 
-#### Scenario 5: Access Control Exception Request
+#### Scenario 5: Deploy Updated Fraud Detection Model (Intermediate)
 
-- Objective: route an approval path with governance and ownership constraints.
+- Objective: deploy an ML model with canary validation after a prior false-negative incident.
 - Strong answer signals:
-  - policy evidence is used directly
-  - ownership and approver routing are distinct when needed
-  - uncertainty is stated honestly when evidence is incomplete
+  - owner is Risk Engineering Team
+  - canary scoring on 24h transactions with drift threshold
+  - feature-freshness validation addresses root cause from PIR-2026-042
+  - Audit Logger records model version for compliance
 
-#### Scenario 6: Audit Trail Inconsistency
+#### Scenario 6: Identity Provider Emergency Rotation (Advanced)
 
-- Objective: identify the accountable service and logging dependencies behind an auditability issue.
+- Objective: execute emergency JWT signing key rotation with platform-wide blast radius.
 - Strong answer signals:
-  - dependency direction is correct
-  - action plan is safe and reviewable
-  - evidence support is strong enough to pass gating
+  - owner is Platform Security Team
+  - blast radius is platform-wide (all authenticated operations)
+  - dual-key rotation strategy (add new key, then retire old)
+  - off-peak deployment window coordinated with SRE
 
 ## Recommended Demo Sequence
 
@@ -91,7 +97,7 @@ If the goal is to show both breadth and depth without overwhelming the reviewer:
 
 1. Run one scenario from each domain to show coverage.
 2. Use the `System Graph` sub-tab on one graph-heavy scenario to show system review depth.
-3. Open `Evaluation` to show four-mode comparison.
+3. Open `Score & Coaching` to show evaluation scoring and fix-action guidance.
 4. Open `Check-in Export` to show the mentor-facing summary.
 
 ## What A Mentor Should Look For

@@ -48,7 +48,7 @@ Weekly work cycles map directly to DBR phases: each development week constitutes
 ## Test Layers
 
 - Unit tests: core scoring, gating behavior, retrieval ranking, and ablation helpers (28 tests across 5 suites).
-- Browser E2E tests: Playwright coverage for the guided new-TPM golden path on isolated ports.
+- Browser E2E tests: 55 Playwright tests across 4 spec files covering the full guided flow, all 6 scenarios, evidence selection, scoring, feedback surfaces, system graph, form validation, survey workflow, and screenshot capture.
 - Runtime smoke test: end-to-end scenario to scored output across all 6 benchmark scenarios.
 - Evaluation run: retrieval-mode ablation (4 modes × 6 scenarios) and report generation.
 - Session/survey endpoint validation: start session, log events, submit surveys, check status.
@@ -62,10 +62,17 @@ pnpm --dir workspace smoke
 pnpm --dir workspace eval
 ```
 
-The current GUI automation suite is intentionally narrow and high-value:
-- first-run walkthrough opens for a new learner
-- evidence-role enforcement blocks low-quality beginner submissions
-- example-answer path reaches feedback successfully
+The current E2E suite provides broad coverage across the full learner experience:
+- walkthrough modal, survey modal, header controls, and theme toggling
+- all 4 guided steps (Brief, Investigate, Decide, Feedback) and step navigation
+- evidence selection with role indicators and dual-role enforcement
+- build-starter-draft and fill-template with validation gating
+- example-answer modal interactions (use, keep, show)
+- form validation and submit-and-score workflow
+- scenario selector with all 6 scenarios exercised end-to-end
+- feedback sub-tabs: System Graph (SVG + filter), Score & Coaching, Check-in Export
+- advanced surfaces: evaluation comparison and check-in export content
+- screenshot capture for review artifacts
 
 Implementation note:
 - Browser automation lives under `tests/e2e`, while repo-level launch/cleanup stays in `scripts/e2e.sh`.

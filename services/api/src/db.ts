@@ -26,6 +26,9 @@ export function initializeDatabase(dbPath: string): Database.Database {
       domain TEXT NOT NULL DEFAULT 'General',
       prompt TEXT NOT NULL,
       artifacts JSONB NOT NULL,
+      difficulty TEXT NOT NULL DEFAULT 'intermediate',
+      estimated_minutes INTEGER NOT NULL DEFAULT 12,
+      learning_outcomes JSONB NOT NULL DEFAULT '[]',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -114,6 +117,15 @@ export function initializeDatabase(dbPath: string): Database.Database {
     // Column already exists.
   }
 
+  // Migrate: add scenario difficulty metadata columns
+  for (const col of [
+    "ALTER TABLE scenarios ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'intermediate'",
+    'ALTER TABLE scenarios ADD COLUMN estimated_minutes INTEGER NOT NULL DEFAULT 12',
+    "ALTER TABLE scenarios ADD COLUMN learning_outcomes JSONB NOT NULL DEFAULT '[]'",
+  ]) {
+    try { db.exec(col); } catch { /* Column already exists. */ }
+  }
+
   return db;
 }
 
@@ -138,6 +150,9 @@ interface BenchmarkScenario {
   title: string;
   prompt: string;
   artifacts: string[]; // artifact IDs
+  difficulty?: string;
+  estimatedMinutes?: number;
+  learningOutcomes?: string[];
   goldOwner: string;
   goldDependencyTrace: Array<{ from: string; to: string; type: string }>;
   goldSafeActions: string[];
@@ -187,8 +202,8 @@ export function seedSampleData(db: Database.Database): void {
   }
 
   const insertScenario = db.prepare(`
-    INSERT OR REPLACE INTO scenarios (id, title, domain, prompt, artifacts)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO scenarios (id, title, domain, prompt, artifacts, difficulty, estimated_minutes, learning_outcomes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertGold = db.prepare(`
@@ -213,7 +228,10 @@ export function seedSampleData(db: Database.Database): void {
         scenario.title,
         scenario.domain,
         scenario.prompt,
-        JSON.stringify(resolvedArtifacts)
+        JSON.stringify(resolvedArtifacts),
+        scenario.difficulty ?? 'intermediate',
+        scenario.estimatedMinutes ?? 12,
+        JSON.stringify(scenario.learningOutcomes ?? [])
       );
 
       insertGold.run(

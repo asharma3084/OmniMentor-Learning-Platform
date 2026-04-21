@@ -157,16 +157,30 @@ export function aggregateMetrics(
 }
 
 /**
- * Calculate overall score (0-1)
+ * Rubric weight configuration — exposed for tuning and experimentation.
  */
-export function calculateOverallScore(metrics: MetricsResult): number {
-  const weights = {
-    owner: 0.25,
-    dependency: 0.25,
-    blastRadius: 0.25,
-    evidence: 0.25,
-  };
+export interface RubricWeights {
+  owner: number;
+  dependency: number;
+  blastRadius: number;
+  evidence: number;
+}
 
+export const DEFAULT_RUBRIC_WEIGHTS: RubricWeights = {
+  owner: 0.25,
+  dependency: 0.25,
+  blastRadius: 0.25,
+  evidence: 0.25,
+};
+
+/**
+ * Calculate overall score (0-1)
+ * Accepts optional custom weights for experimentation; defaults to equal 0.25 each.
+ */
+export function calculateOverallScore(
+  metrics: MetricsResult,
+  weights: RubricWeights = DEFAULT_RUBRIC_WEIGHTS
+): number {
   return (
     metrics.ownerAccuracy * weights.owner +
     metrics.dependencyAccuracy * weights.dependency +

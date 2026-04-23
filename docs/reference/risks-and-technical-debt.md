@@ -33,7 +33,7 @@ These risks are distinct from technical risks — they affect the **credibility 
 
 | Item | Severity | What Needs Doing |
 |---|---|---|
-| Limited scenario volume (6 scenarios) | Medium | Expand each domain to more scenarios for broader benchmark coverage |
+| Limited scenario volume (12 scenarios) | Low | Expand each domain to more scenarios for broader benchmark coverage |
 | Minimal API contract examples | Low | Expand examples in `../architecture/api-contract.md` |
 | No CI pipeline | Medium | Add GitHub Actions with lint + test + typecheck |
 | SQLite not multi-user ready | Low | Accepted for Phase 1; Phase 2 moves to Qdrant + Neo4j |

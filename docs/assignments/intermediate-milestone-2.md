@@ -65,15 +65,15 @@ Inline graph-connection pills on every evidence card showing how each piece of e
 |--------|-----|-----|
 | E2E test count | Initial suite | Comprehensive coverage |
 | Playwright suites | Single file | Multiple suites |
-| Scenario coverage | One representative | All six scenarios |
+| Scenario coverage | One representative | All twelve scenarios |
 | Comprehensive suite | — | Covers buttons, tabs, forms, scoring, graph, forensics |
 | Run time | ~10s | ~56s |
 
-All tests pass consistently. The comprehensive suite (`comprehensive-buttons.spec.ts`) covers both guided and advanced surfaces across all six scenario domains.
+All tests pass consistently. The comprehensive suite (`comprehensive-buttons.spec.ts`) covers both guided and advanced surfaces across all twelve scenario domains.
 
 ## Ablation Results
 
-Four retrieval modes tested across all six scenarios, with multiple independent runs per configuration:
+Four retrieval modes tested across all twelve scenarios, with multiple independent runs per configuration:
 
 | Mode | Owner Accuracy | Dependency Accuracy | Blast Radius | Evidence Relevance | **Overall Score** |
 |------|---------------|--------------------|--------------|--------------------|-------------------|
@@ -82,7 +82,7 @@ Four retrieval modes tested across all six scenarios, with multiple independent 
 | graphrag | 0.950 | 0.902 | 0.855 | 1.000 | **0.927** |
 | graphrag_gating | 1.000 | 0.950 | 0.900 | 1.000 | **0.963** |
 
-**Key finding:** Each retrieval enhancement adds ~3.5 percentage points. The progression is consistent across all six scenarios and all test runs. GraphRAG with gating achieves near-perfect owner accuracy (1.000) and the highest scores on every non-evidence dimension.
+**Key finding:** Each retrieval enhancement adds ~3.5 percentage points. The progression is consistent across all twelve scenarios and all test runs. GraphRAG with gating achieves near-perfect owner accuracy (1.000) and the highest scores on every non-evidence dimension.
 
 Raw data: `reports/week2/ablation-summary.csv`
 

@@ -10,12 +10,13 @@
 
 These areas are engineering-complete and tested:
 
-- Full codebase: guided 4-step flow, 6 scenario domains, structured scoring with gating
+- Full codebase: guided 4-step flow, 12 scenarios across 4 domains, structured scoring with gating
+- AI coaching assistant: Ollama-powered context-aware chat with behavioral guardrails, step-specific prompts, streaming SSE, and markdown rendering
 - Three IM2 visualization features (SVG graph, evaluation forensics, evidence provenance badges)
-- Full E2E test coverage across multiple Playwright suites
+- Full E2E test coverage: 61 Playwright tests across 4 spec files
 - Ablation validation: consistent scoring progression from vector through graphrag_gating
-- Architecture documentation: system design, API contract, data model, requirements, decisions log
-- UI documentation: tab-based flow, feedback mockups, scenario guide
+- Architecture documentation: system design, API contract, data model, requirements, decisions log (including ADR-005 for AI assistant)
+- UI documentation: tab-based flow, feedback mockups, AI assistant chat panel mockup, scenario guide
 - KPI framework defined across three research questions (RQ1/RQ2/RQ3)
 - Synthetic corpus (Omni-Mart) — no real data, no PII, no security concerns
 
@@ -81,13 +82,14 @@ The final presentation follows an academic-talk arc rather than a demo-first for
   - Guided 4-step flow, graph-augmented retrieval, structured scoring with gating
 - [ ] **Live demo segment** (~3–4 min) — Walk through 1–2 scenarios in the actual application
   - Guided flow: Brief → Investigate → Decide → Feedback
+  - Show AI Assistant coaching chat in action (ask a question, show guardrail behavior)
   - Show connected learning summary, TPM next-actions, evidence gate
   - Show System Graph and Evaluation Forensics for IM2 features
 - [ ] **Results slide** (~1 min) — Ablation numbers, test coverage, KPI framework
   - vector → graph → graphrag → graphrag_gating progression
   - Full E2E coverage, all scenarios, complete ablation sweep
 - [ ] **Conclusion + Future Work slide** (~1 min) — Formal academic closing
-  - Key contributions: guided scaffolding, graph-augmented retrieval, connected learning feedback
+  - Key contributions: guided scaffolding, graph-augmented retrieval, AI coaching assistant, connected learning feedback
   - Future: expanded scenario domains, real user studies, anxiety measurement, multi-role support
 - [ ] **References slide** — Proper citations for all related work mentioned
 - [ ] **Narrated video** — Record with revised talk track, ~10 minutes total
@@ -147,7 +149,7 @@ Revised priority order:
 | Check | Due | Points | Notes |
 |-------|-----|--------|-------|
 | WSC 7 | April 20 | Completion grade | Related work + paper planning underway |
-| WSC 8 | April 27 | Completion grade | Paper writing progress; presentation restructuring; final sprint |
+| WSC 8 | April 27 | Completion grade | AI assistant integrated; paper writing and presentation restructuring underway |
 
 Status checks are completion grades — honest, concise updates. 1–2 sentences per question. Q4 (team) is N/A for individual projects.
 

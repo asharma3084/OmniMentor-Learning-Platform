@@ -9,13 +9,30 @@ This guide gets OmniMentor running locally with a verified end-to-end pass.
 - Node.js 20+
 - pnpm
 - sqlite3
+- Ollama (for AI Assistant)
 
 macOS setup:
 
 ```bash
 brew update
 brew install git node pnpm sqlite
+brew install ollama
 ```
+
+## Install Ollama Model
+
+```bash
+ollama serve &       # start the Ollama daemon (runs on port 11434)
+ollama pull llama3.2  # download the model (~2 GB)
+```
+
+Verify Ollama is running:
+
+```bash
+curl -s http://localhost:11434/api/tags | head -1
+```
+
+The AI Assistant will work when Ollama is running. If Ollama is not running, the rest of the platform still functions normally — only the chat coaching feature is unavailable.
 
 ## Install
 

@@ -26,6 +26,8 @@ These research questions define the functional and evaluative scope of OmniMento
 - The system must log behavioral proxy events (first evidence selection, hesitation time) per session for RQ3 evaluation.
 - The system must display evidence provenance alongside retrieved context (RQ2 trust design requirement).
 - The system must signal uncertainty explicitly — never assert with false confidence (active validation design requirement).
+- The system must provide a context-aware AI coaching assistant that responds to learner questions within the scope of the active scenario, without revealing gold-label answers or hallucinating information beyond provided context (RQ2 non-judgmental assistant requirement).
+- The AI assistant must enforce guardrails: scope-limited to the current scenario, off-topic rejection, no code generation, concise responses, and evidence-based redirects.
 - The system must provide an interactive `System Graph` review surface with filtering, node focus, path review, and provenance-linked node detail.
 - The system must provide deeper `Evaluation` analytics (mode deltas, diagnostics, and critical-error category breakdown).
 - The system must provide review-ready `Check-in Export` output with copy/download actions and selected-evidence references.
@@ -39,7 +41,7 @@ These research questions define the functional and evaluative scope of OmniMento
 | Deterministic unit tests | Scoring and gating behavior must be verifiable independently of LLM output |
 | Synthetic-only data | No personal, internal, or proprietary data in any repository artifact |
 | Dependency hygiene | Audit gate; no known vulnerabilities in shipped dependencies |
-| Local-first assistant path | Any future LLM assistance must stay privacy-safe and avoid external data transmission |
+| Local-first assistant path | LLM coaching runs via Ollama locally — no external data transmission |
 | Single-user local operation | Initial runtime target; multi-user is out of scope for current phase |
 | Open-source only | No paid feature tiers or commercial dependencies |
 | No telemetry | No external user-data collection of any kind |
@@ -53,10 +55,11 @@ These research questions define the functional and evaluative scope of OmniMento
 | Current persistence | SQLite |
 | Core engine | TypeScript + Vitest |
 | Current retrieval baseline | Deterministic in-memory retrieval across `vector`, `graph`, `graphrag`, and `graphrag_gating` |
+| Local LLM | Ollama (llama3.2) |
 | Target vector retrieval | Qdrant |
 | Target graph store | Neo4j Community |
 | Target graph retrieval | GraphRAG |
-| Target local LLM | Ollama |
+| ~~Target local LLM~~ | ~~Ollama~~ — now active (AI Assistant) |
 
 ## Acceptance Criteria
 

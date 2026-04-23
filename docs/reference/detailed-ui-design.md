@@ -1,7 +1,7 @@
 # OmniMentor Detailed UI Design
 
-Version: 4.0
-Last Updated: 2026-04-11
+Version: 4.1
+Last Updated: 2026-04-22
 
 This document captures the product's UI design rationale and detailed interaction model.
 
@@ -52,11 +52,13 @@ Navigation behavior:
 │ 📋 1. Brief  🔍 2. Investigate  ✍️ 3. Decide  📊 4. Feedback    1/12 done  [Catalog] ▾     │
 │   Score & Coaching | System Graph | Evidence Explorer | Check-in Export  (sub-tabs)        │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Page Content Area                                                                           │
+│ Page Content Area                                                                    [💬]  │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 🎓 OmniMentor · Architecture Fluency Platform         12 scenarios · 1 completed           │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+The [💬] in the bottom-right of the content area represents the AI Assistant floating action button (FAB). Clicking it opens the chat panel overlay.
 
 The header uses a gradient brand line, status dots for service health, and a help icon that provides in-app guidance. The footer is pinned to the viewport bottom with scenario progress and branding. Session timing is tracked via the API (start, first evidence, first submit, completion) for RQ1 instrumentation.
 
@@ -187,6 +189,42 @@ The Feedback step provides a connected learning summary linking scenario → evi
 │ [Copy for Review Thread]                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+## 5.8 AI Assistant Chat Panel Mockup
+
+```text
+                                                        ┌───────────────────────────┐
+                                                        │ 💬 AI Assistant  Brief  │
+                                                        │    [💾] [🗑] [✕]       │
+                                                        ├───────────────────────────┤
+                                                        │ 🤖 Hi! I'm your coaching  │
+                                                        │    assistant. Ask about   │
+                                                        │    the scenario or your   │
+                                                        │    next step.             │
+                                                        │                           │
+                                                        │           👤 What should  │
+                                                        │              I focus on?  │
+                                                        │                           │
+                                                        │ 🤖 Start by reading the   │
+                                                        │    incident brief. Think  │
+                                                        │    about which teams and  │
+                                                        │    systems are affected.  │
+                                                        ├───────────────────────────┤
+                                                        │ [Focus on first?]         │
+                                                        │ [Explain the stakes]      │
+                                                        ├───────────────────────────┤
+                                                        │ [Ask a question...  ] [➤] │
+                                                        └───────────────────────────┘
+```
+
+The AI Assistant is a floating overlay anchored to the bottom-right corner. It does not displace page content. The header shows the current step as a badge and provides save (export chat as `.txt`), clear (reset conversation), and close controls. Quick prompt buttons below the message area change based on the active step.
+
+Design principles for the assistant:
+- Warm, concise, and coaching-oriented tone.
+- Never gives gold-label answers; always redirects to evidence.
+- Responses are 2-3 plain sentences; no headings, lists, or structured formatting.
+- Markdown rendering for bold/italic/code when the model includes them.
+- Messages stream token-by-token for a responsive feel.
 
 ## 6. Alternate Mockup B (Advanced Review Workspace)
 

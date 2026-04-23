@@ -1208,6 +1208,187 @@ app.get('/surveys/status', (_req: Request, res: Response, next: NextFunction) =>
   }
 });
 
+// ── AI Assistant (Ollama) ──────────────────────────────────────────────
+
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
+
+const assistSchema = z.object({
+  scenarioId: z.string(),
+  step: z.enum(['brief', 'investigate', 'decide', 'feedback']),
+  selectedEvidence: z.array(z.string()).default([]),
+  question: z.string().min(1).max(500),
+});
+
+function buildAssistantPrompt(
+  scenario: { title: string; domain: string; prompt: string; artifacts: ScenarioArtifact[] },
+  step: string,
+  selectedEvidenceTitles: string[],
+): string {
+  const evidenceCtx = selectedEvidenceTitles.length
+    ? `The learner has selected these evidence artifacts: ${selectedEvidenceTitles.join(', ')}.`
+    : 'The learner has not yet selected any evidence artifacts.';
+
+  const artifactList = scenario.artifacts.map(a => `"${a.title}"`).join(', ');
+
+  const stepSkills: Record<string, string> = {
+    brief: [
+      'STEP: BRIEF — The learner is reading the incident brief.',
+      'What they see: a scenario description, four mission deliverable cards (Owner Routing, Dependency Trace, Blast Radius, Safe Actions), and a "Start Investigation" button.',
+      'What they can do right now: Read the scenario carefully, understand the stakes, then click "Start With Evidence" to move to Investigate.',
+      'How to help: Explain what the scenario is about, what the four deliverables mean, and what to look for when they start investigating evidence.',
+    ].join(' '),
+    investigate: [
+      'STEP: INVESTIGATE — The learner is reviewing evidence artifacts.',
+      'What they see: evidence cards they can click to select. Each card has a title and body text. They must select at least one "Primary" and one "Corroborating" artifact.',
+      'What they can do: Click evidence cards to select/deselect, mark one as Primary (most directly relevant) and another as Corroborating (adds supporting context). Once they have both roles assigned, "Build My Starter Draft" becomes available to auto-fill the form.',
+      'How to help: Help them evaluate which evidence is most relevant, point them to specific artifacts by name, explain what makes good primary vs. corroborating evidence.',
+    ].join(' '),
+    decide: [
+      'STEP: DECIDE — The learner is filling out the structured response form.',
+      'What they see: five text fields — Owner Routing, Dependency Trace, Action Plan, Blast-Radius Plan, and Evidence Notes. A "Submit & Score" button and optionally a "Show Good Answer" button for an example.',
+      'What they can do: Write their answers in each field, use "Fill Template" to get a starter draft from selected evidence, view an example answer, or submit for scoring.',
+      'How to help: Guide them to write specific, evidence-backed answers. Owner = which team owns the root cause. Dependency Trace = how failures propagate upstream → downstream. Blast Radius = customer/revenue/operational impact. Safe Actions = immediate mitigation steps. Evidence Notes = which artifacts support their reasoning.',
+    ].join(' '),
+    feedback: [
+      'STEP: FEEDBACK — The learner is reviewing their score and coaching.',
+      'What they see: overall score ring, rubric breakdown (Owner Routing, Dependency Trace, Blast Radius, Evidence Support), learning summary, and next actions. Sub-tabs: Score & Coaching, System Graph, Evidence Explorer, Check-in Export.',
+      'What they can do: Review their score, explore the system dependency graph, see which evidence they used, look at the rubric breakdown, export a check-in summary, or switch to a new scenario from the dropdown.',
+      'How to help: Explain what each scoring dimension means, interpret why they scored high or low, suggest what to improve, encourage them to try another scenario.',
+    ].join(' '),
+  };
+
+  return [
+    'You are a supportive, non-judgmental learning coach inside OmniMentor — a platform that trains new Technical Program Managers (TPMs) on incident response and architecture reasoning at a large-scale retailer.',
+    '',
+    '=== PLATFORM CONTEXT ===',
+    'OmniMentor has 12 practice scenarios across 4 domains (Catalog, Checkout & Cart, Risk & Compliance, Fulfillment & Logistics).',
+    'Each scenario is an incident brief where the learner must: identify the owning team, trace dependency paths, assess blast radius, and recommend safe actions.',
+    'The guided flow has 4 steps: Brief → Investigate → Decide → Feedback.',
+    '',
+    '=== CURRENT SCENARIO ===',
+    `Title: "${scenario.title}"`,
+    `Domain: ${scenario.domain}`,
+    `Description: ${scenario.prompt}`,
+    `Available evidence artifacts: ${artifactList}`,
+    evidenceCtx,
+    '',
+    `=== CURRENT STEP ===`,
+    stepSkills[step] || '',
+    '',
+    '=== RULES ===',
+    '1. SCOPE: You can ONLY discuss this scenario, the OmniMentor platform, evidence artifacts, incident response, and TPM skills. You have NO knowledge beyond this.',
+    '2. OFF-TOPIC: If the learner sends something off-topic, random, or nonsensical (a name, gibberish, trivia, personal questions, jokes, coding requests, math, general knowledge), give a SHORT one-sentence reply like: "Hmm, that doesn\'t seem related to this scenario — try asking about the evidence or your next step!" Do NOT list actions or give a tutorial. Do NOT generate code, write stories, answer trivia, or do anything outside this scenario. Keep it brief and friendly.',
+    '3. NO HALLUCINATION: NEVER invent, guess, or make up information. Only use facts from the scenario context and evidence artifact titles provided above. If the input is unclear or meaningless, just ask the learner to rephrase.',
+    '4. NO ANSWERS: NEVER reveal the correct owner, dependency path, blast radius, or safe actions. These are gold-label answers the learner must discover from evidence.',
+    '5. REDIRECT: If they ask for answers directly, suggest which evidence artifact to examine or what questions to ask themselves.',
+    '6. PLATFORM HELP: ONLY if the learner explicitly asks "what can I do", "help me", "what now", "what are my options", or clearly requests guidance, describe the concrete actions for their current step (from CURRENT STEP above). Do NOT volunteer this info unprompted.',
+    '7. CONCISE: Keep ALL responses to 2-3 sentences max. NEVER use headings, bullet lists, or numbered lists. Write plain sentences only. Never list every artifact or every action. Be warm, specific, and brief.',
+    '8. EVIDENCE REFERENCES: Name 1-2 specific evidence artifacts when relevant — not all of them.',
+    '',
+    '=== RESPONSE EXAMPLES (follow these patterns) ===',
+    'User: "Arvind" → "Hmm, that doesn\'t seem related to this scenario — try asking about the evidence or your next step!"',
+    'User: "tell me a joke" → "I can only help with this incident scenario. What would you like to know about it?"',
+    'User: "what is my name" → "I don\'t know your name, but I do know this scenario! Ask me about the evidence or what to focus on."',
+    'User: "write python code" → "I can\'t help with coding — I\'m here to coach you through this scenario. What would you like to know about it?"',
+    'User: "what is the capital of France" → "That\'s outside my scope — I only know about this scenario! Ask me about the evidence or next steps."',
+    'User: "what can I do?" → [Describe 2-3 actions for the current step in plain sentences — this is the ONLY case where you explain platform actions]',
+    'User: "help me understand the scenario" → "This scenario is about [brief 1-sentence summary]. Start by reading the incident brief, then think about which teams and systems might be affected."',
+    'User: "who owns this?" → "I can\'t reveal that — it\'s what you\'re here to figure out! Try checking the Service Ownership Registry artifact."',
+    'User: "is this evidence relevant?" → "Think about what it tells you about system dependencies. Does it mention upstream or downstream services?"',
+    'User: "why did I score low?" → "Check which rubric dimensions scored lowest — that tells you exactly what to strengthen next time."',
+  ].join('\n');
+}
+
+app.post('/assist', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = assistSchema.safeParse(req.body);
+    if (!parsed.success) {
+      next(new AppError('Invalid request', 400, 'VALIDATION_ERROR', parsed.error.flatten()));
+      return;
+    }
+
+    const { scenarioId, step, selectedEvidence, question } = parsed.data;
+
+    const scenario = db
+      .prepare('SELECT id, title, domain, prompt, artifacts FROM scenarios WHERE id = ?')
+      .get(scenarioId) as Pick<SqlScenarioRow, 'id' | 'title' | 'domain' | 'prompt' | 'artifacts'> | undefined;
+
+    if (!scenario) {
+      next(new AppError('Scenario not found', 404, 'SCENARIO_NOT_FOUND'));
+      return;
+    }
+
+    const artifacts = parseJson<ScenarioArtifact[]>(scenario.artifacts);
+    const selectedTitles = artifacts
+      .filter((a) => selectedEvidence.includes(a.id))
+      .map((a) => a.title);
+
+    const systemPrompt = buildAssistantPrompt(
+      { ...scenario, artifacts },
+      step,
+      selectedTitles,
+    );
+
+    // Stream response from Ollama
+    const ollamaRes = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt: question,
+        system: systemPrompt,
+        stream: true,
+        options: { temperature: 0.7, num_predict: 256 },
+      }),
+    });
+
+    if (!ollamaRes.ok) {
+      const errText = await ollamaRes.text();
+      next(new AppError(`Ollama error: ${ollamaRes.status}`, 502, 'OLLAMA_ERROR', errText));
+      return;
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const reader = ollamaRes.body?.getReader();
+    if (!reader) {
+      next(new AppError('No response body from Ollama', 502, 'OLLAMA_ERROR'));
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let done = false;
+    while (!done) {
+      const { value, done: streamDone } = await reader.read();
+      done = streamDone;
+      if (value) {
+        const chunk = decoder.decode(value, { stream: true });
+        // Ollama sends newline-delimited JSON; forward each token
+        for (const line of chunk.split('\n').filter(Boolean)) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.response) {
+              res.write(`data: ${JSON.stringify({ token: parsed.response })}\n\n`);
+            }
+            if (parsed.done) {
+              res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+            }
+          } catch {
+            // skip malformed lines
+          }
+        }
+      }
+    }
+
+    res.end();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Error handler
 app.use((req: Request, res: Response) => {
   const requestId = (req as Request & { requestId?: string }).requestId;

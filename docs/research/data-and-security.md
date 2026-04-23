@@ -23,6 +23,9 @@
 ## Baseline Controls
 
 - Input validation for API request payloads.
-- Zod schema validation on session and survey endpoints.
+- Zod schema validation on session, survey, and AI assistant endpoints.
 - Centralized error handling.
 - Localhost-scoped CORS and rate limiting for local runtime.
+- AI Assistant (`POST /assist`) uses Ollama running locally — no learner questions or responses leave the machine.
+- Assistant chat messages are not persisted; each request is stateless with no server-side conversation history.
+- AI assistant responses are sanitized via DOMPurify before rendering in the browser (prevents XSS from model output).

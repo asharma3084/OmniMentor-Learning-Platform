@@ -50,7 +50,7 @@ Start with the path that matches your role:
 - Learner or TPM: [docs/start-here/user-guide.md](docs/start-here/user-guide.md)
 - Technical reviewer: [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md) and [docs/research/evaluation-and-kpis.md](docs/research/evaluation-and-kpis.md)
 
-**Prerequisites**: Node.js 20+, pnpm, sqlite, macOS
+**Prerequisites**: Node.js 20+, pnpm, sqlite, macOS, Ollama (for AI Assistant)
 
 ```bash
 git clone https://github.com/asharma3084/OmniMentor-Learning-Platform.git
@@ -76,6 +76,8 @@ OmniMentor now defaults to a **guided-first practice loop** grounded in cognitiv
 2. **Investigate** — inspect evidence, extract owner/dependency/risk clues, and select one primary plus one corroborating artifact
 3. **Decide** — submit owner routing, dependency trace (upstream → downstream), action plan, blast radius, and evidence notes
 4. **Feedback** — receive rubric feedback, critical-error flags, and gold-aligned explanation of what was missing and why it matters
+
+An **AI Assistant** (chat bubble in the bottom-right corner) is available on every step. Powered by Ollama running locally, it provides context-aware coaching — guiding you toward evidence-first reasoning without revealing gold-label answers.
 
 The feedback engine evaluates five dimensions:
 
@@ -113,12 +115,13 @@ flowchart TB
       EVAL["Evaluation"]
       EXP["Check-in Export"]
     end
+    CHAT["AI Assistant\nFloating Chat Panel"]
   end
 
   A["API Service\nExpress + Node"]
   C["Core Engine\nEvidence Gating + Rubric Scoring"]
   R["Retrieval Layer\nvector | graph | graphrag | graphrag_gating"]
-  LLM["Ollama\nTarget Local LLM"]
+  LLM["Ollama\nLocal LLM (llama3.2)"]
   NEO["Neo4j\nTarget Graph Store"]
   QD["Qdrant\nTarget Vector Store"]
   DB[("SQLite")]
@@ -131,6 +134,8 @@ flowchart TB
 
   GUIDED -->|REST| A
   ADV -->|REST| A
+  CHAT -->|POST /assist (SSE)| A
+  A -->|Prompt + stream| LLM
 
   A --> C
   A --> R
@@ -176,6 +181,7 @@ Freeze-scope enhancements (design/architecture baseline before coding completion
 Current verified state:
 - Guided mode is the default learner path.
 - Advanced `Overview`, `System Graph`, `Evaluation`, and `Check-in Export` are implemented and browser-verified.
+- AI Assistant (Ollama-powered coaching chat) is integrated into the guided flow with step-aware prompts and behavioral guardrails.
 - Retrieval comparison is available across `vector`, `graph`, `graphrag`, and `graphrag_gating`.
 
 Near-term roadmap beyond the current verified state:
@@ -218,6 +224,7 @@ GET  /analytics/sessions
 POST /surveys
 GET  /surveys
 GET  /surveys/status
+POST /assist              # AI coaching (streaming SSE, requires Ollama)
 ```
 
 See [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md) for the complete API contract with request/response schemas.

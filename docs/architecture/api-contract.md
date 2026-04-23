@@ -14,6 +14,7 @@ Base URL (local): `http://localhost:9992`
 - `POST /submissions` create submission
 - `POST /score` score submission
 - `POST /ablation/run` run evaluation modes
+- `POST /assist` AI assistant coaching (streaming SSE)
 
 ## Session Tracking
 
@@ -70,3 +71,14 @@ Base URL (local): `http://localhost:9992`
 
 - Add route versioning (`/v1`) when backward-incompatible changes begin.
 - Keep request/response examples updated with any contract changes.
+
+## AI Assistant (Streaming)
+
+- `POST /assist` — Send a learner question for context-aware coaching.
+  - Body: `{ scenarioId: string, step: "brief" | "investigate" | "decide" | "feedback", selectedEvidence: string[], question: string (1+ chars) }`
+  - Response: `text/event-stream` (Server-Sent Events)
+  - Each event: `data: { "token": "..." }` or `data: { "done": true }`
+  - Requires Ollama running locally (`OLLAMA_URL`, default `http://127.0.0.1:11434`)
+  - Model: `OLLAMA_MODEL` env var, default `llama3.2`
+  - The assistant is stateless — each request is independent with no conversation history on the server. The system prompt is rebuilt per request from scenario context in SQLite.
+  - Guardrails enforced in the system prompt: scope-limited to scenario, no gold answers, no hallucination, concise responses (2-3 sentences), off-topic rejection.

@@ -57,12 +57,14 @@ The focus is not to answer questions. It is to build the capacity to ask them â€
 - Pre/post 5-item Likert surveys for RQ2 self-reported anxiety evaluation.
 - Behavioral proxy instrumentation (hesitation time, attempt tracking) for RQ3 participation measurement.
 - KPI framework with 9 indicators mapped to 3 research questions (see `../research/evaluation-and-kpis.md`).
+- AI coaching assistant powered by Ollama (llama3.2), providing context-aware, step-specific guidance with guardrails against gold-answer leakage and off-topic responses (RQ2 non-judgmental assistant).
 
 ## Current Verified State And Forward Path
 
 Current verified state:
 - Guided-first learning flow is the baseline user experience.
 - Advanced `Overview`, `System Graph`, `Evaluation`, and `Check-in Export` surfaces are implemented.
+- AI Assistant (Ollama-powered coaching chat) is integrated into the guided flow with step-aware prompts and behavioral guardrails.
 - Runtime verification includes clean builds plus focused browser coverage for the advanced review path.
 
 Forward path beyond the current verified state:
@@ -79,10 +81,11 @@ Forward path beyond the current verified state:
 | Current persistence | SQLite |
 | Core scoring + gating | TypeScript |
 | Current retrieval baseline | Deterministic in-memory ranking across `vector`, `graph`, `graphrag`, and `graphrag_gating` |
+| Local LLM | Ollama (llama3.2) |
 | Target vector retrieval | Qdrant |
 | Target graph store | Neo4j Community |
 | Target graph retrieval | GraphRAG |
-| Target local LLM | Ollama |
+| ~~Target local LLM~~ | ~~Ollama~~ â€” now active (AI Assistant) |
 
 ## Out Of Scope (Current)
 

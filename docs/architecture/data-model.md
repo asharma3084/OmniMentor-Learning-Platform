@@ -72,3 +72,7 @@
 
 - Synthetic-only content for learning and benchmarking.
 - No personal or company-internal data in repository artifacts.
+
+## Note: AI Assistant
+
+The AI Assistant (`POST /assist`) is stateless. It does not persist messages or conversation history. Each request builds a fresh system prompt from scenario context already stored in the Scenario and Evidence Artifact entities above. No new tables are required.

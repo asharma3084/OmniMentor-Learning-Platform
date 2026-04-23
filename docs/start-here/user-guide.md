@@ -39,6 +39,25 @@ When you first open the app:
 2. Read the walkthrough if it opens (click "How It Works").
 3. Pick one scenario and finish it fully before jumping to another one.
 4. Use the `?` help icon in the header if you need guidance at any point.
+5. Use the **AI Assistant** (floating chat bubble in the bottom-right corner) anytime you have a question about the scenario, the evidence, or your next step.
+
+## The AI Assistant
+
+A floating chat button appears in the bottom-right corner of every step. Click it to open a coaching chat powered by a local LLM (Ollama).
+
+What to use it for:
+- Ask about the current scenario: "help me understand the scenario", "what should I focus on?"
+- Get step-specific guidance: "what should I look for in the evidence?", "how do I structure my dependency trace?"
+- Check your thinking: "is my response complete?", "why is this evidence relevant?"
+
+What it will not do:
+- It will not give you the correct answer (owner, dependencies, blast radius). That is what you are here to figure out.
+- It will not help with coding, trivia, or anything outside the scenario.
+- It will not make up information — if it does not know, it says so.
+
+Quick prompts appear below the chat input as shortcut buttons that change based on your current step (Brief, Investigate, Decide, Feedback).
+
+You can save the chat to a text file or clear it at any time using the icons in the chat header.
 
 ## Quick Rule
 
@@ -150,6 +169,8 @@ Best habit for new TPMs:
 
 Ask, "What evidence proves this?" before you ask, "What do I think is happening?"
 
+Tip: use the AI Assistant freely during Brief and Investigate. Ask it to explain the stakes or highlight what to look for. It coaches without giving away answers.
+
 ### Intermediate TPM
 
 If you already understand TPM basics but are still learning the domain:
@@ -198,6 +219,8 @@ For your first real session in OmniMentor:
 5. In Decide, write a complete answer in all required fields.
 6. Submit and study the full Feedback — score, learning summary, and TPM next-actions.
 7. If your answer was weak, review the example answer and try again.
+
+Throughout the session, use the AI Assistant chat bubble in the bottom-right corner whenever you want coaching on what to focus on, what evidence means, or how to structure your response.
 8. When ready, click the next-scenario button to continue practicing.
 
 That is enough for a strong first run.

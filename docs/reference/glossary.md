@@ -53,7 +53,7 @@ Target vector database for semantic similarity retrieval. Stores dense embedding
 Target graph database for the Omni-Mart ownership and dependency graph. Supports multi-hop traversal via Cypher and APOC procedures. The current checked-in baseline still uses deterministic in-memory retrieval rather than a live graph store.
 
 **Ollama**
-Target local LLM runtime for later explanation depth. Runs open-weight models entirely on-device, with no external API calls. In the current checked-in baseline, learner support is provided through guided scaffolds, example answers, and evidence-backed feedback rather than a live LLM assistant.
+Local LLM runtime powering the AI Assistant. Runs the `llama3.2` model (3B parameters) entirely on-device with no external API calls. Used by the `POST /assist` endpoint to provide context-aware, step-specific coaching. Ollama is a soft dependency — the rest of the platform works without it; only the chat coaching feature is unavailable when Ollama is not running.
 
 **Knowledge graph**
 A structured representation of entities (systems, services, teams, owners) and their relationships (depends-on, owns, escalates-to, documented-in). The OmniMentor knowledge graph encodes Omni-Mart's system topology as a traversable graph.

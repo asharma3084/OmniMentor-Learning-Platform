@@ -6,7 +6,8 @@
 | Risk | Severity | Mitigation |
 |---|---|---|
 | `better-sqlite3` native module rebuild | Low | Keep `node-gyp rebuild` command in runbook; pin Node version |
-| Ollama model output variability | Medium | Pin model version; use deterministic prompt template; eval for consistency before enabling |
+| Ollama model output variability | Medium | Pin model version; use deterministic prompt template with few-shot examples; 8 guardrails in system prompt; iterative testing against known inputs |
+| Ollama not running at startup | Low | AI Assistant degrades gracefully (502 error shown in chat); rest of platform unaffected |
 | GraphRAG context quality variance | High | Use rubric scoring as primary signal; keep gold labels as ground truth — do not trust LLM output directly |
 | Synthetic corpus coverage gaps | Medium | Expand incrementally; document coverage per domain in benchmarks/ |
 

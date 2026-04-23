@@ -1,8 +1,8 @@
 # System Architecture
 
 
-Version: 2.9
-Last Updated: 2026-03-15
+Version: 3.0
+Last Updated: 2026-04-22
 
 ## 1. Architecture Objectives
 
@@ -26,12 +26,13 @@ Current implemented runtime:
 - API: Express + Node
 - Persistence: SQLite
 - Retrieval runtime: deterministic in-memory `vector`, `graph`, `graphrag`, `graphrag_gating`
+- AI Assistant: Ollama-powered coaching chat (llama3.2, streaming SSE)
 
 Proposal-target stack for later milestones:
 - Vector store: Qdrant
 - Graph store: Neo4j
 - Graph retrieval: GraphRAG
-- Local LLM: Ollama
+- ~~Local LLM: Ollama~~ — now active (see AI Assistant below)
 
 The architecture below is proposal-aligned and consistent with `../reference/detailed-ui-design.md`.
 
@@ -45,6 +46,7 @@ flowchart TB
     DECIDE["Decide"]
     FEEDBACK["Feedback"]
     ADV["Feedback Sub-tabs\nScore & Coaching | System Graph | Evidence Explorer | Check-in Export"]
+    CHAT["AI Assistant\nFloating Chat Panel"]
   end
 
   %% ---------- Services ----------
@@ -53,7 +55,7 @@ flowchart TB
   R["Retrieval Layer\npackages/retrieval\ndeterministic vector | graph | graphrag | graphrag_gating"]
 
   %% ---------- Infrastructure ----------
-  LLM["Ollama\nTarget LLM"]
+  LLM["Ollama\nLocal LLM (llama3.2)"]
   NEO[("Neo4j\nTarget Graph Store")]
   QD[("Qdrant\nTarget Vector Store")]
 
@@ -76,6 +78,8 @@ flowchart TB
   FEEDBACK -->|Score + gate request| A
   ADV -->|Deep review / export| A
   BRIEF -->|Session start / survey| A
+  CHAT -->|POST /assist (streaming SSE)| A
+  A -->|Prompt + stream| LLM
 
   A --> C
   A --> R
@@ -101,7 +105,7 @@ flowchart TB
   classDef infra fill:#E0F2F1,stroke:#00695C,color:#004D40,stroke-width:2px;
 
   class U client;
-  class BRIEF,INVESTIGATE,DECIDE,FEEDBACK,ADV ui;
+  class BRIEF,INVESTIGATE,DECIDE,FEEDBACK,ADV,CHAT ui;
   class A api;
   class C,R core;
   class DB,DS,BM data;
@@ -183,7 +187,64 @@ sequenceDiagram
   end
 ```
 
-## 4. Evaluation And Ablation Pipeline
+## 4. AI Assistant (Ollama-Powered Coaching Chat)
+
+The AI Assistant provides context-aware, step-specific coaching through a floating chat panel available on every step of the guided flow. It connects the learner to the local Ollama LLM without sending data externally.
+
+### Architecture
+
+- **Frontend**: `AiAssistant.tsx` — floating action button (FAB) that opens a chat panel with streaming message display, markdown rendering (via `marked` + `DOMPurify`), save/clear/close controls, and step-aware quick prompts.
+- **API**: `POST /assist` — accepts `scenarioId`, `step`, `selectedEvidence[]`, and `question`; builds a structured system prompt using scenario context from SQLite; streams the response from Ollama as Server-Sent Events (SSE).
+- **LLM**: Ollama running `llama3.2` (3B parameters) locally on port 11434. Config: `temperature: 0.7`, `num_predict: 256`.
+
+### System Prompt Structure
+
+The prompt is constructed dynamically per request with these sections:
+
+1. **Identity** — supportive, non-judgmental learning coach
+2. **Platform Context** — 12 scenarios, 4 domains, Brief → Investigate → Decide → Feedback flow
+3. **Current Scenario** — title, domain, description, and artifact list from the database
+4. **Current Step** — step-specific coaching guidance (what the learner sees and can do)
+5. **Rules** — 8 guardrails: scope restriction, off-topic handling, no hallucination, no gold-answer leakage, redirect pattern, platform help (only on explicit request), conciseness (2-3 sentences), evidence references (1-2 specific artifacts)
+6. **Few-Shot Examples** — response patterns for common inputs (off-topic, help requests, answer-seeking, evidence questions)
+
+### Guardrails
+
+| Rule | Behavior |
+|---|---|
+| Scope | Only discusses this scenario, the platform, evidence, incident response, and TPM skills |
+| Off-topic | Single-sentence redirect for names, gibberish, trivia, coding, math, jokes |
+| No hallucination | Never invents facts; uses only scenario context and evidence artifact titles |
+| No gold answers | Never reveals correct owner, dependency path, blast radius, or safe actions |
+| Conciseness | 2-3 sentences max; no headings, bullet lists, or numbered lists |
+
+### Sequence
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant L as Learner
+  participant UI as Chat Panel
+  participant API as API /assist
+  participant LLM as Ollama (llama3.2)
+  participant DB as SQLite
+
+  L->>UI: Type question + send
+  UI->>API: POST /assist {scenarioId, step, selectedEvidence, question}
+  API->>DB: Load scenario + artifacts
+  DB-->>API: Scenario context
+  API->>API: buildAssistantPrompt()
+  API->>LLM: POST /api/generate {system, prompt, stream: true}
+  loop Streaming tokens
+    LLM-->>API: {token}
+    API-->>UI: SSE data: {token}
+    UI-->>L: Render token in chat bubble
+  end
+  LLM-->>API: {done: true}
+  API-->>UI: SSE data: {done: true}
+```
+
+## 5. Evaluation And Ablation Pipeline
 
 This aligns to the current mode-comparison design:
 - `vector`

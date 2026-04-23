@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import AiAssistant from './AiAssistant';
 
 interface Artifact {
   id: string;
@@ -3246,6 +3247,16 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* AI Assistant — floating chat bubble */}
+      <AiAssistant
+        apiUrl={API_URL}
+        scenarioId={selectedScenario?.id ?? null}
+        scenarioTitle={selectedScenario?.title ?? ''}
+        step={guidedStep}
+        selectedEvidence={selectedEvidence}
+        hidden={!!showWalkthrough || !!showSurvey || !!showExampleModal}
+      />
     </div>
   );
 }

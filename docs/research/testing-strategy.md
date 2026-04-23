@@ -52,6 +52,7 @@ Weekly work cycles map directly to DBR phases: each development week constitutes
 - Runtime smoke test: end-to-end scenario to scored output across all 6 benchmark scenarios.
 - Evaluation run: retrieval-mode ablation (4 modes × 12 scenarios) and report generation.
 - Session/survey endpoint validation: start session, log events, submit surveys, check status.
+- AI Assistant manual test suite: guardrail verification across off-topic inputs (names, gibberish, trivia, coding, math), gold-answer probing, step-specific coaching quality, validation error handling, and cross-scenario context. Tested via curl against the streaming `/assist` endpoint.
 
 ## Commands
 
@@ -73,6 +74,13 @@ The current E2E suite provides broad coverage across the full learner experience
 - feedback sub-tabs: System Graph (SVG + filter), Score & Coaching, Check-in Export
 - advanced surfaces: evaluation comparison and check-in export content
 - screenshot capture for review artifacts
+
+AI Assistant testing is performed via direct API calls (curl) rather than browser automation, because LLM response timing is non-deterministic and would make E2E tests flaky. The test protocol covers:
+- Off-topic rejection: names, gibberish, trivia, coding requests, math
+- Gold-answer protection: direct answer probes are redirected to evidence
+- Step coaching: each of the 4 steps produces relevant, concise guidance
+- Validation: missing fields and empty questions return proper error responses
+- Cross-scenario: assistant correctly uses scenario context from the database
 
 Implementation note:
 - Browser automation lives under `tests/e2e`, while repo-level launch/cleanup stays in `scripts/e2e.sh`.

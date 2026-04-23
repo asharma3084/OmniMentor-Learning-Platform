@@ -78,7 +78,7 @@ flowchart TB
   FEEDBACK -->|Score + gate request| A
   ADV -->|Deep review / export| A
   BRIEF -->|Session start / survey| A
-  CHAT -->|POST /assist (streaming SSE)| A
+  CHAT -->|"POST /assist [streaming SSE]"| A
   A -->|Prompt + stream| LLM
 
   A --> C

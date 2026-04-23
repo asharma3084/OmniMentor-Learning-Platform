@@ -134,7 +134,7 @@ flowchart TB
 
   GUIDED -->|REST| A
   ADV -->|REST| A
-  CHAT -->|POST /assist (SSE)| A
+  CHAT -->|"POST /assist [SSE]"| A
   A -->|Prompt + stream| LLM
 
   A --> C

@@ -48,9 +48,9 @@ Weekly work cycles map directly to DBR phases: each development week constitutes
 ## Test Layers
 
 - Unit tests: core scoring, gating behavior, retrieval ranking, and ablation helpers (28 tests across 5 suites).
-- Browser E2E tests: 55 Playwright tests across 4 spec files covering the full guided flow, all 6 scenarios, evidence selection, scoring, feedback surfaces, system graph, form validation, survey workflow, and screenshot capture.
+- Browser E2E tests: 61 Playwright tests across 4 spec files covering the full guided flow, all 12 scenarios, evidence selection, scoring, feedback surfaces, system graph, form validation, survey workflow, and screenshot capture.
 - Runtime smoke test: end-to-end scenario to scored output across all 6 benchmark scenarios.
-- Evaluation run: retrieval-mode ablation (4 modes × 6 scenarios) and report generation.
+- Evaluation run: retrieval-mode ablation (4 modes × 12 scenarios) and report generation.
 - Session/survey endpoint validation: start session, log events, submit surveys, check status.
 
 ## Commands
@@ -69,7 +69,7 @@ The current E2E suite provides broad coverage across the full learner experience
 - build-starter-draft and fill-template with validation gating
 - example-answer modal interactions (use, keep, show)
 - form validation and submit-and-score workflow
-- scenario selector with all 6 scenarios exercised end-to-end
+- scenario selector with all 12 scenarios exercised end-to-end
 - feedback sub-tabs: System Graph (SVG + filter), Score & Coaching, Check-in Export
 - advanced surfaces: evaluation comparison and check-in export content
 - screenshot capture for review artifacts

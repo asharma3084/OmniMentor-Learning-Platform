@@ -22,7 +22,7 @@
 | KPI | Instrument | Data Source | Success Threshold |
 |-----|-----------|-------------|-------------------|
 | **Time-to-competent-submission** | Timer: scenario open → first submission scoring ≥ 70% | `learning_sessions.started_at` → `first_submit_at`, joined with `score_reports.metrics` | ≤ 15 min avg by scenario 4 (down from ~30 min on scenario 1) |
-| **Score progression curve** | Overall rubric score per scenario across sequence | `score_reports.metrics` ordered by `learning_sessions.created_at` | Positive slope across 6 scenarios (linear regression β > 0, p < 0.05) |
+| **Score progression curve** | Overall rubric score per scenario across sequence | `score_reports.metrics` ordered by `learning_sessions.created_at` | Positive slope across 12 scenarios (linear regression β > 0, p < 0.05) |
 | **Critical error drop-off** | Count of critical errors flagged per scenario | `score_reports.critical_errors` | Zero critical errors by scenario 5+ |
 
 ### RQ2 — Anxiety Reduction
@@ -38,7 +38,7 @@
 | KPI | Instrument | Data Source | Success Threshold |
 |-----|-----------|-------------|-------------------|
 | **Evidence breadth** | Unique evidence artifacts selected per scenario | `submissions.selected_evidence_ids` | Increasing count = exploring more of the system |
-| **Cross-domain completion** | Scenarios completed across all 3 domains | `completedScenarios` ∩ `scenarios.domain` | ≥ 5 of 6 scenarios (not stuck in one domain) |
+| **Cross-domain completion** | Scenarios completed across all 4 domains | `completedScenarios` ∩ `scenarios.domain` | ≥ 10 of 12 scenarios (not stuck in one domain) |
 | **Session duration trend** | Total time per scenario | `learning_sessions.duration_sec` | Decreasing = increased efficiency / familiarity |
 
 ---
@@ -77,7 +77,7 @@ the State-Trait Anxiety Inventory (STAI) short form (Marteau & Bekker, 1992):
 
 **Timing:**
 - **Pre-survey:** Shown on first app load (before any scenario practice)
-- **Post-survey:** Triggered after completing all 6 scenarios
+- **Post-survey:** Triggered after completing all 12 scenarios
 
 **API endpoints:**
 - `POST /surveys` — submit a survey response

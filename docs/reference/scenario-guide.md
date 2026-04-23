@@ -7,9 +7,9 @@ This guide describes the twelve scenarios that ship in OmniMentor and how to use
 The current public baseline is twelve implemented scenarios across four domains:
 
 - Catalog
-- Cart and Checkout
-- Risk and Compliance
-- Fulfillment and Logistics (First Mile, Middle Mile, Last Mile)
+- Cart & Checkout
+- Risk & Compliance
+- Fulfillment & Logistics (First Mile, Middle Mile, Last Mile)
 
 Each scenario is designed to train the same core TPM skills:
 
@@ -53,7 +53,7 @@ For each scenario, the strongest review path is:
   - Catalog API fallback to cached base price is acknowledged
   - downstream impact on Cart and Storefront is mapped
 
-### Cart And Checkout
+### Cart & Checkout
 
 #### Scenario 3: Deploy Checkout Orchestrator Saga Timeout Change (Intermediate)
 
@@ -73,7 +73,7 @@ For each scenario, the strongest review path is:
   - blast radius is all checkout transactions
   - zero-downtime rolling strategy required
 
-### Risk And Compliance
+### Risk & Compliance
 
 #### Scenario 5: Deploy Updated Fraud Detection Model (Intermediate)
 
@@ -93,7 +93,7 @@ For each scenario, the strongest review path is:
   - dual-key rotation strategy (add new key, then retire old)
   - off-peak deployment window coordinated with SRE
 
-### Fulfillment And Logistics — First Mile
+### Fulfillment & Logistics — First Mile
 
 #### Scenario 7: Supplier Feed Ingestion Failure During Holiday Ramp (Beginner)
 
@@ -113,7 +113,7 @@ For each scenario, the strongest review path is:
   - blast radius is bidirectional: deploying risks receiving disruption, not deploying risks overselling
   - Inventory Sync alerted that ATP counts will correct downward post-patch
 
-### Fulfillment And Logistics — Middle Mile
+### Fulfillment & Logistics — Middle Mile
 
 #### Scenario 9: Cross-Dock Routing Misconfig Sends Freight to Wrong DC (Beginner)
 
@@ -134,7 +134,7 @@ For each scenario, the strongest review path is:
   - VP Supply Chain escalation triggered if revenue impact exceeds $50k
   - Store Ops in affected region alerted for shelf signage
 
-### Fulfillment And Logistics — Last Mile
+### Fulfillment & Logistics — Last Mile
 
 #### Scenario 11: Last-Mile Carrier API Timeout During Peak Delivery Window (Beginner) ★ Demo
 

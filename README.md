@@ -151,7 +151,7 @@ See [`docs/architecture/system-architecture.md`](docs/architecture/system-archit
 
 ## Evaluation Design
 
-Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 6 scenarios across three domains: Catalog, Cart & Checkout, Risk & Compliance.
+Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 12 scenarios across four domains: Catalog, Cart & Checkout, Risk & Compliance, Fulfillment & Logistics.
 
 | Mode | Current Baseline | Target |
 |---|---|---|

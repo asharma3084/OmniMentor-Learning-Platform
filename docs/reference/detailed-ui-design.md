@@ -49,12 +49,12 @@ Navigation behavior:
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
 │ 🎓 OmniMentor  ARCHITECTURE FLUENCY PLATFORM        ● ● ●    [How It Works]  [?]          │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 📋 1. Brief  🔍 2. Investigate  ✍️ 3. Decide  📊 4. Feedback    1/6 done  [Catalog] ▾      │
+│ 📋 1. Brief  🔍 2. Investigate  ✍️ 3. Decide  📊 4. Feedback    1/12 done  [Catalog] ▾     │
 │   Score & Coaching | System Graph | Evidence Explorer | Check-in Export  (sub-tabs)        │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ Page Content Area                                                                           │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 🎓 OmniMentor · Architecture Fluency Platform         6 scenarios · 1 completed            │
+│ 🎓 OmniMentor · Architecture Fluency Platform         12 scenarios · 1 completed           │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,7 +66,7 @@ The header uses a gradient brand line, status dots for service health, and a hel
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ● Incident Brief                                      📦 Catalog  │  1/6 complete          │
+│ ● Incident Brief                                      📦 Catalog  │  1/12 complete         │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ Deploy Catalog API Schema Migration                    (gradient title)                     │
 │ [scenario prompt text — full width, no max-width cap]                                      │
@@ -86,7 +86,7 @@ The header uses a gradient brand line, status dots for service health, and a hel
 │ ⚠ [scenario-specific stakes line]                                                           │
 │ [Start Investigation →]  [How this works]                                                   │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Scenario Queue: 6 scenarios listed with domain badges and score pills                       │
+│ Scenario Queue: 12 scenarios listed with domain badges and score pills                      │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 

@@ -51,7 +51,7 @@ The focus is not to answer questions. It is to build the capacity to ask them �
 - Web interface for learner workflow.
 - API for scenario retrieval, submissions, scoring, and evaluation.
 - Core gating and scoring engine with evidence gating.
-- Synthetic Omni-Mart corpus and gold-labeled benchmark (6 scenarios × 3 domains, expandable).
+- Synthetic Omni-Mart corpus and gold-labeled benchmark (12 scenarios × 4 domains, expandable).
 - Ablation evaluation across four retrieval modes: `vector`, `graph`, `graphrag`, `graphrag_gating`.
 - Learning session time tracking for RQ1 orientation-time measurement.
 - Pre/post 5-item Likert surveys for RQ2 self-reported anxiety evaluation.

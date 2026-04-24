@@ -57,40 +57,21 @@ These areas are engineering-complete and tested:
 ### Done
 
 - [x] Slide deck exists (`MASTER_OMNIMENTOR_DECK_FINAL.pptx`)
-- [x] Talk track structure written
+- [x] Talk track structure written and updated with AI assistant content
 - [x] All demo-able features are functional and tested
 - [x] Screenshots available for all surfaces
+- [x] **Problem Statement slide** (~1 min) — Architecture Blindness framed as a learning science problem
+- [x] **Related Work slide(s)** (~2 min) — With proper academic citations (CLT, situated cognition, LPP, ITS)
+- [x] **Gap slide** (~30 sec) — Existing ITS lack domain context; industry training lacks scaffolded practice; no systems integrate AI coaching with guided incident exercises
+- [x] **Solution / System Design slide(s)** (~1 min) — Four-step flow, graph-augmented retrieval, structured scoring with gating, AI coaching assistant
+- [x] **Live demo plan** — Flow planned: Brief → Investigate → Decide → Feedback → AI coaching chat → System Graph → Evaluation Forensics
+- [x] **Results slide** (~1 min) — Ablation numbers, test coverage, KPI framework
+- [x] **Conclusion + Future Work slide** (~1 min) — Five contributions including AI coaching assistant
+- [x] **References slide** — Proper citations for all related work mentioned
+- [x] Presentation JDF HTML and talk track regenerated
 
 ### Pending
 
-The final presentation follows an academic-talk arc rather than a demo-first format.
-
-- [ ] **Problem Statement slide** (~1 min) — Architecture Blindness framed as a learning science problem
-  - New TPMs face cognitive overload when interpreting service maps for the first time
-  - No safe practice environment exists for incident decision-making
-- [ ] **Related Work slide(s)** (~2 min) — With proper academic citations
-  - Cognitive load theory (Sweller; Paas & van Merriënboer)
-  - Situated cognition / legitimate peripheral participation (Lave & Wenger)
-  - Intelligent tutoring systems and non-judgmental AI tutoring
-  - Incident management training in industry
-  - Must explain how OmniMentor relates to each area of prior work
-- [ ] **Gap slide** (~30 sec) — What existing solutions don't address
-  - Existing ITS lack domain-specific incident context
-  - Industry training lacks structured, scaffolded practice with feedback
-- [ ] **Solution / System Design slide(s)** (~1 min) — OmniMentor's approach to filling the gap
-  - Guided 4-step flow, graph-augmented retrieval, structured scoring with gating
-- [ ] **Live demo segment** (~3–4 min) — Walk through 1–2 scenarios in the actual application
-  - Guided flow: Brief → Investigate → Decide → Feedback
-  - Show AI Assistant coaching chat in action (ask a question, show guardrail behavior)
-  - Show connected learning summary, TPM next-actions, evidence gate
-  - Show System Graph and Evaluation Forensics for IM2 features
-- [ ] **Results slide** (~1 min) — Ablation numbers, test coverage, KPI framework
-  - vector → graph → graphrag → graphrag_gating progression
-  - Full E2E coverage, all scenarios, complete ablation sweep
-- [ ] **Conclusion + Future Work slide** (~1 min) — Formal academic closing
-  - Key contributions: guided scaffolding, graph-augmented retrieval, AI coaching assistant, evidence-gated scoring, connected learning feedback
-  - Future: expanded scenario domains, real user studies, anxiety measurement, multi-role support
-- [ ] **References slide** — Proper citations for all related work mentioned
 - [ ] **Narrated video** — Record with revised talk track, ~10 minutes total
   - Use QuickTime or OBS for screen recording with voiceover
   - Export as MP4, verify file plays correctly
@@ -133,8 +114,8 @@ The final presentation follows an academic-talk arc rather than a demo-first for
 
 | Check | Due | Points | Notes |
 |-------|-----|--------|-------|
-| WSC 7 | April 20 | Completion grade | Related work + paper planning underway |
-| WSC 8 | April 27 | Completion grade | AI assistant integrated; paper writing and presentation restructuring underway |
+| WSC 7 | April 20 | Completion grade | Submitted |
+| WSC 8 | April 27 | Completion grade | Draft ready — AI assistant integrated, paper written, all deliverable artifacts synced |
 
 Status checks are completion grades — honest, concise updates. 1–2 sentences per question. Q4 (team) is N/A for individual projects.
 
@@ -150,7 +131,7 @@ Status checks are completion grades — honest, concise updates. 1–2 sentences
 | Video recording quality | Practice with revised talk track first; re-record individual segments if needed |
 | Link accessibility | Test in incognito on a different device before submission |
 | Zip archive issues | Test extraction on a clean directory; verify build works from scratch |
-| Scope creep on new features | Feature-freeze after IM2; remaining time is for writing and packaging |
+| Scope creep on new features | Feature-freeze in effect; AI assistant was the last feature addition. Remaining time is packaging and recording |
 
 ---
 

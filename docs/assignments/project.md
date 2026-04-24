@@ -39,9 +39,8 @@ These areas are engineering-complete and tested:
 
 ### Pending
 
-- [ ] **`Catalog.pdf`** — Archive contents description, reviewer quick-path, how to build/run/test
-  - Should cover: project overview, directory structure, build commands, test commands, what to look at first
-  - Target: 2–3 pages, practical rather than academic
+- [x] **`Catalog.pdf`** — Archive contents description, reviewer quick-path, how to build/run/test (HTML updated with AI assistant; needs PDF export)
+  - Covers: project overview, directory structure, build commands, test commands, AI assistant, reviewer quick-path
 - [ ] **Zip packaging** — Clean archive with only necessary files (exclude `personal/`, `node_modules/`, `.DS_Store`)
   - Verify archive extracts cleanly on a fresh machine
   - Include `pnpm-lock.yaml` so dependencies are reproducible
@@ -89,7 +88,7 @@ The final presentation follows an academic-talk arc rather than a demo-first for
   - vector → graph → graphrag → graphrag_gating progression
   - Full E2E coverage, all scenarios, complete ablation sweep
 - [ ] **Conclusion + Future Work slide** (~1 min) — Formal academic closing
-  - Key contributions: guided scaffolding, graph-augmented retrieval, AI coaching assistant, connected learning feedback
+  - Key contributions: guided scaffolding, graph-augmented retrieval, AI coaching assistant, evidence-gated scoring, connected learning feedback
   - Future: expanded scenario domains, real user studies, anxiety measurement, multi-role support
 - [ ] **References slide** — Proper citations for all related work mentioned
 - [ ] **Narrated video** — Record with revised talk track, ~10 minutes total
@@ -113,34 +112,20 @@ The final presentation follows an academic-talk arc rather than a demo-first for
 - [x] KPI framework: 9 metrics mapped to 3 research questions
 - [x] Evaluation dimensions: 5 rubric criteria with gating logic
 
-### Pending (writing required)
+### Done (sections written in draft and JDF)
 
-- [ ] **Related Work** (⭐ PRIORITY) — Literature review covering:
-  - Cognitive load theory (Sweller, 1988; Paas & van Merriënboer, 1994)
-  - Situated cognition and legitimate peripheral participation (Lave & Wenger, 1991)
-  - Design-Based Research methodology (Barab & Squire, 2004; The Design-Based Research Collective, 2003)
-  - Non-judgmental AI tutoring and intelligent tutoring systems (VanLehn, 2011)
-  - Incident management training in industry
-  - Must clearly explain how OmniMentor positions against each area and what gap it fills
-  - Write this section first — it feeds both the paper and the presentation
-- [ ] **Abstract** — ~250 words, problem → approach → results → contribution
-- [ ] **Introduction** — Architecture Blindness problem, OmniMentor as non-judgmental practice environment, contribution statement
-- [ ] **Problem Statement** — Formal RQ1, RQ2, RQ3 with operational definitions
-- [ ] **Methodology** — DBR iteration cycles, contract-first TDD, synthetic corpus design decisions
-- [ ] **System Design** — Condense architecture docs into paper-appropriate format (component diagram, data flow, scoring pipeline)
-- [ ] **Evaluation** — Ablation study design, KPI framework, session tracking instrumentation
-- [ ] **Results and Discussion** — Ablation findings, what the numbers mean for learning design, comparison against baseline
-- [ ] **Limitations** — Synthetic-only data, no live user study yet, single-domain evaluation
-- [ ] **References** — Formatted to JDF spec
-
-### Writing Strategy
-
-Revised priority order:
-1. Start with **Related Work** — writing it first feeds both the paper and the presentation
-2. Write **Methodology** and **System Design** — closest to work already done
-3. Write **Evaluation** and **Results** — ablation data is already collected
-4. Write **Introduction** and **Abstract** last — easier once the body exists
-5. **Limitations** can be written at any point
+- [x] **Abstract** — ~250 words, problem → approach → results → contribution
+- [x] **Introduction** — Architecture Blindness problem, OmniMentor as non-judgmental practice environment, four contributions
+- [x] **Related Work** — Full literature review: CLT, situated cognition, LPP, ITS, DBR, incident management, positioning table
+- [x] **Problem Statement** — Formal RQ1, RQ2, RQ3 with operational definitions
+- [x] **System Design** — Four-step flow, evidence gating, feedback sub-tabs, AI coaching assistant, scenario corpus
+- [x] **Technical Architecture** — Web client, API, AI coaching integration, core engine, retrieval layer, persistence
+- [x] **Evaluation** — Ablation study design, session instrumentation, pre/post survey, quality gates
+- [x] **Results and Discussion** — Ablation findings with interpretation
+- [x] **Limitations** — Six scoped limitations
+- [x] **Future Work** — Six directions
+- [x] **Conclusion** — Contributions summary with AI assistant
+- [x] **References** — 17 references formatted to spec
 
 ---
 

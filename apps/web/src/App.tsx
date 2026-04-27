@@ -177,11 +177,12 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 function getPerformanceLabel(score: number, gatingPass?: boolean) {
-  if (!gatingPass) return score >= 0.8 ? 'Almost there' : score >= 0.6 ? 'Needs work' : 'Significant gaps';
+  if (!gatingPass) return score >= 0.8 ? 'Nearly complete' : score >= 0.6 ? 'Needs improvement' : 'Significant gaps';
+  if (score >= 1.0) return 'Fully demonstrated';
   if (score >= 0.9) return 'Strong';
-  if (score >= 0.8) return 'Almost there';
-  if (score >= 0.6) return 'Solid start';
-  if (score >= 0.4) return 'Needs work';
+  if (score >= 0.8) return 'Nearly complete';
+  if (score >= 0.6) return 'Developing';
+  if (score >= 0.4) return 'Needs improvement';
   return 'Significant gaps';
 }
 
@@ -194,6 +195,9 @@ function getPerformanceTone(score: number, gatingPass?: boolean) {
 }
 
 function getMetricCoaching(label: string, value: number) {
+  if (value >= 1.0) {
+    return `${label}: fully demonstrated — every claim is supported by evidence.`;
+  }
   if (value >= 0.8) {
     return `${label}: looks good — well supported by evidence.`;
   }
@@ -237,7 +241,7 @@ function getScenarioNarrative(scenario: ScenarioData) {
     'scenario-5': 'A TPM needs to coordinate the right owners quickly while preserving evidence-backed reasoning and governance discipline.',
   };
 
-  const defaultProblem = 'Complex service ecosystems make it easy for a new TPM to miss owner, dependency, or blast-radius details even when documentation exists.';
+  const defaultProblem = 'Complex service ecosystems make it easy to miss owner, dependency, or blast-radius details even when documentation exists.';
   const defaultMotivation = 'The point of the scenario is to turn scattered evidence into one safe, defensible next step rather than a vague summary.';
 
   const lessonByScenario: Record<string, string> = {
@@ -317,8 +321,8 @@ interface ForceGraphProps {
 
 function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: ForceGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const WIDTH = 720;
-  const HEIGHT = 420;
+  const WIDTH = 820;
+  const HEIGHT = 500;
 
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const dragRef = useRef<{ node: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
@@ -458,9 +462,14 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
   return (
     <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] overflow-hidden" data-testid="force-graph-svg-container">
       <div className="flex items-center justify-between px-3 pt-2">
-        <p className="text-[10px] text-[var(--text-2)] opacity-60">Drag nodes to rearrange</p>
+        <p className="text-[10px] text-[var(--text-2)] opacity-60">Drag nodes to rearrange · click to focus</p>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5 text-[10px] text-[var(--accent-2)]"><span className="inline-block w-4 h-0.5 rounded bg-[var(--accent,#27d3b6)]" /> downstream</span>
+          <span className="flex items-center gap-1.5 text-[10px] text-[var(--warn-text)]"><span className="inline-block w-4 h-0.5 rounded bg-[var(--warn,#f0b45a)]" /> upstream</span>
+          <span className="flex items-center gap-1.5 text-[10px] text-[var(--accent-2)]"><span className="inline-block w-2.5 h-2.5 rounded-full border-2 border-[rgba(39,211,182,0.55)] bg-[rgba(39,211,182,0.14)]" /> seed</span>
+        </div>
       </div>
-      <svg ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ minHeight: 320, userSelect: 'none' }}>
+      <svg ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ minHeight: 380, userSelect: 'none' }}>
         <defs>
           <marker id="arrow-downstream" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <path d="M0,0 L8,3 L0,6" fill="var(--accent, #27d3b6)" />
@@ -468,6 +477,10 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
           <marker id="arrow-upstream" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <path d="M0,0 L8,3 L0,6" fill="var(--warn, #f0b45a)" />
           </marker>
+          <filter id="glow-focus">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
         </defs>
 
         {edges.map((edge, idx) => {
@@ -478,22 +491,37 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
           const dy = to.y - from.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 1) return null;
-          const nodeR = 22;
+          const nodeR = 28;
           const sx = from.x + (dx / dist) * nodeR;
           const sy = from.y + (dy / dist) * nodeR;
           const ex = to.x - (dx / dist) * (nodeR + 10);
           const ey = to.y - (dy / dist) * (nodeR + 10);
+          const mx = (sx + ex) / 2;
+          const my = (sy + ey) / 2;
           const isHighlighted = focusedNode === edge.from || focusedNode === edge.to;
           const color = edge.type === 'downstream' ? 'var(--accent, #27d3b6)' : 'var(--warn, #f0b45a)';
           return (
-            <line
-              key={`edge-${idx}`}
-              x1={sx} y1={sy} x2={ex} y2={ey}
-              stroke={color}
-              strokeWidth={isHighlighted ? 2.5 : 1.5}
-              strokeOpacity={isHighlighted ? 1 : 0.55}
-              markerEnd={edge.type === 'downstream' ? 'url(#arrow-downstream)' : 'url(#arrow-upstream)'}
-            />
+            <g key={`edge-${idx}`}>
+              <line
+                x1={sx} y1={sy} x2={ex} y2={ey}
+                stroke={color}
+                strokeWidth={isHighlighted ? 3 : 1.8}
+                strokeOpacity={isHighlighted ? 1 : 0.5}
+                markerEnd={edge.type === 'downstream' ? 'url(#arrow-downstream)' : 'url(#arrow-upstream)'}
+              />
+              {isHighlighted && (
+                <text
+                  x={mx} y={my - 6}
+                  textAnchor="middle"
+                  fontSize={8}
+                  fill={color}
+                  fontWeight={600}
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {edge.type}
+                </text>
+              )}
+            </g>
           );
         })}
 
@@ -503,26 +531,27 @@ function ForceGraph({ nodes, edges, seedServices, focusedNode, onNodeClick }: Fo
           const isSeed = seedSet.has(node);
           const isFocused = focusedNode === node;
           const isDragging = dragRef.current?.node === node;
-          const r = isSeed ? 26 : 22;
+          const r = isSeed ? 32 : 28;
           return (
             <g
               key={node}
               onMouseDown={(e) => handleNodePointerDown(node, e)}
               onClick={() => { if (!didDragRef.current) onNodeClick(node); }}
               style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+              filter={isFocused ? 'url(#glow-focus)' : undefined}
             >
               <circle
                 cx={p.x} cy={p.y} r={r}
-                fill={isFocused ? 'rgba(39,211,182,0.25)' : isSeed ? 'rgba(39,211,182,0.14)' : 'rgba(148,163,184,0.12)'}
-                stroke={isFocused ? 'var(--accent, #27d3b6)' : isSeed ? 'rgba(39,211,182,0.55)' : 'rgba(148,163,184,0.35)'}
-                strokeWidth={isFocused ? 2.5 : 1.5}
+                fill={isFocused ? 'rgba(39,211,182,0.3)' : isSeed ? 'rgba(39,211,182,0.16)' : 'rgba(148,163,184,0.14)'}
+                stroke={isFocused ? 'var(--accent, #27d3b6)' : isSeed ? 'rgba(39,211,182,0.6)' : 'rgba(148,163,184,0.4)'}
+                strokeWidth={isFocused ? 3 : 2}
               />
               <text
                 x={p.x} y={p.y + 1}
                 textAnchor="middle" dominantBaseline="central"
-                fontSize={node.length > 18 ? 8 : 10}
+                fontSize={node.length > 18 ? 9 : 11}
                 fill="var(--text-0, #e8edf3)"
-                fontWeight={isFocused || isSeed ? 600 : 400}
+                fontWeight={isFocused || isSeed ? 700 : 500}
                 style={{ pointerEvents: 'none' }}
               >
                 {node.length > 22 ? node.slice(0, 20) + '…' : node}
@@ -561,6 +590,7 @@ export default function App() {
   const [graphFilter, setGraphFilter] = useState('');
   const [focusedGraphNode, setFocusedGraphNode] = useState<string | null>(null);
   const [showOnlyFocusedGraphEdges, setShowOnlyFocusedGraphEdges] = useState(false);
+  const [evidenceTip, setEvidenceTip] = useState<{ top: number; left: number } | null>(null);
 
   // Learning analytics state
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -1168,7 +1198,7 @@ export default function App() {
       ? `${scoreIssues.length} area${scoreIssues.length > 1 ? 's' : ''} to fix — see details below.`
       : scoreNextStep
         ? scoreNextStep.text
-        : 'You nailed this scenario. Read the learning takeaways below to see what you just proved you can do.'
+        : 'Your response fully addresses this scenario. Review the learning takeaways below to see which skills you demonstrated.'
     : null;
 
   const scenarioNarrative = getScenarioNarrative(selectedScenario);
@@ -1330,7 +1360,7 @@ export default function App() {
               data-testid="open-walkthrough"
               className="text-xs font-semibold px-3.5 py-2 rounded-xl border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] hover:border-[rgba(39,211,182,0.55)] transition-all duration-200"
             >
-              How It Works
+              Quick Start Guide
             </button>
             <a
               href="https://github.com/asharma3084/OmniMentor-Learning-Platform/blob/main/docs/start-here/user-guide.md"
@@ -1438,7 +1468,7 @@ export default function App() {
                     >
                       {label}
                     </button>
-                    <div className="absolute left-0 top-full mt-1 z-30 w-56 px-3 py-2 rounded-lg bg-[var(--surface-1)] border border-[color:var(--line)] shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150">
+                    <div className="absolute left-0 bottom-full mb-1 z-30 w-56 px-3 py-2 rounded-lg bg-[var(--surface-1)] border border-[color:var(--line)] shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150">
                       <p className="text-[10px] text-[var(--text-1)] leading-relaxed">{desc}</p>
                     </div>
                   </div>
@@ -1462,9 +1492,13 @@ export default function App() {
                       setSelectedEvidence([]);
                       setEvaluationCompare(null);
                       setExampleAnswer(null);
+                      if (selectedScenario) {
+                        setCompletedScenarios((prev) => { const next = new Map(prev); next.delete(selectedScenario.id); return next; });
+                      }
                       setGuidedStep('Brief');
                     }}
-                    className="px-2.5 py-1 rounded-md text-[10px] font-semibold text-[var(--danger-text)] border border-[rgba(255,124,124,0.35)] hover:bg-[rgba(255,124,124,0.1)] transition-colors"
+                    disabled={!score && selectedEvidence.length === 0 && !formData.ownerRouting && formData.dependencyTrace.length === 0 && !formData.actionPlan && formData.blastRadius.length === 0 && !formData.evidenceNotes}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border transition-colors ${!score && selectedEvidence.length === 0 && !formData.ownerRouting && formData.dependencyTrace.length === 0 && !formData.actionPlan && formData.blastRadius.length === 0 && !formData.evidenceNotes ? 'text-[var(--text-3)] border-[var(--line)] opacity-40 cursor-not-allowed' : 'text-[var(--danger-text)] border-[rgba(255,124,124,0.35)] hover:bg-[rgba(255,124,124,0.1)]'}`}
                   >
                     Start Over
                   </button>
@@ -1621,20 +1655,22 @@ export default function App() {
                   <div className="min-w-0">
                     <h2 className="text-sm font-bold text-[var(--text-0)] flex items-center gap-2">
                       <span className="text-base">{guidedStep === 'Investigate' ? '🔍' : '✍️'}</span>
-                      {guidedStep === 'Investigate' ? 'Read the evidence and spot the pattern.' : 'Write your decision and back it up.'}
+                      {guidedStep === 'Investigate' ? 'Review Evidence' : 'Build Your Answer'}
                     </h2>
                     <p className="text-xs text-[var(--text-1)] mt-1 leading-relaxed">
                       {guidedStep === 'Investigate'
-                        ? 'Open each artifact, look for who owns the problem, which systems talk to each other, and what could go wrong. Select the evidence that matters most before moving on.'
-                        : 'Name the owner, draw the dependency path, list what breaks if this isn\'t fixed, and write a safe action plan — every claim should trace back to an artifact you selected.'}
+                        ? 'Select the artifacts that help you identify the owner, trace dependencies, and spot risks.'
+                        : 'Fill in each field. Every claim should trace back to a selected artifact.'}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
                     {[
                       { ok: hasPrimary, label: 'Primary' },
                       { ok: hasCorroborating, label: 'Corroborating' },
-                      { ok: hasTrace, label: 'Trace' },
-                      { ok: hasBlast, label: 'Blast' },
+                      ...(guidedStep === 'Decide' ? [
+                        { ok: hasTrace, label: 'Trace' },
+                        { ok: hasBlast, label: 'Blast' },
+                      ] : []),
                     ].map(({ ok, label }) => (
                       <span key={label} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
                         ok
@@ -1682,7 +1718,6 @@ export default function App() {
                 )}
               </div>
               <div className="flex items-center gap-3 mb-3">
-                <label className="text-[11px] text-[var(--text-2)] shrink-0">Search strategy:</label>
                 <select
                   value={retrievalMode}
                   onChange={(e) => setRetrievalMode(e.target.value as RetrievalMode)}
@@ -1693,7 +1728,39 @@ export default function App() {
                   ))}
                 </select>
               </div>
-              <p className="text-[11px] text-[var(--text-2)] mb-3">Read each document and check the box if it supports your answer. Pick at least one primary and one corroborating.</p>
+              <div className="relative mb-3">
+                <p
+                  className="text-[11px] text-[var(--text-2)] cursor-help border-b border-dashed border-[var(--text-3)] inline"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setEvidenceTip(prev => prev ? null : { top: rect.top, left: rect.left });
+                  }}
+                >
+                  Check artifacts that support your answer — at least one primary and one corroborating. <span className="text-[10px] text-[var(--accent-2)]">ⓘ</span>
+                </p>
+                {evidenceTip && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setEvidenceTip(null)} />
+                    <div
+                      className="fixed z-50 w-80 p-4 rounded-xl bg-[var(--surface-1)] border border-[color:var(--line)] shadow-2xl"
+                      style={{ top: Math.max(8, evidenceTip.top - 220), left: Math.min(evidenceTip.left, window.innerWidth - 340) }}
+                    >
+                      <p className="text-[13px] font-semibold text-[var(--text-0)] mb-2">What are Primary &amp; Corroborating?</p>
+                      <div className="space-y-2.5">
+                        <div>
+                          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 mb-1">Primary</span>
+                          <p className="text-[11.5px] text-[var(--text-1)] leading-relaxed">A document that directly describes the system, team, or process involved — like an ownership registry, runbook, or incident report.</p>
+                        </div>
+                        <div>
+                          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 mb-1">Corroborating</span>
+                          <p className="text-[11.5px] text-[var(--text-1)] leading-relaxed">A reference that adds context — like a dependency spec, integration guide, or architecture doc that confirms how systems connect.</p>
+                        </div>
+                        <p className="text-[10.5px] text-[var(--text-2)] pt-1.5 border-t border-[var(--line)]">You need at least one of each to submit. Selecting more gives the scorer better evidence to validate your claims.</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
               <div className="space-y-1.5">
                 {evidenceItems.map((ev) => {
                   const checked = selectedEvidence.includes(ev.id);
@@ -1701,12 +1768,19 @@ export default function App() {
                     <label
                       key={ev.id}
                       data-testid={`evidence-card-${ev.id}`}
-                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer evidence-lift ${
+                      className={`relative group flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer evidence-lift ${
                         checked
                           ? 'bg-[rgba(39,211,182,0.12)] border-[rgba(39,211,182,0.5)]'
                           : 'bg-[var(--chip-bg)] border-[color:var(--line)] hover:bg-[var(--hover-bg)] hover:border-[color:var(--line-strong)]'
                       }`}
                     >
+                      {/* Hover tooltip — full evidence body */}
+                      <div className="pointer-events-none absolute left-0 right-0 bottom-full mb-2 z-[100] hidden group-hover:block" aria-hidden="true">
+                        <div style={{ backgroundColor: 'var(--surface-0, #1a1a2e)', borderColor: 'var(--accent, #27d3b6)' }} className="border-2 rounded-lg shadow-2xl p-3 text-[11px] text-[var(--text-1)] leading-relaxed max-h-48 overflow-y-auto">
+                          <p className="font-semibold text-[var(--accent-2)] mb-1">{ev.id} · {ev.title}</p>
+                          <p className="text-[var(--text-0)]">{ev.body}</p>
+                        </div>
+                      </div>
                       <div
                         className={`mt-0.5 rounded flex items-center justify-center shrink-0 border transition-colors ${
                           checked ? 'bg-[#1db8a2] border-[#1db8a2]' : 'border-[color:var(--line)] bg-[var(--input-bg)]'
@@ -1738,6 +1812,7 @@ export default function App() {
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono text-[var(--text-2)] shrink-0">{ev.id}</span>
                           <p className="text-xs font-semibold text-[var(--text-0)] truncate">{ev.title}</p>
                           <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${
                             ev.role === 'primary'
@@ -1815,37 +1890,24 @@ export default function App() {
           <div className="space-y-3 reveal-up lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" style={{ animationDelay: '80ms' }}>
             {guidedStep === 'Investigate' ? (
               <div className="card card-primary p-4">
-                <h3 className="text-sm font-semibold text-[var(--text-1)] mb-3">What to extract before answering</h3>
-                <div className="space-y-2.5 text-xs text-[var(--text-1)]">
-                  <div className="rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-1">1. Likely Owner</p>
-                    <p>{keyFacts.owners[0] ?? suggestedTeams[0] ?? 'Find the team or escalation path in the ownership or runbook artifact.'}</p>
-                  </div>
-                  <div className="rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-1">2. Connected Systems</p>
-                    <p>{suggestedSystems.length > 0 ? suggestedSystems.slice(0, 4).join(', ') : 'Look for service names repeated across the selected artifacts.'}</p>
-                  </div>
-                  <div className="rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-[var(--text-2)] mb-1">3. Risk To Watch</p>
-                    <p>{keyFacts.impacts[0] ?? 'Look for impact, failure mode, rollback trigger, or stale-result wording in the evidence.'}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <h3 className="text-sm font-semibold text-[var(--text-1)] mb-2">Ready to answer?</h3>
+                <p className="text-xs text-[var(--text-2)] mb-4 leading-relaxed">Select at least one primary and one corroborating artifact, then choose how to start.</p>
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={fillBeginnerDraft}
                     disabled={!hasPrimary || !hasCorroborating}
                     title={!hasPrimary || !hasCorroborating ? 'Select at least one primary and one corroborating artifact first' : undefined}
                     data-testid="build-starter-draft"
-                    className="btn-accent px-4 py-2.5 rounded-xl text-xs"
+                    className="btn-accent px-4 py-2.5 rounded-xl text-xs w-full"
                   >
-                    Build My Starter Draft
+                    Auto-fill a starter draft
                   </button>
                   <button
                     onClick={() => setGuidedStep('Decide')}
                     data-testid="continue-to-decision"
-                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)]"
+                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-[color:var(--line)] text-[var(--text-1)] hover:bg-[var(--hover-bg)] w-full"
                   >
-                    Continue To Decision
+                    Write from scratch
                   </button>
                 </div>
               </div>
@@ -1855,7 +1917,7 @@ export default function App() {
                 <svg className="w-3.5 h-3.5 text-[var(--text-2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </svg>
-                Your Submission
+                Your Answer
               </h3>
               <div className="mb-3 flex gap-2">
                 <button
@@ -1865,7 +1927,7 @@ export default function App() {
                   data-testid="fill-beginner-template"
                   className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
                 >
-                  Fill Template
+                  Auto-fill
                 </button>
                 <button
                   onClick={fetchExampleAnswer}
@@ -1873,12 +1935,12 @@ export default function App() {
                   data-testid="show-example-answer"
                   className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-[rgba(240,180,90,0.35)] text-[var(--warn-text)] hover:bg-[rgba(240,180,90,0.12)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
                 >
-                  {exampleLoading ? 'Loading…' : 'Show Good Answer'}
+                  {exampleLoading ? 'Loading…' : 'Example Answer'}
                 </button>
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="label">Who Should Own This?</label>
+                  <label className="label">Owner</label>
                   <input
                     type="text"
                     placeholder="e.g., Checkout Platform Team"
@@ -1894,7 +1956,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="label">What Should Happen Next?</label>
+                  <label className="label">Action Plan</label>
                   <textarea
                     placeholder="e.g., Pause rollout, notify owner team, verify error rate"
                     aria-label="What Should Happen Next?"
@@ -1909,7 +1971,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="label">Which Systems Are Connected?</label>
+                  <label className="label">Dependencies</label>
                   <textarea
                     placeholder={'One edge per line, e.g.\nCheckout API -> Payments (downstream)\nCatalog -> Checkout API (upstream)'}
                     aria-label="Which Systems Are Connected?"
@@ -1926,7 +1988,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="label">What Could Break?</label>
+                  <label className="label">Blast Radius</label>
                   <textarea
                     placeholder={'One downstream impact per line, e.g.\nPayment failures for new orders\nCustomer support spike'}
                     aria-label="What Could Break?"
@@ -1943,7 +2005,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="label">Why Do You Believe This?</label>
+                  <label className="label">Evidence Notes</label>
                   <textarea
                     placeholder="e.g., Runbook lists owner; incident note confirms dependency"
                     aria-label="Why Do You Believe This?"
@@ -2093,7 +2155,7 @@ export default function App() {
                       <div key={metric.label} className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-3">
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-xs font-semibold text-[var(--text-0)]">{metric.label}</span>
-                          <span className={`text-xs font-semibold ${getPerformanceTone(metric.value)}`}>{getPerformanceLabel(metric.value)}</span>
+                          <span className={`text-xs font-semibold ${getPerformanceTone(metric.value, score?.gatingPass)}`}>{getPerformanceLabel(metric.value, score?.gatingPass)}</span>
                         </div>
                         <p className="text-[11px] text-[var(--text-2)] mt-1">{getMetricCoaching(metric.label, metric.value)}</p>
                       </div>
@@ -2190,8 +2252,8 @@ export default function App() {
               {visibleGraphNodes.length > 0 && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-[var(--text-1)]">Service dependency map</p>
-                    <span className="text-[10px] text-[var(--text-2)]">{visibleGraphNodes.length} nodes · {filteredGraphEdges.length} edges · click a node to focus</span>
+                    <p className="text-xs font-semibold text-[var(--text-1)]">Live dependency graph</p>
+                    <span className="text-[10px] text-[var(--text-2)]">{visibleGraphNodes.length} services · {filteredGraphEdges.length} connections · click to explore</span>
                   </div>
                   <ForceGraph
                     nodes={visibleGraphNodes}
@@ -2400,7 +2462,7 @@ export default function App() {
                 <span className="text-xs font-semibold text-[var(--text-2)] mono-kicker">{evidenceItems.length} retrieved</span>
               </div>
               <div className="flex items-center gap-3 mb-4">
-                <label className="text-[11px] text-[var(--text-2)] shrink-0">Search strategy:</label>
+                <label className="text-[11px] text-[var(--text-2)] shrink-0">How to find evidence:</label>
                 <select
                   value={retrievalMode}
                   onChange={(e) => setRetrievalMode(e.target.value as RetrievalMode)}
@@ -2422,6 +2484,7 @@ export default function App() {
                     }`}>
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono text-[var(--text-2)] shrink-0">{ev.id}</span>
                           <p className="text-sm font-semibold text-[var(--text-0)]">{ev.title}</p>
                           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
                             ev.role === 'primary'
@@ -2587,7 +2650,7 @@ export default function App() {
                   {score.metrics && (
                     <div className="card p-6">
                       <p className="text-sm font-semibold text-[var(--text-1)] mb-1">What the app is checking</p>
-                      <p className="text-xs text-[var(--text-2)] mb-3">These are the four things that matter most for a new TPM answer.</p>
+                      <p className="text-xs text-[var(--text-2)] mb-3">Four dimensions that define an evidence-based response.</p>
                       <div className="space-y-2.5">
                         {[
                           { label: 'Owner Match', value: score.metrics.ownerAccuracy },
@@ -2642,14 +2705,21 @@ export default function App() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {selectedEvidenceItems.map((ev) => (
-                          <div key={ev.id} className="flex items-start gap-2.5 rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] px-3 py-2.5">
+                          <div key={ev.id} className="relative group flex items-start gap-2.5 rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] px-3 py-2.5">
+                            {/* Hover tooltip */}
+                            <div className="pointer-events-none absolute left-0 right-0 bottom-full mb-2 z-[100] hidden group-hover:block">
+                              <div style={{ backgroundColor: 'var(--surface-0, #1a1a2e)', borderColor: 'var(--accent, #27d3b6)' }} className="border-2 rounded-lg shadow-2xl p-3 text-[11px] text-[var(--text-1)] leading-relaxed max-h-48 overflow-y-auto">
+                                <p className="font-semibold text-[var(--accent-2)] mb-1">{ev.id} · {ev.title} <span className={ev.role === 'primary' ? 'text-[var(--ok-text)]' : 'text-[#818cf8]'}>({ev.role})</span></p>
+                                <p className="text-[var(--text-0)]">{ev.body}</p>
+                              </div>
+                            </div>
                             <span className={`shrink-0 mt-0.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                               ev.role === 'primary'
                                 ? 'bg-[rgba(75,215,158,0.15)] text-[var(--ok-text)] border border-[rgba(75,215,158,0.3)]'
                                 : 'bg-[rgba(99,102,241,0.12)] text-[#818cf8] border border-[rgba(99,102,241,0.3)]'
                             }`}>{ev.role === 'primary' ? 'Primary' : 'Corr.'}</span>
                             <div className="min-w-0">
-                              <p className="text-xs font-medium text-[var(--text-0)] truncate">{ev.title}</p>
+                              <p className="text-xs font-medium text-[var(--text-0)] truncate"><span className="text-[9px] font-mono text-[var(--text-2)] mr-1.5">{ev.id}</span>{ev.title}</p>
                               <p className="text-[10px] text-[var(--text-2)] mt-0.5 line-clamp-2 leading-relaxed">{ev.body.slice(0, 120)}{ev.body.length > 120 ? '…' : ''}</p>
                             </div>
                           </div>
@@ -2870,7 +2940,7 @@ export default function App() {
             URL.revokeObjectURL(url);
           };
           const exportText = [
-            `OmniMentor — Mentor Check-in Snapshot`,
+            `OmniMentor — Learning Progress Snapshot`,
             `Generated: ${new Date().toISOString()}`,
             ``,
             `## Progress Summary`,
@@ -3004,7 +3074,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             <span className="text-[10px] text-[var(--text-2)]">{scenarios.length} scenarios · {completedScenarios.size} completed</span>
             <span className="text-[10px] text-[var(--text-2)] opacity-50">•</span>
-            <span className="text-[10px] text-[var(--text-2)]">Built for TPM learners</span>
+            <span className="text-[10px] text-[var(--text-2)]">Building architecture fluency through deliberate practice</span>
           </div>
         </div>
         <div className="gradient-line" />
@@ -3017,9 +3087,9 @@ export default function App() {
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent-2)] mono-kicker">Getting Started</p>
-                <h2 className="text-xl font-bold mt-1" style={{ background: 'linear-gradient(135deg, var(--text-0) 0%, var(--accent-2) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>How a new TPM should use OmniMentor</h2>
+                <h2 className="text-xl font-bold mt-1" style={{ background: 'linear-gradient(135deg, var(--text-0) 0%, var(--accent-2) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Getting Started with OmniMentor</h2>
                 <p className="text-sm text-[var(--text-1)] mt-2 max-w-2xl leading-relaxed">
-                  You do not need to know the whole system upfront. The goal is to make one defensible decision using evidence, system connections, and a safe next step.
+                  You do not need to know the entire system upfront. The goal is to construct one defensible decision grounded in evidence, system connections, and a safe next step.
                 </p>
               </div>
               <button
@@ -3036,7 +3106,7 @@ export default function App() {
                 {
                   step: '1',
                   title: 'Pick A Scenario',
-                  text: 'Start in Overview. Choose one scenario and read the prompt. You are answering one architecture decision, not solving everything.',
+                  text: 'Start in Overview. Select one scenario and read the prompt. You are addressing one architecture decision, not solving everything.',
                 },
                 {
                   step: '2',
@@ -3050,8 +3120,8 @@ export default function App() {
                 },
                 {
                   step: '4',
-                  title: 'Submit And Learn',
-                  text: 'Submit once your answer is grounded in evidence. The score tells you where your reasoning is strong and where support is missing.',
+                  title: 'Submit And Review',
+                  text: 'Submit once your response is grounded in evidence. The rubric shows where your reasoning is strong and where supporting evidence is missing.',
                 },
               ].map((item) => (
                 <div key={item.step} className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4 evidence-lift">
@@ -3080,7 +3150,7 @@ export default function App() {
                   <li>Do not use placeholders like Service A or Team X.</li>
                   <li>Do not invent systems, owners, or risks that are not supported by evidence.</li>
                   <li>Do not skip the corroborating artifact; the app requires both evidence roles.</li>
-                  <li>Do not over-explain. Short, evidence-backed answers score better here.</li>
+                  <li>Do not over-explain. Concise, evidence-backed responses demonstrate stronger reasoning.</li>
                 </ul>
               </div>
             </div>
@@ -3248,7 +3318,7 @@ export default function App() {
         </div>
       )}
 
-      {/* AI Assistant — floating chat bubble */}
+      {/* Scenario Coach — floating chat bubble */}
       <AiAssistant
         apiUrl={API_URL}
         scenarioId={selectedScenario?.id ?? null}

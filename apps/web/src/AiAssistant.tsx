@@ -84,7 +84,7 @@ export default function AiAssistant({ apiUrl, scenarioId, scenarioTitle, step, s
   const saveChat = useCallback(() => {
     if (messages.length === 0) return;
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const header = `OmniMentor AI Assistant — ${scenarioTitle || 'General'}\nExported: ${new Date().toLocaleString()}\nStep: ${step}\n${'─'.repeat(50)}\n\n`;
+    const header = `OmniMentor Scenario Coach — ${scenarioTitle || 'General'}\nExported: ${new Date().toLocaleString()}\nStep: ${step}\n${'─'.repeat(50)}\n\n`;
     const body = messages.map(m => `${m.role === 'user' ? '🧑 You' : '🤖 Assistant'}:\n${m.text}\n`).join('\n');
     const blob = new Blob([header + body], { type: 'text/plain' });
     const a = document.createElement('a');
@@ -196,8 +196,8 @@ export default function AiAssistant({ apiUrl, scenarioId, scenarioTitle, step, s
             background: 'linear-gradient(135deg, #6366f1 0%, #14b8a6 100%)',
             color: '#fff',
           }}
-          aria-label="Open AI Assistant"
-          title="AI Assistant"
+          aria-label="Open Scenario Coach"
+          title="Scenario Coach"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -223,7 +223,7 @@ export default function AiAssistant({ apiUrl, scenarioId, scenarioTitle, step, s
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
-              <span className="font-semibold text-sm">AI Assistant</span>
+              <span className="font-semibold text-sm">Scenario Coach</span>
               <span className="text-[10px] opacity-75 bg-white/20 rounded-full px-2 py-0.5">{step}</span>
             </div>
             <div className="flex items-center gap-1">
@@ -258,7 +258,7 @@ export default function AiAssistant({ apiUrl, scenarioId, scenarioTitle, step, s
                 onClick={() => setOpen(false)}
                 data-testid="ai-assistant-close"
                 className="text-white/80 hover:text-white transition-colors p-1"
-                aria-label="Close AI Assistant"
+                aria-label="Close Scenario Coach"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

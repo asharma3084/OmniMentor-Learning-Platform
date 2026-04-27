@@ -6,8 +6,8 @@ set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 WORKSPACE_DIR="$ROOT_DIR/workspace"
-API_PORT=10092
-WEB_PORT=10091
+API_PORT=${API_PORT:-9992}
+WEB_PORT=${WEB_PORT:-9991}
 API_URL="http://127.0.0.1:$API_PORT"
 WEB_URL="http://127.0.0.1:$WEB_PORT"
 DB_PATH="../services/api/data/omnimentor-e2e.db"
@@ -53,13 +53,18 @@ trap cleanup EXIT INT TERM
 
 cd "$WORKSPACE_DIR"
 
-API_PORT="$API_PORT" DATABASE_URL="$DB_PATH" pnpm --filter @omnimentor/api dev >"$API_LOG" 2>&1 &
-API_PID=$!
+# Reuse running servers (manage.sh) if already listening
+if curl -sf "$API_URL/health" >/dev/null 2>&1 && curl -sf "$WEB_URL" >/dev/null 2>&1; then
+  echo "Reusing existing API ($API_URL) and Web ($WEB_URL) servers."
+else
+  API_PORT="$API_PORT" DATABASE_URL="$DB_PATH" pnpm --filter @omnimentor/api dev >"$API_LOG" 2>&1 &
+  API_PID=$!
 
-VITE_API_URL="$API_URL" pnpm --filter @omnimentor/web exec vite --host 127.0.0.1 --port "$WEB_PORT" >"$WEB_LOG" 2>&1 &
-WEB_PID=$!
+  VITE_API_URL="$API_URL" pnpm --filter @omnimentor/web exec vite --host 127.0.0.1 --port "$WEB_PORT" >"$WEB_LOG" 2>&1 &
+  WEB_PID=$!
 
-wait_for_url "$API_URL/health" "$API_LOG" "API"
-wait_for_url "$WEB_URL" "$WEB_LOG" "Web"
+  wait_for_url "$API_URL/health" "$API_LOG" "API"
+  wait_for_url "$WEB_URL" "$WEB_LOG" "Web"
+fi
 
 pnpm exec playwright test --config ../tests/playwright.config.js "$@"

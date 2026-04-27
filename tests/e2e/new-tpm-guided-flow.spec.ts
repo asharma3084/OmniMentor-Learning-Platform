@@ -30,10 +30,10 @@ test.describe('New TPM guided GUI automation', () => {
   test('shows walkthrough and lands in guided investigate mode', async ({ page }) => {
     await enterGuidedPractice(page);
 
-    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
+    await expect(page.getByText('Select the artifacts that help you identify the owner, trace dependencies, and spot risks.')).toBeVisible();
     await expect(page.getByTestId('guided-step-investigate')).toBeVisible();
     await expect(page.getByTestId('build-starter-draft')).toBeDisabled();
-    await expect(page.getByText('Pick at least one primary and one corroborating')).toBeVisible();
+    await expect(page.getByText('Check artifacts that support your answer')).toBeVisible();
   });
 
   test('enforces primary and corroborating evidence for beginner draft path', async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe('New TPM guided GUI automation', () => {
     await page.getByTestId('submit-and-score').click();
 
     await expect(page.getByTestId('evaluation-overall-score')).toBeVisible();
-    await expect(page.getByTestId('evaluation-score-status')).toContainText(/Strong|Needs work|High risk/);
+    await expect(page.getByTestId('evaluation-score-status')).toContainText(/Fully demonstrated|Strong|Nearly complete|Developing|Needs improvement|Significant gaps/);
     await expect(page.getByText('Overall Score')).toBeVisible();
   });
 });

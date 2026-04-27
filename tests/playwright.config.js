@@ -4,7 +4,7 @@
 const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
-const webPort = 10091;
+const webPort = parseInt(process.env.WEB_PORT || '9991', 10);
 const { defineConfig, devices } = require(path.join(rootDir, 'workspace/node_modules/@playwright/test'));
 
 module.exports = defineConfig({

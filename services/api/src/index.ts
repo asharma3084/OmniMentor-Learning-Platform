@@ -1231,6 +1231,11 @@ function buildAssistantPrompt(
 
   const artifactList = scenario.artifacts.map(a => `"${a.title}"`).join(', ');
 
+  // Include artifact bodies so the model can answer questions about teams, services, etc.
+  const artifactDetails = scenario.artifacts
+    .map(a => `[${a.id}] ${a.title}: ${typeof a.body === 'string' ? a.body.slice(0, 300) : ''}`)
+    .join('\n');
+
   const stepSkills: Record<string, string> = {
     brief: [
       'STEP: BRIEF — The learner is reading the incident brief.',
@@ -1259,7 +1264,7 @@ function buildAssistantPrompt(
   };
 
   return [
-    'You are a supportive, non-judgmental learning coach inside OmniMentor — a platform that trains new Technical Program Managers (TPMs) on incident response and architecture reasoning at a large-scale retailer.',
+    'You are the Scenario Coach inside OmniMentor — a supportive, non-judgmental learning coach that trains new Technical Program Managers (TPMs) on incident response and architecture reasoning at a large-scale retailer.',
     '',
     '=== PLATFORM CONTEXT ===',
     'OmniMentor has 12 practice scenarios across 4 domains (Catalog, Checkout & Cart, Risk & Compliance, Fulfillment & Logistics).',
@@ -1273,30 +1278,36 @@ function buildAssistantPrompt(
     `Available evidence artifacts: ${artifactList}`,
     evidenceCtx,
     '',
+    '=== ARTIFACT DETAILS (use these to answer learner questions) ===',
+    artifactDetails,
+    '',
     `=== CURRENT STEP ===`,
     stepSkills[step] || '',
     '',
     '=== RULES ===',
-    '1. SCOPE: You can ONLY discuss this scenario, the OmniMentor platform, evidence artifacts, incident response, and TPM skills. You have NO knowledge beyond this.',
-    '2. OFF-TOPIC: If the learner sends something off-topic, random, or nonsensical (a name, gibberish, trivia, personal questions, jokes, coding requests, math, general knowledge), give a SHORT one-sentence reply like: "Hmm, that doesn\'t seem related to this scenario — try asking about the evidence or your next step!" Do NOT list actions or give a tutorial. Do NOT generate code, write stories, answer trivia, or do anything outside this scenario. Keep it brief and friendly.',
-    '3. NO HALLUCINATION: NEVER invent, guess, or make up information. Only use facts from the scenario context and evidence artifact titles provided above. If the input is unclear or meaningless, just ask the learner to rephrase.',
-    '4. NO ANSWERS: NEVER reveal the correct owner, dependency path, blast radius, or safe actions. These are gold-label answers the learner must discover from evidence.',
-    '5. REDIRECT: If they ask for answers directly, suggest which evidence artifact to examine or what questions to ask themselves.',
-    '6. PLATFORM HELP: ONLY if the learner explicitly asks "what can I do", "help me", "what now", "what are my options", or clearly requests guidance, describe the concrete actions for their current step (from CURRENT STEP above). Do NOT volunteer this info unprompted.',
-    '7. CONCISE: Keep ALL responses to 2-3 sentences max. NEVER use headings, bullet lists, or numbered lists. Write plain sentences only. Never list every artifact or every action. Be warm, specific, and brief.',
-    '8. EVIDENCE REFERENCES: Name 1-2 specific evidence artifacts when relevant — not all of them.',
+    '1. SCOPE: You can discuss this scenario, evidence artifacts, teams/services mentioned in artifacts, incident response concepts, and TPM skills.',
+    '2. ON-TOPIC QUESTIONS: When the learner asks about a team, service, system, or concept that appears in the ARTIFACT DETAILS above, answer using those facts. This is NOT off-topic — it\'s exactly what they should be doing. Summarize what the artifacts say about it.',
+    '3. OFF-TOPIC: If the learner sends something completely unrelated to the scenario (personal questions, trivia, jokes, coding requests, math, general knowledge), give a SHORT one-sentence reply like: "That falls outside the scope of this scenario — try asking about the evidence or your next step."',
+    '4. NO HALLUCINATION: NEVER invent information. Only use facts from the scenario context and artifact details provided above. If the input is unclear, ask the learner to rephrase.',
+    '5. NO GOLD ANSWERS: Do not directly reveal the single correct owner assignment, the exact scored dependency path, or the scored blast radius items. But DO discuss teams, services, and dependencies that appear in the evidence — the learner needs that information to reason.',
+    '6. REDIRECT: If they ask "who owns this?" or "what\'s the answer?", suggest which evidence artifact to examine rather than giving the gold answer.',
+    '7. PLATFORM HELP: If the learner asks "what can I do" or "help", describe 2-3 actions for their current step. Do NOT volunteer this info unprompted.',
+    '8. CONCISE: Keep responses to 2-4 sentences. Write plain sentences. Be warm, specific, and brief.',
+    '9. EVIDENCE REFERENCES: Name 1-2 specific evidence artifacts when relevant — not all of them.',
     '',
     '=== RESPONSE EXAMPLES (follow these patterns) ===',
-    'User: "Arvind" → "Hmm, that doesn\'t seem related to this scenario — try asking about the evidence or your next step!"',
-    'User: "tell me a joke" → "I can only help with this incident scenario. What would you like to know about it?"',
-    'User: "what is my name" → "I don\'t know your name, but I do know this scenario! Ask me about the evidence or what to focus on."',
-    'User: "write python code" → "I can\'t help with coding — I\'m here to coach you through this scenario. What would you like to know about it?"',
-    'User: "what is the capital of France" → "That\'s outside my scope — I only know about this scenario! Ask me about the evidence or next steps."',
+    'User: "Arvind" → "That falls outside the scope of this scenario — try asking about the evidence or your next step."',
+    'User: "tell me a joke" → "I can only help with this incident scenario. What would you like to explore?"',
+    'User: "what is my name" → "I don\'t have that information, but I can help you work through this scenario. Ask about the evidence or what to focus on."',
+    'User: "write python code" → "I can\'t help with coding — my role is to coach you through this scenario. What would you like to explore?"',
+    'User: "what is the capital of France" → "That\'s outside my scope — I focus on this scenario. Ask about the evidence or next steps."',
     'User: "what can I do?" → [Describe 2-3 actions for the current step in plain sentences — this is the ONLY case where you explain platform actions]',
     'User: "help me understand the scenario" → "This scenario is about [brief 1-sentence summary]. Start by reading the incident brief, then think about which teams and systems might be affected."',
     'User: "who owns this?" → "I can\'t reveal that — it\'s what you\'re here to figure out! Try checking the Service Ownership Registry artifact."',
     'User: "is this evidence relevant?" → "Think about what it tells you about system dependencies. Does it mention upstream or downstream services?"',
-    'User: "why did I score low?" → "Check which rubric dimensions scored lowest — that tells you exactly what to strengthen next time."',
+    'User: "why did I score low?" → "Check which rubric dimensions scored lowest — that indicates exactly which areas to strengthen in your next attempt."',
+    'User: "tell me more about the Catalog Team" → [Look up ARTIFACT DETAILS for mentions of "Catalog Team" and summarize what the artifacts say about that team\'s role and responsibilities in this scenario]',
+    'User: "what does the Pricing Engine do?" → [Look up ARTIFACT DETAILS for mentions of "Pricing Engine" and describe its role based on the evidence]',
   ].join('\n');
 }
 
@@ -1331,17 +1342,30 @@ app.post('/assist', async (req: Request, res: Response, next: NextFunction) => {
     );
 
     // Stream response from Ollama
-    const ollamaRes = await fetch(`${OLLAMA_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        prompt: question,
-        system: systemPrompt,
-        stream: true,
-        options: { temperature: 0.7, num_predict: 256 },
-      }),
-    });
+    const ollamaController = new AbortController();
+    const ollamaTimeout = setTimeout(() => ollamaController.abort(), 30000);
+
+    let ollamaRes: globalThis.Response;
+    try {
+      ollamaRes = await fetch(`${OLLAMA_URL}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          prompt: question,
+          system: systemPrompt,
+          stream: true,
+          options: { temperature: 0.7, num_predict: 384 },
+        }),
+        signal: ollamaController.signal,
+      });
+    } catch (fetchErr) {
+      clearTimeout(ollamaTimeout);
+      const msg = (fetchErr as Error).name === 'AbortError' ? 'Ollama request timed out' : `Ollama connection failed: ${(fetchErr as Error).message}`;
+      next(new AppError(msg, 502, 'OLLAMA_ERROR'));
+      return;
+    }
+    clearTimeout(ollamaTimeout);
 
     if (!ollamaRes.ok) {
       const errText = await ollamaRes.text();

@@ -100,7 +100,7 @@ test.describe('Walkthrough modal', () => {
 
   test('Take Me To Practice lands on Investigate step', async ({ page }) => {
     await enterGuidedPractice(page);
-    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
+    await expect(page.getByText('Select the artifacts that help you identify the owner, trace dependencies, and spot risks.')).toBeVisible();
     await expect(page.getByTestId('guided-step-investigate')).toBeVisible();
   });
 
@@ -154,16 +154,16 @@ test.describe('Survey modal', () => {
 test.describe('Guided step navigation', () => {
   test('all 4 step buttons navigate correctly', async ({ page }) => {
     await enterGuidedPractice(page);
-    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
+    await expect(page.getByText('Select the artifacts that help you identify the owner, trace dependencies, and spot risks.')).toBeVisible();
 
     await page.getByTestId('guided-step-brief').click();
     await expect(page.getByText('Incident Brief')).toBeVisible();
 
     await page.getByTestId('guided-step-investigate').click();
-    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
+    await expect(page.getByText('Select the artifacts that help you identify the owner, trace dependencies, and spot risks.')).toBeVisible();
 
     await page.getByTestId('guided-step-decide').click();
-    await expect(page.getByText('Your Submission')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your Answer', exact: true })).toBeVisible();
 
     await page.getByTestId('guided-step-feedback').click();
     await expect(page.getByText('No evaluation results yet.')).toBeVisible();
@@ -177,13 +177,13 @@ test.describe('Guided step navigation', () => {
     await expect(page.getByTestId('walkthrough-modal')).toBeHidden();
 
     await page.getByTestId('start-with-evidence').click();
-    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
+    await expect(page.getByText('Select the artifacts that help you identify the owner, trace dependencies, and spot risks.')).toBeVisible();
   });
 
   test('Continue To Decision button goes to Decide step', async ({ page }) => {
     await enterGuidedPractice(page);
     await page.getByTestId('continue-to-decision').click();
-    await expect(page.getByText('Your Submission')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your Answer', exact: true })).toBeVisible();
     await expect(page.getByTestId('submit-and-score')).toBeVisible();
   });
 });
@@ -531,7 +531,7 @@ test.describe('Full guided flow per scenario', () => {
 
       // Verify scoring result (submit transitions to Feedback step)
       await expect(page.getByTestId('evaluation-overall-score')).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId('evaluation-score-status')).toContainText(/Strong|Needs work|High risk/);
+      await expect(page.getByTestId('evaluation-score-status')).toContainText(/Fully demonstrated|Strong|Nearly complete|Developing|Needs improvement|Significant gaps/);
 
       // Verify score percentage
       const scoreText = await page.getByTestId('evaluation-overall-score').textContent();
@@ -550,7 +550,7 @@ test.describe('Go to Scenario Workspace button', () => {
     await page.getByTestId('guided-step-feedback').click();
     await expect(page.getByText('No evaluation results yet.')).toBeVisible();
     await page.getByText('Go to Scenario Workspace').click();
-    await expect(page.getByText('Read the evidence and spot the pattern.')).toBeVisible();
+    await expect(page.getByText('Select the artifacts that help you identify the owner, trace dependencies, and spot risks.')).toBeVisible();
   });
 });
 

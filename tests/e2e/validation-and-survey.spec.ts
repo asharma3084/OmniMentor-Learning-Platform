@@ -56,7 +56,7 @@ test.describe('Survey workflow', () => {
   });
 
   test('survey status endpoint returns completion state', async ({ request }) => {
-    const res = await request.get('http://127.0.0.1:10091/api/surveys/status', {
+    const res = await request.get(`http://localhost:${process.env.WEB_PORT || '9991'}/api/surveys/status`, {
       failOnStatusCode: false,
     });
     // This hits the proxy; it may 404 or succeed depending on server config
@@ -142,8 +142,8 @@ test.describe('Submission field validation', () => {
 
 test.describe('Scenario metadata', () => {
   test('API returns difficulty and estimatedMinutes for each scenario', async ({ request }) => {
-    // Hit the API server directly (Vite on 10091 has no proxy for /api)
-    const res = await request.get('http://127.0.0.1:10092/scenarios', {
+    // Hit the API server directly
+    const res = await request.get(`http://127.0.0.1:${process.env.API_PORT || '9992'}/scenarios`, {
       failOnStatusCode: false,
     });
 

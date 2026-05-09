@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.30.3
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm --dir workspace install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --dir workspace lint
+
+      - name: Basic secret scan
+        run: |
+          if git grep -nE "(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{30,}|-----BEGIN (RSA|EC|OPENSSH|DSA) PRIVATE KEY-----)" -- .; then
+            echo "Potential secret detected. Remove before merging."
+            exit 1
+          fi
+
+      - name: Type check
+        run: pnpm --dir workspace typecheck
+
+      - name: Test
+        run: pnpm --dir workspace test
+
+      - name: Build
+        run: pnpm --dir workspace build
+
+      - name: Audit (security baseline)
+        run: pnpm --dir workspace audit --prod
+
+      - name: Smoke test
+        run: pnpm --dir workspace smoke

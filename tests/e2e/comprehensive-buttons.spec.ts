@@ -349,8 +349,8 @@ test.describe('Form inputs and validation', () => {
     await enterGuidedPractice(page);
     await page.getByTestId('continue-to-decision').click();
 
-    await page.getByTestId('owner-routing-input').fill('Test Owner Team');
-    await expect(page.getByTestId('owner-routing-input')).toHaveValue('Test Owner Team');
+    await page.getByTestId('owner-routing-input').selectOption('Catalog Team');
+    await expect(page.getByTestId('owner-routing-input')).toHaveValue('Catalog Team');
 
     await page.getByTestId('action-plan-input').fill('Test action plan');
     await expect(page.getByTestId('action-plan-input')).toHaveValue('Test action plan');
@@ -375,7 +375,7 @@ test.describe('Form inputs and validation', () => {
     await enterGuidedPractice(page);
     await page.getByTestId('continue-to-decision').click();
 
-    await page.getByTestId('owner-routing-input').fill('Owner');
+    await page.getByTestId('owner-routing-input').selectOption('Pricing Team');
     await page.getByTestId('action-plan-input').fill('Plan');
     await page.getByTestId('dependency-trace-input').fill('A -> B (upstream)');
     await page.getByTestId('blast-radius-input').fill('Impact');

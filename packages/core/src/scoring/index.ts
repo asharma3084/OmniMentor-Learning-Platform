@@ -21,8 +21,11 @@ export function scoreOwnerRouting(
 
   if (submittedOwner === goldOwner) return 1.0;
 
-  // Check if one contains the other (e.g. "Pricing" matches "Pricing Team")
-  if (submittedOwner.includes(goldOwner) || goldOwner.includes(submittedOwner)) return 0.75;
+  // Submitted contains gold exactly (e.g. "the Pricing Team" contains "Pricing Team") → full credit
+  if (submittedOwner.includes(goldOwner)) return 1.0;
+
+  // Gold contains submitted (e.g. "Pricing" vs "Pricing Team") → correct team identified
+  if (goldOwner.includes(submittedOwner)) return 1.0;
 
   // Check keyword overlap for cases like "The Pricing Engineering Team" vs "Pricing Team"
   const subTokens = tokenize(submittedOwner);
@@ -30,9 +33,9 @@ export function scoreOwnerRouting(
   if (goldTokens.size > 0) {
     let matches = 0;
     for (const token of goldTokens) {
-      if (subTokens.has(token)) matches++;
+      if (subTokens.has(token) || Array.from(subTokens).some((st) => tokenMatches(st, token))) matches++;
     }
-    if (matches / goldTokens.size >= 0.5) return 0.5;
+    if (matches / goldTokens.size >= 0.5) return 1.0;
   }
 
   return 0.0;
@@ -87,7 +90,8 @@ export function scoreDependencyTrace(
     if (bestIdx >= 0) {
       correctEdges++;
       usedGold.add(bestIdx);
-      if (goldEdges[bestIdx].type === submitted.type) {
+      // If user didn't specify a direction (empty type), auto-accept as correct
+      if (!submitted.type || goldEdges[bestIdx].type === submitted.type) {
         correctDirections++;
       }
     }
@@ -115,7 +119,34 @@ const STOP_WORDS = new Set([
   'own', 'same', 'than', 'too', 'very', 'just', 'because', 'if', 'when',
   'while', 'that', 'this', 'these', 'those', 'it', 'its', 'also', 'about',
   'up', 'which', 'who', 'whom', 'what', 'where', 'how', 'there', 'here',
+  'shown', 'via', 'due', 'may', 'might', 'etc', 'like', 'get', 'got',
 ]);
+
+/**
+ * Simple suffix-stripping stemmer so "prices" matches "price", "displaying" matches "display", etc.
+ */
+function stem(word: string): string {
+  return word
+    .replace(/[^a-z]/g, '')
+    .replace(/(ations?|tions?|ments?|ings?|ness|ity|ies|ous|ive|ble|ful|less|ly|ed|er|est|en|al|ize|ise|ors?|ants?|ing)$/i, '');
+}
+
+/**
+ * Common domain synonyms — short forms a learner might type.
+ */
+const SYNONYMS: Record<string, string[]> = {
+  incorrect: ['wrong', 'bad', 'invalid', 'broken', 'mispriced'],
+  stale: ['old', 'cached', 'outdated', 'expired'],
+  revenue: ['money', 'sales', 'income', 'financial'],
+  impact: ['affect', 'break', 'damage', 'hurt', 'risk', 'loss', 'losses', 'hit'],
+  displaying: ['showing', 'display', 'show', 'render'],
+  customers: ['users', 'buyers', 'shoppers', 'customer'],
+  prices: ['price', 'pricing', 'cost', 'costs'],
+  applied: ['apply', 'applying', 'active', 'activated'],
+  transactions: ['orders', 'purchases', 'checkouts', 'transaction'],
+  mispriced: ['wrong', 'incorrect', 'bad', 'invalid'],
+  fallback: ['default', 'backup', 'cache'],
+};
 
 /**
  * Tokenize text into meaningful keywords (lowercase, no stop words, no short tokens).
@@ -131,24 +162,43 @@ function tokenize(text: string): Set<string> {
 }
 
 /**
- * Compute keyword overlap between two strings.
- * Returns a score between 0 and 1.
+ * Check if a submitted token matches a gold token via exact, stem, or synonym matching.
  */
-function keywordOverlap(submitted: string, gold: string): number {
-  const subTokens = tokenize(submitted);
-  const goldTokens = tokenize(gold);
-  if (goldTokens.size === 0) return subTokens.size === 0 ? 1.0 : 0.5;
-  let matches = 0;
-  for (const token of goldTokens) {
-    if (subTokens.has(token)) matches++;
-  }
-  return matches / goldTokens.size;
+function tokenMatches(subToken: string, goldToken: string): boolean {
+  if (subToken === goldToken) return true;
+  if (stem(subToken) === stem(goldToken)) return true;
+  // Check if subToken is a known synonym of goldToken
+  const syns = SYNONYMS[goldToken] || SYNONYMS[stem(goldToken)];
+  if (syns && (syns.includes(subToken) || syns.includes(stem(subToken)))) return true;
+  // Check reverse: goldToken is a synonym of subToken
+  const revSyns = SYNONYMS[subToken] || SYNONYMS[stem(subToken)];
+  if (revSyns && (revSyns.includes(goldToken) || revSyns.includes(stem(goldToken)))) return true;
+  return false;
 }
 
 /**
- * Score blast radius completeness using keyword overlap.
+ * Compute keyword overlap between two strings.
+ * Uses stemming and synonym matching for tolerance against short, natural inputs.
+ * Returns a score between 0 and 1.
+ */
+function keywordOverlap(submitted: string, gold: string): number {
+  const subTokens = Array.from(tokenize(submitted));
+  const goldTokens = Array.from(tokenize(gold));
+  if (goldTokens.length === 0) return subTokens.length === 0 ? 1.0 : 0.5;
+  let matches = 0;
+  for (const gToken of goldTokens) {
+    if (subTokens.some((sToken) => tokenMatches(sToken, gToken))) {
+      matches++;
+    }
+  }
+  return matches / goldTokens.length;
+}
+
+/**
+ * Score blast radius completeness using keyword overlap with stemming/synonym support.
  * Each submitted item is matched to its best gold item. A gold item is
- * considered covered if any submitted item overlaps at least 50% of its keywords.
+ * considered covered if any submitted item overlaps at least 35% of its keywords.
+ * Lower threshold allows short, concise answers like "wrong prices storefront".
  */
 export function scoreBlastRadius(
   submission: Submission,
@@ -173,13 +223,13 @@ export function scoreBlastRadius(
     return best;
   });
 
-  // A gold item counts as covered if overlap >= 0.5
-  const coveredCount = goldScores.filter((s) => s >= 0.5).length;
+  // A gold item counts as covered if overlap >= 0.30 (down from 0.5 — allows shorter answers)
+  const coveredCount = goldScores.filter((s) => s >= 0.30).length;
   const completeness = coveredCount / goldSource.length;
 
-  // Quality: penalize submitted items that don't match anything
+  // Quality: penalize submitted items that don't match anything (threshold 0.2)
   const matchedSubmitted = submitted.filter((subItem) =>
-    goldSource.some((goldItem) => keywordOverlap(subItem, goldItem) >= 0.3)
+    goldSource.some((goldItem) => keywordOverlap(subItem, goldItem) >= 0.2)
   );
   const falsePositives = submitted.length - matchedSubmitted.length;
   const quality = Math.max(0, 1.0 - falsePositives * 0.1);

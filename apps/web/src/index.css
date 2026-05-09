@@ -567,3 +567,59 @@
 }
 .ai-md h3, .ai-md h4 { font-weight: 600; margin: 0.4em 0 0.2em; }
 .ai-md a { color: var(--accent, #6366f1); text-decoration: underline; }
+
+/* ── Tooltip system ─────────────────────────────── */
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--text-0, #e4e4e7);
+  background: var(--surface-1, #232338);
+  border: 1px solid var(--line-strong, rgba(255,255,255,0.12));
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+}
+[data-tip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+/* Long tooltips wrap */
+[data-tip-wrap]::after {
+  white-space: normal;
+  max-width: 280px;
+  text-align: center;
+}
+/* Tooltip below variant */
+[data-tip-pos="bottom"]::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+/* Evidence hover card animation */
+.ev-tooltip {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.group:hover .ev-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}

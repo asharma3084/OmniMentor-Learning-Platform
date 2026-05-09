@@ -129,7 +129,7 @@ test.describe('Submission field validation', () => {
 
     // Fill only owner routing
     const ownerInput = page.getByTestId('owner-routing-input');
-    await ownerInput.fill('Catalog Team');
+    await ownerInput.selectOption('Catalog Team');
 
     // Still disabled because other required fields are empty
     await expect(page.getByTestId('submit-and-score')).toBeDisabled();

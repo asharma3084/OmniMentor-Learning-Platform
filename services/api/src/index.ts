@@ -231,15 +231,57 @@ function buildScenarioExampleAnswer(input: {
   // Use all scenario artifacts — a perfect answer leverages all available evidence
   const selectedEvidence = Array.from(input.evidenceMap.values());
 
-  const blastRadius = input.benchmark.goldBlastRadius && input.benchmark.goldBlastRadius.length > 0
+  const blastRadiusGold = input.benchmark.goldBlastRadius && input.benchmark.goldBlastRadius.length > 0
     ? input.benchmark.goldBlastRadius
     : input.benchmark.goldSafeActions;
 
-  const evidenceNotes = selectedEvidence.length > 0
-    ? selectedEvidence
-        .map((item) => `${item.id}: ${item.title}`)
-        .join('. ') + '.'
-    : 'Use the selected evidence to justify owner, system connections, and downstream impact.';
+  // ── Simplify for TPM-friendly short answers ──
+
+  // Action plan: short comma-separated version (extract key verbs/actions)
+  const simplifyAction = (action: string): string => {
+    // Strip verbose phrasing, keep the core action
+    return action
+      .replace(/^(Engage|Coordinate with|Verify|Monitor|Confirm|Alert|Check|Get|Consider|Obtain|Run|Deploy|Use|Schedule|Add|Initiate|Calculate|Evaluate|Contact|Enable|Escalate|If scaling is slow: temporarily|If rerouting: coordinate with|If not deployed: |If deployed badly: )\s*/i, (m) => m.trim() + ' ')
+      .replace(/\s*—\s*.+$/, '')  // strip after em-dash explanations
+      .replace(/\s*\(.+\)$/, '')  // strip trailing parenthetical
+      .trim();
+  };
+
+  const shortActions = input.benchmark.goldSafeActions
+    .map(simplifyAction)
+    .map((a) => {
+      // Truncate to ~60 chars if still long
+      if (a.length > 65) return a.slice(0, 62).replace(/\s\S*$/, '') + '...';
+      return a;
+    });
+
+  // Dependencies: just "A -> B" format, no (upstream)/(downstream)
+  const shortDeps = input.benchmark.goldDependencyTrace
+    .map((d) => `${d.from} -> ${d.to}`);
+
+  // Blast radius: shorten each item (remove "via ..." and long qualifiers)
+  const simplifyBlast = (item: string): string => {
+    return item
+      .replace(/\s+via\s+.+$/i, '')  // remove "via Catalog API fallback"
+      .replace(/\s+if\s+.+$/i, '')   // remove "if Thanksgiving sale prices..."
+      .replace(/\s*—\s*.+$/, '')     // remove em-dash explanations
+      .replace(/\s+during\s+.+$/i, '') // remove "during peak season"
+      .replace(/\s+for\s+duration.+$/i, '')  // remove "for duration of..."
+      .replace(/\s+when\s+.+$/i, '')  // remove "when tripped" etc.
+      .replace(/\s+without\s+customer.+$/i, '')
+      .replace(/\s+before\s+.+$/i, '')
+      .trim();
+  };
+
+  const shortBlast = blastRadiusGold.map(simplifyBlast);
+
+  // Evidence notes: short summary citing key artifact IDs
+  const keyEvidence = selectedEvidence.filter((e) =>
+    input.benchmark.goldRequiredEvidenceIds.includes(e.id)
+  );
+  const evidenceNotes = keyEvidence.length > 0
+    ? keyEvidence.map((e) => `${e.id} — ${e.title.split('–').pop()?.trim() || e.title}`).join('. ')
+    : selectedEvidence.slice(0, 2).map((e) => `${e.id} — ${e.title.split('–').pop()?.trim() || e.title}`).join('. ');
 
   const primaryEvidenceIds = selectedEvidence.filter((item) => item.role === 'primary').map((item) => item.id);
   const corroboratingEvidenceIds = selectedEvidence.filter((item) => item.role === 'corroborating').map((item) => item.id);
@@ -247,19 +289,21 @@ function buildScenarioExampleAnswer(input: {
   return {
     scenarioId: input.scenarioId,
     ownerRouting: input.benchmark.goldOwner,
-    actionPlan: input.benchmark.goldSafeActions.join('\n'),
+    actionPlan: shortActions.join(', '),
     dependencyTrace: input.benchmark.goldDependencyTrace,
-    blastRadius,
+    blastRadius: shortBlast,
     evidenceNotes: evidenceNotes,
     selectedEvidenceIds: selectedEvidence.map((item) => item.id),
     selectedEvidence,
+    // Also include raw dependency text for display in modal
+    dependencyTraceText: shortDeps.join('\n'),
     whyItWorks: input.rubricExplanations ?? 'This example uses the gold owner, supported dependencies, concrete blast radius, and required evidence.',
     fieldGuidance: {
-      ownerRouting: `Uses the exact gold owner and ties it back to ownership evidence${primaryEvidenceIds.length > 0 ? ` (${primaryEvidenceIds.join(', ')})` : ''}.`,
-      actionPlan: 'Lists concrete safe actions in execution order, which matches how the scorer and reviewers expect a TPM response to read.',
-      dependencyTrace: `Uses the real system names and direction labels from the benchmark path (${input.benchmark.goldDependencyTrace.length} connection${input.benchmark.goldDependencyTrace.length === 1 ? '' : 's'}).`,
-      blastRadius: 'Names downstream customer and system impact explicitly instead of vague risk statements.',
-      evidenceNotes: `Cites artifact IDs directly so the reasoning is traceable${corroboratingEvidenceIds.length > 0 ? `, including corroborating support from ${corroboratingEvidenceIds.join(', ')}` : ''}.`,
+      ownerRouting: `Select from the dropdown — the correct team is based on ownership evidence${primaryEvidenceIds.length > 0 ? ` (${primaryEvidenceIds.join(', ')})` : ''}.`,
+      actionPlan: 'Short actions separated by commas. Covers the key steps a TPM would take.',
+      dependencyTrace: `Simple arrows: A -> B. No need to type upstream/downstream (${input.benchmark.goldDependencyTrace.length} connection${input.benchmark.goldDependencyTrace.length === 1 ? '' : 's'}).`,
+      blastRadius: 'Brief impact items — what could break, in plain language.',
+      evidenceNotes: `Cite the key artifact IDs that support your reasoning${corroboratingEvidenceIds.length > 0 ? `, including ${corroboratingEvidenceIds.join(', ')}` : ''}.`,
     },
   };
 }

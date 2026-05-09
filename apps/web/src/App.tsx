@@ -804,16 +804,34 @@ export default function App() {
   };
 
   const parseDependencyTrace = (value: string) => {
+    let currentType = '';
     return value
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => {
-        const [left, rightRaw] = line.split('->');
+        // Section headers like "Upstream:" or "Downstream:" set type context
+        const headerMatch = line.match(/^(upstream|downstream)\s*:?$/i);
+        if (headerMatch) {
+          currentType = headerMatch[1].toLowerCase();
+          return null;
+        }
+        // Support both "->" and " to " as separators
+        let left = '';
+        let rightRaw = '';
+        if (line.includes('->')) {
+          [left, rightRaw] = line.split('->');
+        } else if (/ to /i.test(line)) {
+          const idx = line.search(/ to /i);
+          left = line.slice(0, idx);
+          rightRaw = line.slice(idx + 4);
+        } else {
+          return null;
+        }
         const right = (rightRaw || '').trim();
-        if (!left || !right) return null;
+        if (!left.trim() || !right) return null;
         let to = right;
-        let type = 'upstream';
+        let type = currentType;
         const typeMatch = right.match(/\((upstream|downstream)\)$/i);
         if (typeMatch) {
           type = typeMatch[1].toLowerCase();
@@ -826,7 +844,7 @@ export default function App() {
 
   const parseBlastRadius = (value: string) => {
     return value
-      .split('\n')
+      .split(/[\n,]/)
       .map((line) => line.trim())
       .filter(Boolean);
   };
@@ -868,9 +886,10 @@ export default function App() {
       evidenceNotes: example.evidenceNotes,
     });
     setDependencyTraceInput(
-      example.dependencyTrace.map((edge) => `${edge.from} -> ${edge.to} (${edge.type})`).join('\n')
+      (example as any).dependencyTraceText
+        ?? example.dependencyTrace.map((edge) => `${edge.from} -> ${edge.to}`).join('\n')
     );
-    setBlastRadiusInput(example.blastRadius.join('\n'));
+    setBlastRadiusInput(example.blastRadius.join(', '));
     setSubmitError(null);
     setShowExampleModal(false);
     setGuidedStep('Decide');
@@ -1341,7 +1360,7 @@ export default function App() {
           <div className="flex items-center gap-2.5">
             <div className="hidden sm:flex items-center gap-1.5 mr-2">
               {(['Brief', 'Investigate', 'Decide', 'Feedback'] as const).map((step, i) => (
-                <span key={step} className={`progress-dot ${guidedStep === step ? 'progress-dot-active' : completedScenarios.size > 0 && i < ['Brief', 'Investigate', 'Decide', 'Feedback'].indexOf(guidedStep) ? 'progress-dot-done' : 'progress-dot-pending'}`} title={step} />
+                <span key={step} className={`progress-dot ${guidedStep === step ? 'progress-dot-active' : completedScenarios.size > 0 && i < ['Brief', 'Investigate', 'Decide', 'Feedback'].indexOf(guidedStep) ? 'progress-dot-done' : 'progress-dot-pending'}`} data-tip={step} />
               ))}
             </div>
             <button
@@ -1366,7 +1385,7 @@ export default function App() {
               href="https://github.com/asharma3084/OmniMentor-Learning-Platform/blob/main/docs/start-here/user-guide.md"
               target="_blank"
               rel="noopener noreferrer"
-              title="Open help documentation"
+              data-tip="Open help docs"
               className="p-2 rounded-xl border border-[var(--line)] hover:bg-[var(--surface-1)] hover:border-[var(--line-strong)] transition-all duration-200 text-[var(--text-2)] hover:text-[var(--text-1)]"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1775,8 +1794,8 @@ export default function App() {
                       }`}
                     >
                       {/* Hover tooltip — full evidence body */}
-                      <div className="pointer-events-none absolute left-0 right-0 bottom-full mb-2 z-[100] hidden group-hover:block" aria-hidden="true">
-                        <div style={{ backgroundColor: 'var(--surface-0, #1a1a2e)', borderColor: 'var(--accent, #27d3b6)' }} className="border-2 rounded-lg shadow-2xl p-3 text-[11px] text-[var(--text-1)] leading-relaxed max-h-48 overflow-y-auto">
+                      <div className="ev-tooltip absolute left-0 right-0 bottom-full mb-2 z-[100]" aria-hidden="true">
+                        <div className="border border-[var(--line-strong)] rounded-xl shadow-2xl p-3.5 text-[11px] text-[var(--text-1)] leading-relaxed max-h-48 overflow-y-auto backdrop-blur-sm" style={{ backgroundColor: 'var(--surface-0, #1a1a2e)' }}>
                           <p className="font-semibold text-[var(--accent-2)] mb-1">{ev.id} · {ev.title}</p>
                           <p className="text-[var(--text-0)]">{ev.body}</p>
                         </div>
@@ -1896,7 +1915,8 @@ export default function App() {
                   <button
                     onClick={fillBeginnerDraft}
                     disabled={!hasPrimary || !hasCorroborating}
-                    title={!hasPrimary || !hasCorroborating ? 'Select at least one primary and one corroborating artifact first' : undefined}
+                    data-tip={!hasPrimary || !hasCorroborating ? 'Select 1 primary + 1 corroborating artifact first' : undefined}
+                    data-tip-wrap
                     data-testid="build-starter-draft"
                     className="btn-accent px-4 py-2.5 rounded-xl text-xs w-full"
                   >
@@ -1923,7 +1943,8 @@ export default function App() {
                 <button
                   onClick={fillBeginnerDraft}
                   disabled={!hasPrimary || !hasCorroborating}
-                  title={!hasPrimary || !hasCorroborating ? 'Select at least one primary and one corroborating artifact first' : undefined}
+                  data-tip={!hasPrimary || !hasCorroborating ? 'Select 1 primary + 1 corroborating artifact first' : undefined}
+                  data-tip-wrap
                   data-testid="fill-beginner-template"
                   className="flex-1 text-[11px] font-semibold px-2 py-1.5 rounded-md border border-[rgba(39,211,182,0.35)] text-[var(--accent-2)] hover:bg-[rgba(39,211,182,0.18)] disabled:text-[var(--text-2)] disabled:border-[color:var(--line)] disabled:cursor-not-allowed transition-colors"
                 >
@@ -1941,9 +1962,7 @@ export default function App() {
               <div className="space-y-3">
                 <div>
                   <label className="label">Owner</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Checkout Platform Team"
+                  <select
                     aria-label="Who Should Own This?"
                     data-testid="owner-routing-input"
                     value={formData.ownerRouting}
@@ -1952,13 +1971,26 @@ export default function App() {
                       setFormData({ ...formData, ownerRouting: e.target.value });
                     }}
                     className="form-input"
-                  />
+                  >
+                    <option value="">— Select responsible team —</option>
+                    <option value="Catalog Team">Catalog Team</option>
+                    <option value="Commerce Team">Commerce Team</option>
+                    <option value="Logistics Operations Team">Logistics Operations Team</option>
+                    <option value="Payments Team">Payments Team</option>
+                    <option value="Platform Security Team">Platform Security Team</option>
+                    <option value="Pricing Team">Pricing Team</option>
+                    <option value="Risk Engineering Team">Risk Engineering Team</option>
+                    <option value="Supply Chain Team">Supply Chain Team</option>
+                    <option value="Transportation Team">Transportation Team</option>
+                    <option value="Vendor Management Team">Vendor Management Team</option>
+                    <option value="Warehouse Ops Team">Warehouse Ops Team</option>
+                  </select>
                 </div>
 
                 <div>
                   <label className="label">Action Plan</label>
                   <textarea
-                    placeholder="e.g., Pause rollout, notify owner team, verify error rate"
+                    placeholder="e.g., Page on-call, check SLA, confirm fallback, alert downstream teams"
                     aria-label="What Should Happen Next?"
                     data-testid="action-plan-input"
                     value={formData.actionPlan}
@@ -1973,7 +2005,7 @@ export default function App() {
                 <div>
                   <label className="label">Dependencies</label>
                   <textarea
-                    placeholder={'One edge per line, e.g.\nCheckout API -> Payments (downstream)\nCatalog -> Checkout API (upstream)'}
+                    placeholder={'e.g., Service A -> Service B  or  Service A to Service B\nOptional: group under Upstream: / Downstream: headers'}
                     aria-label="Which Systems Are Connected?"
                     data-testid="dependency-trace-input"
                     value={dependencyTraceInput}
@@ -1990,7 +2022,7 @@ export default function App() {
                 <div>
                   <label className="label">Blast Radius</label>
                   <textarea
-                    placeholder={'One downstream impact per line, e.g.\nPayment failures for new orders\nCustomer support spike'}
+                    placeholder={'e.g., Wrong prices on Storefront, Stale cart prices, Revenue loss'}
                     aria-label="What Could Break?"
                     data-testid="blast-radius-input"
                     value={blastRadiusInput}
@@ -2707,8 +2739,8 @@ export default function App() {
                         {selectedEvidenceItems.map((ev) => (
                           <div key={ev.id} className="relative group flex items-start gap-2.5 rounded-lg border border-[color:var(--line)] bg-[var(--chip-bg)] px-3 py-2.5">
                             {/* Hover tooltip */}
-                            <div className="pointer-events-none absolute left-0 right-0 bottom-full mb-2 z-[100] hidden group-hover:block">
-                              <div style={{ backgroundColor: 'var(--surface-0, #1a1a2e)', borderColor: 'var(--accent, #27d3b6)' }} className="border-2 rounded-lg shadow-2xl p-3 text-[11px] text-[var(--text-1)] leading-relaxed max-h-48 overflow-y-auto">
+                            <div className="ev-tooltip absolute left-0 right-0 bottom-full mb-2 z-[100]">
+                              <div className="border border-[var(--line-strong)] rounded-xl shadow-2xl p-3.5 text-[11px] text-[var(--text-1)] leading-relaxed max-h-48 overflow-y-auto backdrop-blur-sm" style={{ backgroundColor: 'var(--surface-0, #1a1a2e)' }}>
                                 <p className="font-semibold text-[var(--accent-2)] mb-1">{ev.id} · {ev.title} <span className={ev.role === 'primary' ? 'text-[var(--ok-text)]' : 'text-[#818cf8]'}>({ev.role})</span></p>
                                 <p className="text-[var(--text-0)]">{ev.body}</p>
                               </div>
@@ -2809,11 +2841,31 @@ export default function App() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
 
-                    <div className="border-t border-[color:var(--line)]" />
+                {/* Rubric scores */}
+                {score.rubricScores && score.rubricScores.length > 0 && (
+                  <div className="card p-6">
+                    <p className="text-sm font-semibold text-[var(--text-1)] mb-3">Rubric Breakdown</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {score.rubricScores.map((rs) => (
+                        <div key={rs.criterion} className="rounded-xl border border-[color:var(--line)] p-3 bg-[var(--chip-bg)]">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-[var(--text-0)]">{rs.criterion}</span>
+                            <span className={`text-xs font-mono font-semibold ${
+                              rs.score >= rs.maxScore * 0.8 ? 'text-[var(--ok)]' : rs.score >= rs.maxScore * 0.6 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'
+                            }`}>{(rs.score * 100).toFixed(0)}%</span>
+                          </div>
+                          <p className="text-[11px] text-[var(--text-2)] leading-relaxed">{rs.explanation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                    {/* Section 7: Your Next Step in the platform */}
-                    <div className="rounded-xl border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.06)] p-4">
+                {/* Your Next Step in the platform — after Rubric Breakdown */}
+                <div className="rounded-xl border border-[rgba(39,211,182,0.25)] bg-[rgba(39,211,182,0.06)] p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-base">📋</span>
                         <p className="text-sm font-semibold text-[var(--text-0)]">Your Next Step</p>
@@ -2852,28 +2904,6 @@ export default function App() {
                         );
                       })()}
                     </div>
-                  </div>
-                )}
-
-                {/* Rubric scores */}
-                {score.rubricScores && score.rubricScores.length > 0 && (
-                  <div className="card p-6">
-                    <p className="text-sm font-semibold text-[var(--text-1)] mb-3">Rubric Breakdown</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {score.rubricScores.map((rs) => (
-                        <div key={rs.criterion} className="rounded-xl border border-[color:var(--line)] p-3 bg-[var(--chip-bg)]">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-[var(--text-0)]">{rs.criterion}</span>
-                            <span className={`text-xs font-mono font-semibold ${
-                              rs.score >= rs.maxScore * 0.8 ? 'text-[var(--ok)]' : rs.score >= rs.maxScore * 0.6 ? 'text-[var(--warn)]' : 'text-[var(--danger)]'
-                            }`}>{(rs.score * 100).toFixed(0)}%</span>
-                          </div>
-                          <p className="text-[11px] text-[var(--text-2)] leading-relaxed">{rs.explanation}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             ) : (
               <div className="card p-6 text-center py-12">
@@ -3220,12 +3250,12 @@ export default function App() {
               </div>
               <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">Which Systems Are Connected?</p>
-                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.dependencyTrace.map((edge) => `${edge.from} -> ${edge.to} (${edge.type})`).join('\n')}</pre>
+                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.dependencyTrace.map((edge) => `${edge.from} -> ${edge.to}`).join('\n')}</pre>
                 <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.dependencyTrace}</p>
               </div>
               <div className="rounded-xl border border-[color:var(--line)] bg-[var(--chip-bg)] p-4">
                 <p className="text-[11px] uppercase tracking-wider text-[var(--text-2)] mb-2">What Could Break?</p>
-                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.blastRadius.join('\n')}</pre>
+                <pre className="whitespace-pre-wrap text-xs text-[var(--text-1)] font-sans">{exampleAnswer.blastRadius.join(', ')}</pre>
                 <p className="text-[11px] text-[var(--text-2)] mt-2 leading-relaxed">Why this scores well: {exampleAnswer.fieldGuidance.blastRadius}</p>
               </div>
             </div>

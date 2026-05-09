@@ -1,85 +1,114 @@
 <div align="center">
 
-# 🎓 OmniMentor
+# 🎓 OmniMentor Learning Platform
 
-### From Architecture Blindness to Architectural Fluency.
-#### The Intelligence Platform for Better Decisions.
+### *From Architecture Blindness to Architectural Fluency*
 
-[![Tests](https://img.shields.io/badge/Tests-28%20passing-22c55e?style=flat-square)](config/vitest.config.ts)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript)](apps/web/tsconfig.json)
-[![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Node%20%2B%20SQLite-0ea5e9?style=flat-square)](docs/architecture/system-architecture.md)
-[![Platform](https://img.shields.io/badge/Platform-macOS-000000?style=flat-square&logo=apple)](docs/start-here/quickstart.md)
+<br/>
+
+> **CS 6460 — Educational Technology | Georgia Institute of Technology | Spring 2026**
+
+<br/>
+
+[![Score](https://img.shields.io/badge/Final%20Project-10%2F10-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](docs/assignments/project.md)
+[![Paper](https://img.shields.io/badge/Paper-9%2F10-blue?style=for-the-badge&logo=bookstack&logoColor=white)](docs/assignments/project.md)
+[![Presentation](https://img.shields.io/badge/Presentation-9%2F10-blueviolet?style=for-the-badge&logo=slides&logoColor=white)](docs/assignments/project.md)
+[![Overall](https://img.shields.io/badge/Overall-46%2F50_(92%25)-gold?style=for-the-badge&logo=award&logoColor=white)](docs/assignments/project.md)
+
+<br/>
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](apps/web/tsconfig.json)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](apps/web/package.json)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=flat-square&logo=node.js&logoColor=white)](services/api/package.json)
+[![SQLite](https://img.shields.io/badge/SQLite-Local-003B57?style=flat-square&logo=sqlite&logoColor=white)](docs/architecture/data-model.md)
+[![Ollama](https://img.shields.io/badge/Ollama-AI%20Coach-FF6600?style=flat-square&logo=llama&logoColor=white)](services/api/src/index.ts)
+[![Playwright](https://img.shields.io/badge/E2E-61%20Tests-2EAD33?style=flat-square&logo=playwright&logoColor=white)](tests/e2e/)
+[![Platform](https://img.shields.io/badge/macOS-Ready-000000?style=flat-square&logo=apple&logoColor=white)](docs/start-here/quickstart.md)
+
+<br/>
 
 <p>
-  <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs%20Hub-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Docs Hub" /></a>
-  <a href="docs/start-here/overview.md"><img src="https://img.shields.io/badge/Overview-6366f1?style=for-the-badge&labelColor=1e1b4b" alt="Overview" /></a>
-  <a href="docs/architecture/system-architecture.md"><img src="https://img.shields.io/badge/Architecture-22c55e?style=for-the-badge&labelColor=052e16" alt="Architecture" /></a>
-  <a href="docs/start-here/quickstart.md"><img src="https://img.shields.io/badge/Quickstart-f97316?style=for-the-badge&labelColor=431407" alt="Quickstart" /></a>
-  <a href="docs/research/evaluation-and-kpis.md"><img src="https://img.shields.io/badge/Evaluation-ef4444?style=for-the-badge&labelColor=450a0a" alt="Evaluation" /></a>
+  <a href="docs/start-here/overview.md"><img src="https://img.shields.io/badge/📖_Overview-6366f1?style=for-the-badge&labelColor=1e1b4b" alt="Overview" /></a>
+  <a href="docs/start-here/quickstart.md"><img src="https://img.shields.io/badge/🚀_Quickstart-f97316?style=for-the-badge&labelColor=431407" alt="Quickstart" /></a>
+  <a href="docs/architecture/system-architecture.md"><img src="https://img.shields.io/badge/🏗️_Architecture-22c55e?style=for-the-badge&labelColor=052e16" alt="Architecture" /></a>
+  <a href="docs/research/evaluation-and-kpis.md"><img src="https://img.shields.io/badge/📊_Evaluation-ef4444?style=for-the-badge&labelColor=450a0a" alt="Evaluation" /></a>
+  <a href="docs/reference/scenario-guide.md"><img src="https://img.shields.io/badge/🎯_Scenarios-0ea5e9?style=for-the-badge&labelColor=082f49" alt="Scenarios" /></a>
 </p>
 
 </div>
 
 ---
 
-At Omni-Mart, engineers and TPMs entering a new domain find that the system's real logic — who owns what, what depends on what, and what breaks if you touch it — lives in tribal memory, not documentation. A new joiner puts work into a service change, only to discover a hidden upstream dependency requiring a completely different configuration. By then, you are looking at expensive rework, delayed delivery, and a confidence hit that takes weeks to recover from.
+## 🧠 The Problem
+
+Enterprise software systems accumulate vast operational knowledge — ownership boundaries, dependency chains, runbook decisions, incident patterns — but this knowledge lives mostly in the heads of a few senior engineers. New joiners entering a domain find themselves unable to answer fundamental questions: *Who owns this service? What breaks if I change it? Who do I escalate to?*
+
+We call this **Architecture Blindness** — and it operates across three reinforcing dimensions:
+
+| 🔴 Dimension | 😰 The Problem | 💡 How OmniMentor Helps |
+|---|---|---|
+| **Cognitive Load** | Mental energy consumed by basic fact retrieval instead of high-level reasoning | Architecture externalized so engineers reason visually, not from memory |
+| **Emotional Anxiety** | Fear of asking "obvious" questions; hesitation to lead system reviews | Non-judgmental, always-available practice with traceable, verifiable answers |
+| **Social Isolation** | Ownership knowledge lives with people who were there; newcomers navigate blind | Ownership, dependencies, and coordination boundaries made explicit and queryable |
 
 **OmniMentor treats this as a learning problem, not a documentation problem.**
-
-It provides a practice environment to build evidence-first reasoning before those decisions cost anything in production. Pick a realistic scenario. Inspect the evidence. Submit your analysis. Receive rubric-based feedback tied to what was missing and why it matters. Repeat until evidence-first thinking is the default — not something triggered only by a post-mortem.
 
 > *"A newcomer should be able to sit in a meeting, explain the key dependencies, and predict how a change might ripple through the system — with confidence, before things go wrong."*
 
 ---
 
-## What It Addresses
+## 🚀 Quick Start
 
-| Dimension | The Problem | How OmniMentor Helps |
-|---|---|---|
-| **Cognitive Load** | Mental energy consumed by basic fact retrieval — who owns this? what does this touch? — instead of high-level reasoning | Architecture externalised so engineers reason visually, not from memory |
-| **Emotional Anxiety** | Fear of bothering a senior engineer. Hesitation to lead a system review. Uncertainty that slows decisions. | Non-judgmental, always-available practice with traceable, verifiable answers |
-| **Social Isolation** | Ownership knowledge lives with people who were there. Newcomers navigate blind across team boundaries. | Ownership, dependencies, and coordination boundaries made explicit and queryable |
-
----
-
-## Quick Start
-
-Start with the path that matches your role:
-
-- Reviewer or mentor: [docs/start-here/overview.md](docs/start-here/overview.md) then [docs/start-here/quickstart.md](docs/start-here/quickstart.md)
-- Learner or TPM: [docs/start-here/user-guide.md](docs/start-here/user-guide.md)
-- Technical reviewer: [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md) and [docs/research/evaluation-and-kpis.md](docs/research/evaluation-and-kpis.md)
-
-**Prerequisites**: Node.js 20+, pnpm, sqlite, macOS, Ollama (for AI Assistant)
+**Prerequisites**: Node.js 20+, pnpm, SQLite, macOS, Ollama (for AI Assistant)
 
 ```bash
-git clone https://github.com/asharma3084/OmniMentor-Learning-Platform.git
-cd OmniMentor-Learning-Platform
+git clone https://github.com/arvisha16/OmniMentor-Learning-Platform-CS6460.git
+cd OmniMentor-Learning-Platform-CS6460
 pnpm --dir workspace install
 bash scripts/manage.sh start all
 ```
 
-**Health check:**
 ```bash
+# Health check
 curl -s http://localhost:9992/health
 ```
 
-Web UI → [http://localhost:9991](http://localhost:9991) · API → [http://localhost:9992](http://localhost:9992)
+| Service | URL |
+|---|---|
+| 🌐 Web UI | [http://localhost:9991](http://localhost:9991) |
+| ⚡ API | [http://localhost:9992](http://localhost:9992) |
+
+**Start with the path that matches your role:**
+
+| 👤 Role | 📄 Start Here |
+|---|---|
+| Reviewer / Mentor | [Overview](docs/start-here/overview.md) → [Quickstart](docs/start-here/quickstart.md) |
+| Learner / TPM | [User Guide](docs/start-here/user-guide.md) |
+| Technical Reviewer | [Architecture](docs/architecture/system-architecture.md) → [Evaluation](docs/research/evaluation-and-kpis.md) |
 
 ---
 
-## How It Works
+## 🔄 How It Works
 
-OmniMentor now defaults to a **guided-first practice loop** grounded in cognitive apprenticeship (Collins et al., 1989), scaffolding theory (Wood et al., 1976), and self-explanation (Chi et al., 1989):
+OmniMentor defaults to a **guided-first practice loop** grounded in cognitive apprenticeship (Collins et al., 1989), scaffolding theory (Wood et al., 1976), and self-explanation (Chi et al., 1989):
 
-1. **Brief** — read the mission, constraints, and success criteria for one scenario
-2. **Investigate** — inspect evidence, extract owner/dependency/risk clues, and select one primary plus one corroborating artifact
-3. **Decide** — submit owner routing, dependency trace (upstream → downstream), action plan, blast radius, and evidence notes
-4. **Feedback** — receive rubric feedback, critical-error flags, and gold-aligned explanation of what was missing and why it matters
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    🎯 Guided Learning Flow                          │
+│                                                                     │
+│  📋 Brief ──→ 🔍 Investigate ──→ ✍️ Decide ──→ 📊 Feedback        │
+│                                                                     │
+│  Read the      Inspect evidence,   Submit owner     Receive rubric  │
+│  scenario &    select primary +    routing, deps,   feedback, flags │
+│  constraints   corroborating       blast radius     & coaching      │
+│                artifacts                                            │
+└─────────────────────────────────────────────────────────────────────┘
+                        💬 AI Assistant available at every step
+```
 
-An **AI Assistant** (chat bubble in the bottom-right corner) is available on every step. Powered by Ollama running locally, it provides context-aware coaching — guiding you toward evidence-first reasoning without revealing gold-label answers.
+🤖 An **AI Assistant** (chat bubble, bottom-right) is available on every step. Powered by **Ollama** running locally with `llama3.2`, it provides context-aware coaching — guiding you toward evidence-first reasoning without revealing gold-label answers.
 
-The feedback engine evaluates five dimensions:
+### 📏 Five Scoring Dimensions
 
 | Metric | What It Measures |
 |---|---|
@@ -89,11 +118,22 @@ The feedback engine evaluates five dimensions:
 | Evidence relevance score | Coverage against the gold evidence set (primary + corroborating required) |
 | Unsupported-claim rate | Proportion of submitted claims not backed by opened evidence |
 
-Critical errors — wrong owner, wrong directionality, unsafe action without verification — are flagged explicitly.
+⚠️ Critical errors — wrong owner, wrong directionality, unsafe action without verification — are flagged explicitly.
 
 ---
 
-## Architecture
+## 📈 Ablation Results
+
+Reproducible ablation study across **4 retrieval modes** × **12 scenarios** × **4 domains** (Catalog, Cart & Checkout, Risk & Compliance, Fulfillment & Logistics):
+
+| Mode | Score | Progress |
+|---|---|---|
+| `vector` | 0.856 | 🟩🟩🟩🟩🟩🟩🟩🟩⬜⬜ |
+| `graph` | 0.889 | 🟩🟩🟩🟩🟩🟩🟩🟩🟩⬜ |
+| `graphrag` | 0.930 | 🟩🟩🟩🟩🟩🟩🟩🟩🟩⬜ |
+| `graphrag_gating` | **0.963** | 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 |
+
+> Monotonic improvement from baseline vector (0.856) to evidence-gated GraphRAG (0.963), validated across 61 E2E tests.
 
 ```mermaid
 flowchart TB
@@ -154,60 +194,21 @@ See [`docs/architecture/system-architecture.md`](docs/architecture/system-archit
 
 ---
 
-## Evaluation Design
-
-Reproducible ablation study across four retrieval modes against a gold-labeled benchmark of 12 scenarios across four domains: Catalog, Cart & Checkout, Risk & Compliance, Fulfillment & Logistics.
-
-| Mode | Current Baseline | Target |
-|---|---|---|
-| `vector` | Keyword-overlap ranking (deterministic) | Top-k vector retrieval via Qdrant |
-| `graph` | Keyword-overlap + dependency-term boosting | 1–3 hop graph traversal via Neo4j |
-| `graphrag` | Keyword-overlap + dependency + provenance boosting | Graph-grounded retrieval context assembly |
-| `graphrag_gating` | GraphRAG baseline + role-diversity enforcement + evidence gating | GraphRAG + claim-level evidence gating |
-
-Advanced mode review surfaces:
-- `Overview`
-- `Scenario Workspace`
-- `System Graph`
-- `Evidence`
-- `Evaluation`
-- `Check-in Export`
-
-Freeze-scope enhancements (design/architecture baseline before coding completion):
-- `System Graph`: interactive review surface with filters, node focus, path review, and provenance-linked node detail.
-- `Evaluation`: richer per-mode analytics (table + trend deltas + error-category breakdown) with clear mode diagnostics.
-- `Check-in Export`: structured review-ready export with selected-evidence references, score/gating snapshot, and copy/download actions.
-
-Current verified state:
-- Guided mode is the default learner path.
-- Advanced `Overview`, `System Graph`, `Evaluation`, and `Check-in Export` are implemented and browser-verified.
-- AI Assistant (Ollama-powered coaching chat) is integrated into the guided flow with step-aware prompts and behavioral guardrails.
-- Retrieval comparison is available across `vector`, `graph`, `graphrag`, and `graphrag_gating`.
-
-Near-term roadmap beyond the current verified state:
-- deepen graph review interactions and evidence-linked inspection flows
-- package the product story and review surfaces for Intermediate Milestone 2
-- expand evaluation evidence and reviewer-facing reporting toward final-project readiness
-
----
-
-## Quality Gates
+## ✅ Quality Gates
 
 ```bash
 pnpm --dir workspace lint        # zero warnings
 pnpm --dir workspace typecheck   # strict TypeScript
-pnpm --dir workspace test        # 28 tests across 5 suites
-pnpm --dir workspace test:e2e    # guided GUI automation on isolated ports
+pnpm --dir workspace test        # unit tests
+pnpm --dir workspace test:e2e    # 61 Playwright E2E tests
 pnpm --dir workspace build       # clean production build
 pnpm --dir workspace smoke       # end-to-end health check
 pnpm --dir workspace eval        # benchmark + ablation report
 ```
 
-All gates must pass before any change is considered done.
-
 ---
 
-## API
+## 🔌 API
 
 ```
 GET  /health
@@ -227,21 +228,20 @@ GET  /surveys/status
 POST /assist              # AI coaching (streaming SSE, requires Ollama)
 ```
 
-See [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md) for the complete API contract with request/response schemas.
-
-Full contract: [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md)
+See [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md) for full request/response schemas.
 
 ---
 
-## Data and Security
+## 🔒 Data and Security
 
-- Synthetic-only corpus. No personal, proprietary, or company-internal data.
-- No secrets committed to source control.
-- No telemetry. No external data transmission.
+- ✅ Synthetic-only corpus (Omni-Mart). No personal, proprietary, or company-internal data.
+- ✅ No secrets committed to source control.
+- ✅ No telemetry. No external data transmission.
+- ✅ No PII. No real production data.
 
 ---
 
-## Documentation
+## 📚 Documentation
 
 Documentation hub: [`docs/README.md`](docs/README.md)
 
@@ -267,4 +267,42 @@ Reference set:
 | [`docs/reference/scenario-guide.md`](docs/reference/scenario-guide.md) | Current six-scenario walkthrough and demo guidance |
 | [`docs/reference/risks-and-technical-debt.md`](docs/reference/risks-and-technical-debt.md) | Risks, fallbacks, and technical debt |
 | [`docs/reference/glossary.md`](docs/reference/glossary.md) | Domain and product terminology |
+
+---
+
+## 🎓 Academic Foundation
+
+OmniMentor is grounded in established learning science research:
+
+| Theory | Author(s) | How It Informs OmniMentor |
+|---|---|---|
+| Cognitive Load Theory | Sweller, 1988 | Externalize architecture to reduce extraneous load |
+| Situated Cognition | Brown, Collins & Duguid, 1989 | Authentic scenario-based practice |
+| Legitimate Peripheral Participation | Lave & Wenger, 1991 | Progressive onboarding from observation to full participation |
+| Cognitive Apprenticeship | Collins, Brown & Newman, 1989 | Guided practice with scaffolded feedback |
+| Self-Explanation Effect | Chi et al., 1989 | Learner articulates reasoning before receiving feedback |
+| Design-Based Research | Barab & Squire, 2004 | Iterative methodology; each milestone is a design cycle |
+
+---
+
+## 🏆 Course Results
+
+| Assignment | Score | Date |
+|---|---|---|
+| Intermediate Milestone 1 | 9/10 | Mar 22, 2026 |
+| Intermediate Milestone 2 | 9/10 | Apr 12, 2026 |
+| Final Project | **10/10** | May 3, 2026 |
+| Project Paper | 9/10 | May 3, 2026 |
+| Project Presentation | 9/10 | May 3, 2026 |
+| **Total** | **46/50 (92%)** | |
+
+---
+
+<div align="center">
+
+*Built with ❤️ as a Georgia Tech CS 6460 capstone project*
+
+*Arvind Kumar Sharma · Spring 2026*
+
+</div>
 

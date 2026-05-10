@@ -1,206 +1,372 @@
+<!-- ═══════════════════════════════════════════════════════════════════════
+     OmniMentor — Architecture Fluency Platform
+     ═══════════════════════════════════════════════════════════════════════ -->
+
 <div align="center">
 
-<img width="100" src="https://em-content.zobj.net/source/apple/391/graduation-cap_1f393.png" alt="OmniMentor" />
-
-# OmniMentor
-
-### Turning Institutional Memory into a Learnable Skill
-
-<br/>
-
-[![Final Project](https://img.shields.io/badge/🏆_Final_Project-10%2F10-00C853?style=for-the-badge)](docs/start-here/overview.md)
-[![Paper](https://img.shields.io/badge/📄_Paper-9%2F10-2979FF?style=for-the-badge)](docs/start-here/overview.md)
-[![Presentation](https://img.shields.io/badge/🎤_Presentation-9%2F10-7C4DFF?style=for-the-badge)](docs/start-here/overview.md)
-[![Overall](https://img.shields.io/badge/⭐_Overall-46%2F50_(92%25)-FFD600?style=for-the-badge)](docs/start-here/overview.md)
+<!-- Hero Banner -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:0a1628,50:1e3a5f,100:3b82f6&height=220&section=header&text=OmniMentor&fontSize=72&fontColor=ffffff&fontAlignY=35&desc=Architecture%20Fluency%20Platform&descSize=20&descAlignY=55&descColor=94a3b8&animation=fadeIn" />
+  <source media="(prefers-color-scheme: light)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:e0e7ff,50:818cf8,100:3b82f6&height=220&section=header&text=OmniMentor&fontSize=72&fontColor=1e1b4b&fontAlignY=35&desc=Architecture%20Fluency%20Platform&descSize=20&descAlignY=55&descColor=475569&animation=fadeIn" />
+  <img width="100%" alt="OmniMentor Hero Banner" src="https://capsule-render.vercel.app/api?type=waving&color=0:0a1628,50:1e3a5f,100:3b82f6&height=220&section=header&text=OmniMentor&fontSize=72&fontColor=ffffff&fontAlignY=35&desc=Architecture%20Fluency%20Platform&descSize=20&descAlignY=55&descColor=94a3b8&animation=fadeIn" />
+</picture>
 
 <br/>
 
-<kbd>CS 6460 — Educational Technology</kbd> · <kbd>Georgia Institute of Technology</kbd> · <kbd>Spring 2026</kbd>
+### Stop reading docs. Start building reasoning.
+
+*The platform that teaches engineers and TPMs to think through distributed systems —*
+*not just look things up.*
 
 <br/>
 
-<a href="docs/start-here/overview.md"><img src="https://img.shields.io/badge/-📖_Read_the_Overview-6366F1?style=for-the-badge" /></a>
-<a href="docs/start-here/quickstart.md"><img src="https://img.shields.io/badge/-🚀_Get_Started-F97316?style=for-the-badge" /></a>
-<a href="docs/architecture/system-architecture.md"><img src="https://img.shields.io/badge/-🏗️_Architecture-22C55E?style=for-the-badge" /></a>
-<a href="docs/reference/scenario-guide.md"><img src="https://img.shields.io/badge/-🎯_Try_a_Scenario-0EA5E9?style=for-the-badge" /></a>
+[![License](https://img.shields.io/badge/License-MIT-22C55E?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
+[![Tests](https://img.shields.io/badge/E2E_Tests-61_Passing-8B5CF6?style=flat-square&logo=playwright&logoColor=white)](tests/)
+[![AI](https://img.shields.io/badge/AI_Coach-Ollama_Local-F97316?style=flat-square&logo=meta&logoColor=white)](services/api/)
+[![Scenarios](https://img.shields.io/badge/Scenarios-12_Across_4_Domains-0EA5E9?style=flat-square&logo=target&logoColor=white)](docs/reference/scenario-guide.md)
 
-<br/><br/>
+<br/>
 
-<img src="https://skillicons.dev/icons?i=ts,react,nodejs,vite,sqlite" alt="Tech stack" />
+<a href="docs/start-here/quickstart.md"><img src="https://img.shields.io/badge/→_Get_Started_in_60_Seconds-22C55E?style=for-the-badge&logoColor=white" /></a>
+&nbsp;&nbsp;
+<a href="docs/start-here/overview.md"><img src="https://img.shields.io/badge/📖_Read_the_Docs-6366F1?style=for-the-badge" /></a>
+&nbsp;&nbsp;
+<a href="docs/reference/scenario-guide.md"><img src="https://img.shields.io/badge/🎯_Try_a_Scenario-0EA5E9?style=for-the-badge" /></a>
 
 <br/><br/>
 
 </div>
 
----
-
-## 💡 Why This Exists
-
-I built OmniMentor because I've watched smart, motivated engineers freeze when they join a new team. Not because they lack skill — but because the system's real logic lives in tribal memory.
-
-*Who owns this service? What breaks if you touch it? Who do you escalate to at 2am?*
-
-None of that is in the docs. It's in someone's head. And that someone is always busy.
-
-**This is Architecture Blindness**, and it hits on three levels:
-
-<table>
-<tr>
-<td width="33%" align="center">
-
-### 🧠 Cognitive
-
-Too many services, too many names — no mental model for what owns what
-
-</td>
-<td width="33%" align="center">
-
-### 😰 Emotional
-
-Fear of asking "obvious" questions. Hesitation to make calls under uncertainty
-
-</td>
-<td width="33%" align="center">
-
-### 🏝️ Social
-
-Knowledge lives with people who were there. Newcomers navigate blind
-
-</td>
-</tr>
-</table>
-
-> **OmniMentor treats this as a learning problem, not a documentation problem.**
->
-> *"A newcomer should be able to sit in a meeting, explain the key dependencies, and predict how a change might ripple through the system — with confidence, before things go wrong."*
-
----
-
-## 🔄 How It Works
-
-A four-step guided practice loop grounded in cognitive apprenticeship, scaffolding theory, and self-explanation research:
-
-<table>
-<tr>
-<td align="center" width="25%">
-
-### 📋 Step 1
-**Brief**
-
-Read the incident scenario, constraints, and what success looks like
-
-</td>
-<td align="center" width="25%">
-
-### 🔍 Step 2
-**Investigate**
-
-Inspect evidence artifacts. Select primary + corroborating evidence
-
-</td>
-<td align="center" width="25%">
-
-### ✍️ Step 3
-**Decide**
-
-Submit owner routing, dependency trace, blast radius, and evidence notes
-
-</td>
-<td align="center" width="25%">
-
-### 📊 Step 4
-**Feedback**
-
-Rubric scores, critical-error flags, coaching, and gold-aligned explanation
-
-</td>
-</tr>
-</table>
+<!-- ═══════════ HERO SCREENSHOT ═══════════ -->
 
 <div align="center">
 
-💬 **AI Coach available on every step** — powered by Ollama (`llama3.2`), running 100% locally
+<img src="docs/screenshots/hero-brief.png" alt="OmniMentor — Incident Brief View" width="90%" style="border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);" />
+
+<br/>
+
+<sub>The Brief step — a realistic incident scenario from the synthetic Omni-Mart enterprise. Dark theme optimized for long practice sessions.</sub>
 
 </div>
 
-The AI Assistant provides context-aware coaching without revealing answers. It nudges you toward evidence-first reasoning like a patient mentor would — not a search engine.
+<br/>
 
 ---
 
-## 📊 What Gets Scored
+<br/>
 
-Every submission is evaluated across **five rubric dimensions** with automated coaching:
+## The Problem
 
-| 🎯 Dimension | What It Measures |
-|:---|:---|
-| **Owner Routing** | Did you identify the correct primary owner with justification? |
-| **Dependency Trace** | Is the upstream → downstream critical path accurate? |
-| **Blast Radius** | Did you map downstream impacts and constraints? |
-| **Evidence Relevance** | Coverage against gold evidence set (primary + corroborating) |
-| **Unsupported Claims** | Any reasoning not backed by opened evidence? |
+Your newest engineer joins the team. They're smart. Motivated. They have access to every wiki, every Confluence page, every architecture diagram.
 
-> ⚠️ Critical errors — wrong owner, inverted dependency direction, unsafe action without verification — trigger hard gates before scoring.
+**And they're still lost.**
 
----
+They sit on an incident bridge unable to explain which service is failing, who owns it, or what might break next. The knowledge they need isn't in any document — it lives in the heads of people who've been there for years.
 
-## 📈 Retrieval Ablation Results
+<br/>
 
-Four retrieval modes tested across **12 scenarios** in **4 enterprise domains**:
+<div align="center">
+
+> **We call this *Architecture Blindness* — and it costs organizations millions in slow onboarding, repeated mistakes, and talent attrition.**
+
+</div>
+
+<br/>
 
 <table>
-<tr><td>
+<tr>
+<td width="33%" align="center">
 
-| Mode | Score | |
-|:---|:---|:---|
-| `vector` | 0.856 | `████████░░` |
-| `graph` | 0.889 | `████████▉░` |
-| `graphrag` | 0.930 | `█████████▎` |
-| `graphrag_gating` | **0.963** | `██████████` |
+### 🧠 Cognitive Overload
+Hundreds of microservices. Thousands of dependencies. No mental model to hold it together.
 
-</td><td>
+*Sweller, 1988*
 
-**Domains covered:**
-- 🛒 Catalog
-- 🛍️ Cart & Checkout
-- ⚖️ Risk & Compliance
-- 🚚 Fulfillment & Logistics
+</td>
+<td width="33%" align="center">
 
-**12 scenarios** · **61 E2E tests** · **All passing**
+### 😰 Performance Anxiety
+Fear of asking "obvious" questions on a bridge call with 30 senior engineers listening.
 
-</td></tr>
+*Bandura, 1977*
+
+</td>
+<td width="33%" align="center">
+
+### 🏝️ Knowledge Silos
+The real logic lives in tribal memory. Docs describe *what exists* — not *how to reason about it*.
+
+*Lave & Wenger, 1991*
+
+</td>
+</tr>
 </table>
 
-> Monotonic improvement from baseline vector to evidence-gated GraphRAG — validated with reproducible ablation runs.
+<br/>
+
+<div align="center">
+
+**OmniMentor treats this as a *learning problem*, not a documentation problem.**
+
+</div>
+
+<br/>
 
 ---
 
-## 🏗️ Architecture
+<br/>
+
+## How It Works
+
+A four-step guided practice loop — grounded in cognitive science, not guesswork.
+
+<br/>
+
+<table>
+<tr>
+<td align="center" width="25%">
+
+<img src="https://img.shields.io/badge/1-Brief-3b82f6?style=for-the-badge" />
+
+**📋 Read the Scenario**
+
+A realistic incident drops. Understand the context, the stakes, and what decision you need to make.
+
+<sub>Situated Cognition<br/>(Brown et al., 1989)</sub>
+
+</td>
+<td align="center" width="25%">
+
+<img src="https://img.shields.io/badge/2-Investigate-8b5cf6?style=for-the-badge" />
+
+**🔍 Review Evidence**
+
+Examine ownership registries, dependency specs, runbooks, and post-incident reviews. Select what matters.
+
+<sub>Self-Explanation<br/>(Chi et al., 1989)</sub>
+
+</td>
+<td align="center" width="25%">
+
+<img src="https://img.shields.io/badge/3-Decide-22c55e?style=for-the-badge" />
+
+**✍️ Build Your Answer**
+
+Route the owner. Trace the dependencies. Assess the blast radius. Cite your evidence.
+
+<sub>Cognitive Apprenticeship<br/>(Collins et al., 1989)</sub>
+
+</td>
+<td align="center" width="25%">
+
+<img src="https://img.shields.io/badge/4-Feedback-f97316?style=for-the-badge" />
+
+**📊 Get Scored**
+
+Five-dimension rubric with critical-error gates, coaching labels, and a connected learning summary.
+
+<sub>Step-based Tutoring<br/>(VanLehn, 2011)</sub>
+
+</td>
+</tr>
+</table>
+
+<br/>
+
+<div align="center">
+
+💬 **AI Coach on every step** — powered by Ollama (`llama3.2`), running 100% on your machine. No data leaves your network.
+
+</div>
+
+<br/>
+
+---
+
+<br/>
+
+## See It In Action
+
+<br/>
+
+<table>
+<tr>
+<td width="50%">
+
+<img src="docs/screenshots/evidence-artifacts.png" alt="Evidence Artifacts" width="100%" />
+
+**Evidence Investigation** — Artifact cards with primary/corroborating classification. Learners select evidence before they can answer.
+
+</td>
+<td width="50%">
+
+<img src="docs/screenshots/decide-step.png" alt="Decide Step" width="100%" />
+
+**Structured Decision** — Owner routing, dependency trace, blast radius assessment, and evidence notes. Every claim must be backed by an artifact.
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+<img src="docs/screenshots/scenario-brief.png" alt="Scenario Brief" width="100%" />
+
+**Scenario Queue** — 12 scenarios across 4 enterprise domains. Start any scenario and track your progress.
+
+</td>
+<td width="50%">
+
+<img src="docs/screenshots/walkthrough-modal.png" alt="Guided Walkthrough" width="100%" />
+
+**Built-in Onboarding** — Interactive walkthrough teaches the practice loop before the first scenario.
+
+</td>
+</tr>
+</table>
+
+<br/>
+
+---
+
+<br/>
+
+## What Makes It Different
+
+<br/>
+
+<table>
+<tr>
+<td width="50%">
+
+### 🔒 Evidence Gating
+
+Every claim in a learner's response must trace back to a specific artifact. Unsupported reasoning? Flagged immediately. No hand-waving allowed.
+
+*This is how you build rigorous thinking — not just fast answers.*
+
+</td>
+<td width="50%">
+
+### 🤖 AI That Coaches, Not Answers
+
+The AI assistant has 8 behavioral guardrails. It nudges toward evidence. It asks Socratic questions. It never reveals the answer.
+
+*A mentor that's always available — without the bottleneck.*
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 📊 Five-Dimension Rubric
+
+Owner Routing · Dependency Trace · Blast Radius · Evidence Relevance · Unsupported Claims — each scored independently with coaching labels.
+
+*Not a binary pass/fail. Granular feedback on exactly where reasoning breaks down.*
+
+</td>
+<td width="50%">
+
+### 🏢 Enterprise-Grade Scenarios
+
+12 realistic incidents across Catalog, Cart & Checkout, Risk & Compliance, and Fulfillment & Logistics. Built from real-world patterns at scale.
+
+*Practice the complexity your team actually faces.*
+
+</td>
+</tr>
+</table>
+
+<br/>
+
+---
+
+<br/>
+
+## Proven Results
+
+Graph-augmented retrieval with evidence gating — validated across all 12 scenarios, 4 domains.
+
+<br/>
+
+<div align="center">
+
+| Retrieval Mode | Accuracy | Improvement | |
+|:---|:---:|:---:|:---|
+| `vector` — Keyword Search | 0.856 | baseline | `████████░░` |
+| `graph` — Connected Systems | 0.889 | +3.9% | `████████▉░` |
+| `graphrag` — Deep Search | 0.930 | +8.6% | `█████████▎` |
+| **`graphrag_gating`** — Deep + Validation | **0.963** | **+12.5%** | `██████████` |
+
+</div>
+
+<br/>
+
+<div align="center">
+
+> **+12.5% accuracy improvement** over baseline. Zero unsupported claims with evidence gating enabled.
+
+</div>
+
+<br/>
+
+<table>
+<tr>
+<td align="center" width="25%">
+
+**12**
+<br/><sub>Scenarios</sub>
+
+</td>
+<td align="center" width="25%">
+
+**4**
+<br/><sub>Enterprise Domains</sub>
+
+</td>
+<td align="center" width="25%">
+
+**0.963**
+<br/><sub>Best Accuracy</sub>
+
+</td>
+<td align="center" width="25%">
+
+**0**
+<br/><sub>Unsupported Claims</sub>
+
+</td>
+</tr>
+</table>
+
+<br/>
+
+---
+
+<br/>
+
+## Architecture
 
 ```mermaid
 flowchart TB
   U["👤 Learner"]
   subgraph UI["🌐 Web UI — React + Vite"]
     direction TB
-    subgraph G["Guided Mode"]
-      B["📋 Brief"] --> I["🔍 Investigate"] --> D["✍️ Decide"] --> F["📊 Feedback"]
-    end
-    subgraph A2["Advanced Mode"]
-      OV["Overview"] ~~~ SG["System Graph"] ~~~ EV["Evaluation"]
-    end
+    B["📋 Brief"] --> I["🔍 Investigate"] --> D["✍️ Decide"] --> F["📊 Feedback"]
     AI["💬 AI Coach"]
   end
-  API["⚡ API — Express + Node"]
-  CORE["🧠 Core Engine — Scoring + Gating"]
+  API["⚡ Express API"]
+  CORE["🧠 Scoring Engine"]
   RET["🔎 Retrieval Layer"]
-  LLM["🤖 Ollama — llama3.2"]
+  LLM["🤖 Ollama"]
   DB[("💾 SQLite")]
-  CORPUS["📚 Synthetic Corpus"]
+  CORPUS["📚 Scenario Corpus"]
 
-  U --> G
-  U -.-> A2
-  G --> API
-  A2 --> API
+  U --> B
   AI -->|"SSE stream"| API
+  F --> API
+  D --> API
   API --> CORE
   API --> RET
   API --> LLM
@@ -209,8 +375,65 @@ flowchart TB
   CORE --> DB
 ```
 
+<br/>
+
+<div align="center">
+
+<img src="https://skillicons.dev/icons?i=ts,react,nodejs,vite,sqlite" alt="Tech stack" />
+
+<br/><br/>
+
+**TypeScript (strict)** · **React 18** · **Node.js 20+** · **Vite** · **SQLite** · **Express** · **Ollama** · **Playwright**
+
+</div>
+
+<br/>
+
+---
+
+<br/>
+
+## Quick Start
+
+```bash
+# Clone
+git clone https://github.com/arvisha16/OmniMentor-Learning-Platform-CS6460.git
+cd OmniMentor-Learning-Platform-CS6460
+
+# Install
+pnpm --dir workspace install
+
+# Launch
+bash scripts/manage.sh start all
+```
+
+| Service | URL | Purpose |
+|---|---|---|
+| 🌐 Web UI | [localhost:9991](http://localhost:9991) | Practice interface |
+| ⚡ API | [localhost:9992](http://localhost:9992) | Backend engine |
+
+<br/>
+
+**Requirements:** Node.js 20+ · pnpm · SQLite · Ollama (optional, for AI Coach)
+
+<br/>
+
 <details>
-<summary><b>🔌 Full API Surface</b></summary>
+<summary><b>🧪 Run the test suite</b></summary>
+
+```bash
+pnpm --dir workspace lint        # Zero warnings
+pnpm --dir workspace typecheck   # Strict TypeScript
+pnpm --dir workspace test        # Unit tests
+pnpm --dir workspace test:e2e    # 61 Playwright E2E tests
+pnpm --dir workspace build       # Production build
+pnpm --dir workspace eval        # Ablation benchmark
+```
+
+</details>
+
+<details>
+<summary><b>🔌 API Endpoints</b></summary>
 
 ```
 GET  /health                    # Health check
@@ -226,140 +449,79 @@ POST /sessions/event            # Log session event
 GET  /analytics/sessions        # Session analytics
 POST /surveys                   # Submit survey
 GET  /surveys                   # Get survey responses
-GET  /surveys/status            # Survey completion status
 POST /assist                    # AI coaching (streaming SSE)
 ```
 
-See [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md) for full schemas.
+Full schemas → [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md)
 
 </details>
-
----
-
-## 🚀 Getting Started
-
-```bash
-# Clone and install
-git clone https://github.com/arvisha16/OmniMentor-Learning-Platform-CS6460.git
-cd OmniMentor-Learning-Platform-CS6460
-pnpm --dir workspace install
-
-# Start everything
-bash scripts/manage.sh start all
-
-# Verify
-curl -s http://localhost:9992/health
-```
-
-| | Service | URL |
-|---|---|---|
-| 🌐 | Web UI | [localhost:9991](http://localhost:9991) |
-| ⚡ | API | [localhost:9992](http://localhost:9992) |
-
-**Prerequisites:** Node.js 20+ · pnpm · SQLite · macOS · Ollama (for AI Coach)
-
----
-
-## ✅ Quality Gates
-
-```bash
-pnpm --dir workspace lint        # Zero warnings
-pnpm --dir workspace typecheck   # Strict TypeScript
-pnpm --dir workspace test        # Unit tests
-pnpm --dir workspace test:e2e    # 61 Playwright E2E tests
-pnpm --dir workspace build       # Production build
-pnpm --dir workspace eval        # Ablation benchmark
-```
-
----
-
-## 🔒 Data & Security
-
-| | |
-|---|---|
-| ✅ | **Synthetic-only** corpus (Omni-Mart) — no real company data |
-| ✅ | **No PII** — zero personal or production data |
-| ✅ | **No secrets** committed to source control |
-| ✅ | **No telemetry** — nothing leaves your machine |
-
----
-
-## 🎓 Academic Foundation
-
-This project stands on real learning science — not buzzwords.
-
-<table>
-<tr>
-<td>
-
-| Theory | Key Insight for OmniMentor |
-|:---|:---|
-| **Cognitive Load Theory** *(Sweller, 1988)* | Externalize architecture to free working memory |
-| **Situated Cognition** *(Brown et al., 1989)* | Learning happens in authentic contexts, not textbooks |
-| **Legitimate Peripheral Participation** *(Lave & Wenger, 1991)* | Newcomers learn by gradually doing real work |
-| **Cognitive Apprenticeship** *(Collins et al., 1989)* | Guided practice with scaffolded feedback |
-| **Self-Explanation** *(Chi et al., 1989)* | Articulating reasoning deepens understanding |
-| **Design-Based Research** *(Barab & Squire, 2004)* | Build → test → iterate in authentic settings |
-
-</td>
-</tr>
-</table>
-
----
-
-## 📚 Documentation
-
-<details>
-<summary><b>📖 Full documentation index</b></summary>
-
-| Doc | What's Inside |
-|:---|:---|
-| [Overview](docs/start-here/overview.md) | Project purpose and problem framing |
-| [Quickstart](docs/start-here/quickstart.md) | Setup and first run |
-| [User Guide](docs/start-here/user-guide.md) | Walkthrough for learners |
-| [System Architecture](docs/architecture/system-architecture.md) | Full system design |
-| [API Contract](docs/architecture/api-contract.md) | Endpoint schemas |
-| [Data Model](docs/architecture/data-model.md) | Logical data model |
-| [Requirements](docs/architecture/requirements.md) | Functional & non-functional |
-| [Decisions Log](docs/architecture/decisions-log.md) | Architecture Decision Records |
-| [Evaluation & KPIs](docs/research/evaluation-and-kpis.md) | Research questions & metrics |
-| [Testing Strategy](docs/research/testing-strategy.md) | Validation approach |
-| [Data & Security](docs/research/data-and-security.md) | Data handling posture |
-| [Scenario Guide](docs/reference/scenario-guide.md) | All 12 scenarios explained |
-| [UI Design](docs/reference/detailed-ui-design.md) | Tab flows and mockups |
-| [Glossary](docs/reference/glossary.md) | Domain terminology |
-
-</details>
-
----
-
-## 🏆 Course Results
-
-<div align="center">
-
-| Assignment | Score | |
-|:---|:---:|:---|
-| Intermediate Milestone 1 | **9 / 10** | ⭐⭐⭐⭐⭐⭐⭐⭐⭐☆ |
-| Intermediate Milestone 2 | **9 / 10** | ⭐⭐⭐⭐⭐⭐⭐⭐⭐☆ |
-| Final Project | **10 / 10** | ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ |
-| Project Paper | **9 / 10** | ⭐⭐⭐⭐⭐⭐⭐⭐⭐☆ |
-| Project Presentation | **9 / 10** | ⭐⭐⭐⭐⭐⭐⭐⭐⭐☆ |
-| | | |
-| **Total** | **46 / 50** | **92%** |
-
-</div>
-
----
-
-<div align="center">
-
-**Built with ❤️ at Georgia Tech**
-
-*Arvind Kumar Sharma · CS 6460 Educational Technology · Spring 2026*
 
 <br/>
 
-<a href="docs/start-here/quickstart.md"><img src="https://img.shields.io/badge/→_Get_Started-22C55E?style=for-the-badge" /></a>
+---
+
+<br/>
+
+## Security & Data
+
+| | |
+|:---:|:---|
+| 🔒 | **100% synthetic data** — the Omni-Mart corpus contains zero real company information |
+| 🛡️ | **No PII** — no personal data collected, stored, or transmitted |
+| 🏠 | **Local-first** — AI runs on your machine via Ollama. Nothing leaves your network |
+| 🔑 | **No secrets in source** — verified clean across all tracked files |
+
+<br/>
+
+---
+
+<br/>
+
+## Documentation
+
+| | Resource | Description |
+|:---:|:---|:---|
+| 📖 | [Overview](docs/start-here/overview.md) | Problem framing and product vision |
+| 🚀 | [Quickstart](docs/start-here/quickstart.md) | Setup and first run |
+| 📘 | [User Guide](docs/start-here/user-guide.md) | Complete walkthrough for learners |
+| 🏗️ | [System Architecture](docs/architecture/system-architecture.md) | Full system design |
+| 📐 | [API Contract](docs/architecture/api-contract.md) | Endpoint schemas and examples |
+| 🗃️ | [Data Model](docs/architecture/data-model.md) | Logical data model |
+| 📋 | [Requirements](docs/architecture/requirements.md) | Functional & non-functional specs |
+| 📝 | [Decisions Log](docs/architecture/decisions-log.md) | Architecture Decision Records |
+| 📊 | [Evaluation & KPIs](docs/research/evaluation-and-kpis.md) | Research questions & metrics |
+| 🧪 | [Testing Strategy](docs/research/testing-strategy.md) | Validation approach |
+| 🎯 | [Scenario Guide](docs/reference/scenario-guide.md) | All 12 scenarios explained |
+| 🎨 | [UI Design](docs/reference/detailed-ui-design.md) | Interface flows and mockups |
+
+<br/>
+
+---
+
+<br/>
+
+<div align="center">
+
+### Built for the teams that move fast and break things — and the people who have to understand what broke.
+
+<br/>
+
+*Architecture fluency is a learnable skill. OmniMentor is how you practice it.*
+
+<br/>
+
+<a href="docs/start-here/quickstart.md"><img src="https://img.shields.io/badge/→_Deploy_OmniMentor-22C55E?style=for-the-badge&logoColor=white" /></a>
+
+<br/><br/>
+
+<sub>Created by <a href="https://github.com/arvisha16">Arvind Kumar Sharma</a></sub>
 
 </div>
 
+<!-- ═══════════ FOOTER WAVE ═══════════ -->
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:3b82f6,50:1e3a5f,100:0a1628&height=120&section=footer" />
+  <source media="(prefers-color-scheme: light)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:3b82f6,50:818cf8,100:e0e7ff&height=120&section=footer" />
+  <img width="100%" alt="" src="https://capsule-render.vercel.app/api?type=waving&color=0:3b82f6,50:1e3a5f,100:0a1628&height=120&section=footer" />
+</picture>
